@@ -1,20 +1,16 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 
-// ✅ Create a function to manage the flag
-bool _isCheckoutLoginGlobal = false;
-
-void setCheckoutLoginFlagGlobal(bool value) {
-  _isCheckoutLoginGlobal = value;
-}
-
 class CheckoutLoginDialog extends StatefulWidget {
-  final VoidCallback onLoginSuccess;
+  final String messId;
+  final String messName;
 
-  const CheckoutLoginDialog({super.key, required this.onLoginSuccess});
+  const CheckoutLoginDialog({
+    super.key,
+    required this.messId,
+    required this.messName,
+  });
 
   @override
   State<CheckoutLoginDialog> createState() => _CheckoutLoginDialogState();
@@ -25,7 +21,6 @@ class _CheckoutLoginDialogState extends State<CheckoutLoginDialog> {
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
@@ -61,66 +56,46 @@ class _CheckoutLoginDialogState extends State<CheckoutLoginDialog> {
     setState(() => _isLoading = true);
 
     try {
-      // ✅ Set flag to prevent navigation
-      setCheckoutLoginFlagGlobal(true);
-
-      UserCredential userCredential;
-
       if (_isSignUp) {
-        userCredential = await _authService.signUp(
+        // Sign up
+        final result = await _authService.signUp(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
+          name: nameController.text.trim(),
+          phone: phoneController.text.trim(),
+          role: 'customer',
         );
+
+        if (result['success']) {
+          if (mounted) {
+            Navigator.pop(context, true); // Return true on success
+            showSnackBar('Account created successfully!');
+          }
+        } else {
+          showSnackBar(result['message'] ?? 'Sign up failed');
+        }
       } else {
-        userCredential = await _authService.signIn(
+        // Sign in
+        final result = await _authService.signIn(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
-      }
 
-      if (mounted) {
-        await handleLogin(userCredential);
+        if (result['success']) {
+          if (mounted) {
+            Navigator.pop(context, true); // Return true on success
+            showSnackBar('Login successful!');
+          }
+        } else {
+          showSnackBar(result['message'] ?? 'Login failed');
+        }
       }
-    } on FirebaseAuthException catch (e) {
-      setCheckoutLoginFlagGlobal(false);
-      setState(() => _isLoading = false);
-      if (mounted) {
-        showSnackBar(e.message ?? 'Authentication failed');
-      }
+    } on AuthException catch (e) {
+      showSnackBar(e.message);
     } catch (e) {
-      setCheckoutLoginFlagGlobal(false);
-      setState(() => _isLoading = false);
-      if (mounted) {
-        showSnackBar(e.toString());
-      }
-    }
-  }
-
-  Future<void> handleLogin(UserCredential userCredential) async {
-    final uid = userCredential.user!.uid;
-    final email = userCredential.user!.email!;
-
-    DocumentSnapshot userDoc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
-
-    if (!userDoc.exists) {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'name': _isSignUp ? nameController.text.trim() : 'Customer',
-        'phone': _isSignUp ? phoneController.text.trim() : '',
-        'email': email,
-        'role': 'customer',
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    }
-
-    if (!mounted) return;
-
-    setCheckoutLoginFlagGlobal(false);
-
-    widget.onLoginSuccess();
-
-    if (mounted) {
-      Navigator.pop(context);
+      showSnackBar('Error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

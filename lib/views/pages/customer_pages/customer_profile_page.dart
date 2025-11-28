@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:Tiffinity/data/notifiers.dart';
-import 'package:Tiffinity/data/constants.dart';
 import 'package:Tiffinity/services/auth_services.dart';
-import 'package:Tiffinity/views/auth/both_login_page.dart';
-import 'package:Tiffinity/views/auth/role_selection_page.dart';
+import 'package:Tiffinity/views/auth/welcome_page.dart';
 
 class CustomerProfilePage extends StatefulWidget {
   const CustomerProfilePage({super.key});
@@ -16,112 +10,36 @@ class CustomerProfilePage extends StatefulWidget {
 }
 
 class _CustomerProfilePageState extends State<CustomerProfilePage> {
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController addressController = TextEditingController();
-
+  Map<String, dynamic>? _userData;
   bool _isLoading = true;
-  bool _isSaving = false;
-  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
-  }
-
-  Future<void> _checkLoginStatus() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      setState(() => _isLoggedIn = true);
-      await _loadUserData();
-    } else {
-      setState(() {
-        _isLoggedIn = false;
-        _isLoading = false;
-      });
-    }
+    _loadUserData();
   }
 
   Future<void> _loadUserData() async {
+    setState(() => _isLoading = true);
+
     try {
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId == null) return;
-
-      final userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
-
-      if (userDoc.exists) {
-        final data = userDoc.data()!;
-        setState(() {
-          nameController.text = data['name'] ?? '';
-          phoneController.text = data['phone'] ?? '';
-          addressController.text = data['address'] ?? '';
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
-      }
+      final user = await AuthService.currentUser;
+      setState(() {
+        _userData = user;
+        _isLoading = false;
+      });
     } catch (e) {
+      debugPrint('Error loading user data: $e');
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
-      }
     }
   }
 
-  Future<void> _saveProfile() async {
-    if (nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter your name')));
-      return;
-    }
-
-    setState(() => _isSaving = true);
-
-    try {
-      final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId == null) return;
-
-      await FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'name': nameController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'address': addressController.text.trim(),
-        'role': 'customer',
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile saved successfully ✅'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
-      }
-    } finally {
-      setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _logout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _handleLogout() async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Logout?'),
+            title: const Text('Logout'),
             content: const Text('Are you sure you want to logout?'),
             actions: [
               TextButton(
@@ -139,22 +57,23 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
           ),
     );
 
-    if (confirmed == true) {
+    if (confirm == true && mounted) {
       try {
-        await AuthService().logout();
-        if (!context.mounted) return;
+        final authService = AuthService();
+        await authService.logout();
 
-        customerSelectedPageNotifier.value = 0;
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
-          (route) => false,
-        );
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const WelcomePage()),
+            (route) => false,
+          );
+        }
       } catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Logout error: $e')));
+          ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
         }
       }
     }
@@ -163,130 +82,135 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (!_isLoggedIn) {
-      return _buildGuestView();
+    if (_userData == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 60, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text('Failed to load profile'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadUserData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'Profile',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 32),
-
-          // Name Field
-          TextField(
-            controller: nameController,
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              prefixIcon: Icon(Icons.person),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Phone Field
-          TextField(
-            controller: phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Phone',
-              prefixIcon: Icon(Icons.phone),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Address Field
-          TextField(
-            controller: addressController,
-            decoration: const InputDecoration(
-              labelText: 'Address',
-              prefixIcon: Icon(Icons.location_on),
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 32),
-
-          const SizedBox(height: 24),
-
-          // Save Profile Button
-          ElevatedButton(
-            onPressed: _isSaving ? null : _saveProfile,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child:
-                _isSaving
-                    ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Text('Save Profile'),
-          ),
-          const SizedBox(height: 16),
-
-          // Logout Button
-          OutlinedButton.icon(
-            onPressed: () => _logout(context),
-            icon: const Icon(Icons.logout, color: Colors.red),
-            label: const Text('Logout', style: TextStyle(color: Colors.red)),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              side: const BorderSide(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGuestView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
+    return Scaffold(
+      body: SingleChildScrollView(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.person_outline, size: 100, color: Colors.grey),
-            const SizedBox(height: 24),
-            const Text(
-              'Login to view your profile',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Login to save your preferences, track orders, and more',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 32),
-            const SizedBox(height: 24),
-
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const BothLoginPage(role: 'customer'),
-                  ),
-                ).then((_) => _checkLoginStatus());
-              },
-              icon: const Icon(Icons.login),
-              label: const Text('Login with Email'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 14,
+            // Profile Header
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color.fromARGB(255, 27, 84, 78),
+                    const Color.fromARGB(255, 27, 84, 78).withOpacity(0.8),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.white,
+                        child: Text(
+                          _userData!['name']?[0].toUpperCase() ?? 'U',
+                          style: const TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            color: Color.fromARGB(255, 27, 84, 78),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _userData!['name'] ?? 'User',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _userData!['email'] ?? '',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Profile Details
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  _buildInfoCard(
+                    icon: Icons.person,
+                    title: 'Name',
+                    value: _userData!['name'] ?? 'N/A',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.email,
+                    title: 'Email',
+                    value: _userData!['email'] ?? 'N/A',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.phone,
+                    title: 'Phone',
+                    value: _userData!['phone'] ?? 'N/A',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInfoCard(
+                    icon: Icons.badge,
+                    title: 'Role',
+                    value:
+                        _userData!['role']?.toString().toUpperCase() ?? 'N/A',
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Logout Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _handleLogout,
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Logout'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -295,11 +219,53 @@ class _CustomerProfilePageState extends State<CustomerProfilePage> {
     );
   }
 
-  @override
-  void dispose() {
-    nameController.dispose();
-    phoneController.dispose();
-    addressController.dispose();
-    super.dispose();
+  Widget _buildInfoCard({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: const Color.fromARGB(255, 27, 84, 78),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

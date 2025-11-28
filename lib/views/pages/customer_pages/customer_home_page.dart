@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:Tiffinity/views/widgets/card_widget.dart';
+import 'package:Tiffinity/services/mess_service.dart';
 
 class CustomerHomePage extends StatefulWidget {
   const CustomerHomePage({super.key});
@@ -11,6 +11,35 @@ class CustomerHomePage extends StatefulWidget {
 
 class _CustomerHomePageState extends State<CustomerHomePage> {
   String searchQuery = '';
+  List<Map<String, dynamic>> _messes = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMesses();
+  }
+
+  Future<void> _loadMesses() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final messes = await MessService.getAllMesses();
+      setState(() {
+        _messes = messes;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,124 +66,106 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
 
           // Messes list
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream:
-                  FirebaseFirestore.instance.collection('messes').snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 60,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 16),
-                        Text('Error: ${snapshot.error}'),
-                        const SizedBox(height: 8),
-                        ElevatedButton(
-                          onPressed: () => setState(() {}),
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.restaurant_outlined,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No messes available',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                // Filter messes by online status and search query
-                final messes =
-                    snapshot.data!.docs.where((doc) {
-                      final mess = doc.data() as Map<String, dynamic>?;
-
-                      if (mess == null) return false;
-
-                      // ✅ Check if isOnline field exists and is true
-                      final isOnline = mess['isOnline'] == true;
-                      if (!isOnline) return false;
-
-                      // ✅ Search filter with null safety
-                      if (searchQuery.isEmpty) return true;
-
-                      final name =
-                          (mess['messName'] ?? '').toString().toLowerCase();
-                      final description =
-                          (mess['description'] ?? '').toString().toLowerCase();
-
-                      return name.contains(searchQuery) ||
-                          description.contains(searchQuery);
-                    }).toList();
-
-                if (messes.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 80, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No messes online right now',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: messes.length,
-                  padding: const EdgeInsets.only(bottom: 16),
-                  itemBuilder: (context, index) {
-                    final messDoc = messes[index];
-                    final mess = messDoc.data() as Map<String, dynamic>? ?? {};
-
-                    return CardWidget(
-                      title: mess['messName'] ?? 'Unnamed',
-                      description: mess['description'] ?? 'No description',
-                      ratings: '4.5',
-                      distance: '1.0',
-                      isVeg:
-                          (mess['messType'] ?? 'Veg')
-                              .toString()
-                              .toLowerCase() ==
-                          'veg',
-                      messId: messDoc.id,
-                      messImage: mess['messImage']?.toString(),
-                      phone: mess['phone']?.toString(),
-                      address: mess['address']?.toString(),
-                      messType: mess['messType']?.toString(),
-                    );
-                  },
-                );
-              },
-            ),
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null
+                    ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 60,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 16),
+                          Text('Error: $_error'),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: _loadMesses,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                    : _buildMessList(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMessList() {
+    if (_messes.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.restaurant_outlined, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No messes available',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Filter messes by search query
+    final filteredMesses =
+        _messes.where((mess) {
+          if (searchQuery.isEmpty) return true;
+
+          final name = (mess['name'] ?? '').toString().toLowerCase();
+          final description =
+              (mess['description'] ?? '').toString().toLowerCase();
+
+          return name.contains(searchQuery) ||
+              description.contains(searchQuery);
+        }).toList();
+
+    if (filteredMesses.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off, size: 80, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No messes match your search',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadMesses,
+      child: ListView.builder(
+        itemCount: filteredMesses.length,
+        padding: const EdgeInsets.only(bottom: 16),
+        itemBuilder: (context, index) {
+          final mess = filteredMesses[index];
+
+          return CardWidget(
+            title: mess['name'] ?? 'Unnamed',
+            description: mess['description'] ?? 'No description',
+            ratings: '4.5', // You can add ratings to your database
+            distance: '1.0', // You can calculate distance based on location
+            isVeg:
+                (mess['mess_type'] ?? 'veg').toString().toLowerCase() == 'veg',
+            messId:
+                mess['id']
+                    .toString(), // Convert int to String for compatibility
+            messImage: mess['image_url']?.toString(),
+            phone: mess['phone']?.toString(),
+            address: mess['address']?.toString(),
+            messType: mess['mess_type']?.toString(),
+          );
+        },
       ),
     );
   }

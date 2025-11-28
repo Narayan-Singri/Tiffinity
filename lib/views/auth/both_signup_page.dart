@@ -1,12 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 import 'package:Tiffinity/views/widgets/auth_field.dart';
 import 'package:Tiffinity/views/widgets/auth_gradient_button.dart';
-import 'package:Tiffinity/views/pages/admin_pages/admin_setup_page.dart'; // NEW
+import 'package:Tiffinity/views/pages/admin_pages/admin_setup_page.dart';
 
 class BothSignupPage extends StatefulWidget {
   final String role;
@@ -19,6 +18,7 @@ class BothSignupPage extends StatefulWidget {
 class _BothSignupPageState extends State<BothSignupPage> {
   bool passwordsDoNotMatch = false;
   bool _isLoading = false;
+  final AuthService _authService = AuthService();
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
@@ -64,44 +64,40 @@ class _BothSignupPageState extends State<BothSignupPage> {
     }
 
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: emailController.text.trim(),
-            password: passwordController.text.trim(),
+      final result = await _authService.signUp(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+        name: nameController.text.trim(),
+        phone: phoneNumController.text.trim(),
+        role: widget.role,
+      );
+
+      if (result['success']) {
+        final user = result['user'];
+
+        if (!mounted) return;
+
+        // Redirect based on role
+        if (widget.role == 'admin') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => AdminSetupPage(userId: user['uid']),
+            ),
+            (route) => false,
           );
-
-      // Save user details in Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-            'name': nameController.text.trim(),
-            'email': emailController.text.trim(),
-            'phone': phoneNumController.text.trim(),
-            'role': widget.role,
-            'createdAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-      if (!mounted) return;
-
-      // Redirect based on role
-      if (widget.role == 'admin') {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (_) => AdminSetupPage(userId: userCredential.user!.uid),
-          ),
-          (route) => false,
-        );
-      } else {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const CustomerWidgetTree()),
-          (route) => false,
-        );
+        } else {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const CustomerWidgetTree()),
+            (route) => false,
+          );
+        }
       }
-    } on FirebaseAuthException catch (e) {
-      _showError(e.message ?? "Sign up failed");
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError("Sign up failed: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -152,8 +148,8 @@ class _BothSignupPageState extends State<BothSignupPage> {
                       _buildFormFields(),
                       const Spacer(),
                       AuthGradientButton(
-                        title: "Sign Up",
-                        onpressed: _handleSignUp,
+                        text: "Sign Up",
+                        onTap: _handleSignUp,
                         isLoading: _isLoading,
                       ),
                       const SizedBox(height: 16),
@@ -248,6 +244,13 @@ class _BothSignupPageState extends State<BothSignupPage> {
       ),
     );
   }
+
+  bool validateFields(List<TextEditingController> controllers) {
+    for (final controller in controllers) {
+      if (controller.text.trim().isEmpty) return false;
+    }
+    return true;
+  }
 }
 
 class KeyboardDismissOnTap extends StatelessWidget {
@@ -262,11 +265,4 @@ class KeyboardDismissOnTap extends StatelessWidget {
       child: child,
     );
   }
-}
-
-bool validateFields(List<TextEditingController> controllers) {
-  for (final controller in controllers) {
-    if (controller.text.trim().isEmpty) return false;
-  }
-  return true;
 }

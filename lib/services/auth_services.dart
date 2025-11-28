@@ -1,73 +1,99 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'api_service.dart';
+// Add this method to AuthService class
+import 'package:Tiffinity/services/notification_service.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // Current user
-  User? get currentUser => _auth.currentUser;
-
-  // Auth state stream
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  // SIGN IN with Email/Password
-  Future<UserCredential> signIn({
-    required String email,
-    required String password,
-  }) async {
+  static Future<void> saveFCMToken(String userId) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      throw AuthException(_handleAuthError(e));
+      final notificationService = NotificationService();
+      final token = await notificationService.getToken();
+
+      if (token != null) {
+        // Save to backend
+        await ApiService.put('/users/$userId/fcm-token', {'fcm_token': token});
+        print('✅ FCM token saved for user: $userId');
+      }
+    } catch (e) {
+      print('❌ Error saving FCM token: $e');
     }
   }
 
-  // ✅ SIGN UP with Email/Password (ADD THIS METHOD)
-  Future<UserCredential> signUp({
+  // Current user data
+  static Future<Map<String, dynamic>?> get currentUser async {
+    return await ApiService.getUserData();
+  }
+
+  // Check if user is logged in
+  static Future<bool> isLoggedIn() async {
+    final token = await ApiService.getToken();
+    return token != null;
+  }
+
+  // SIGN IN with Email/Password
+  Future<Map<String, dynamic>> signIn({
     required String email,
     required String password,
   }) async {
     try {
-      final UserCredential credential = await _auth
-          .createUserWithEmailAndPassword(email: email, password: password);
-      // Optionally send email verification
-      // await credential.user?.sendEmailVerification();
-      return credential;
-    } on FirebaseAuthException catch (e) {
-      throw AuthException(_handleAuthError(e));
+      final response = await ApiService.post('/login', {
+        'email': email,
+        'password': password,
+      });
+
+      if (response['success']) {
+        final data = response['data'];
+        await ApiService.saveToken(data['token']);
+        await ApiService.saveUserData(data['user']);
+        return {'success': true, 'user': data['user']};
+      } else {
+        throw AuthException(response['message'] ?? 'Login failed');
+      }
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('Login error: $e');
+    }
+  }
+
+  // SIGN UP with Email/Password
+  Future<Map<String, dynamic>> signUp({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required String role,
+  }) async {
+    try {
+      final response = await ApiService.post('/register', {
+        'email': email,
+        'password': password,
+        'name': name,
+        'phone': phone,
+        'role': role,
+      });
+
+      if (response['success']) {
+        final data = response['data'];
+        await ApiService.saveToken(data['token']);
+        await ApiService.saveUserData(data['user']);
+        return {'success': true, 'user': data['user']};
+      } else {
+        throw AuthException(response['message'] ?? 'Sign up failed');
+      }
+    } catch (e) {
+      if (e is AuthException) rethrow;
+      throw AuthException('Sign up error: $e');
     }
   }
 
   // LOGOUT
   Future<void> logout() async {
     try {
-      await _auth.signOut();
+      await ApiService.clearToken();
+      await ApiService.clearUserData();
     } catch (e) {
       debugPrint('Logout error: $e');
       throw 'Logout failed. Please try again.';
-    }
-  }
-
-  // ERROR HANDLER
-  String _handleAuthError(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'user-not-found':
-        return 'No user found with this email';
-      case 'wrong-password':
-        return 'Incorrect password';
-      case 'email-already-in-use':
-        return 'Email already registered';
-      case 'weak-password':
-        return 'Password should be at least 6 characters';
-      case 'invalid-email':
-        return 'Invalid email format';
-      case 'network-request-failed':
-        return 'Network error. Check your connection';
-      default:
-        return 'Authentication failed: ${e.message}';
     }
   }
 }

@@ -1,22 +1,26 @@
 import 'package:Tiffinity/data/constants.dart';
 import 'package:Tiffinity/data/notifiers.dart';
-import 'package:Tiffinity/data/auth_flag.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_widget_tree.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 import 'package:Tiffinity/services/notification_service.dart';
+import 'package:Tiffinity/services/auth_services.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
+
+  // Initialize Firebase only for messaging
   await Firebase.initializeApp();
   await NotificationService().initialize();
+
+  // Load cart data
+  await CartHelper.loadCart();
+
   runApp(const MyApp());
 }
 
@@ -27,50 +31,24 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
-  late Widget _currentHome;
-  bool _isInitialized = false;
-
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
     initThemeMode();
-    _initializeApp();
+    WidgetsBinding.instance.addObserver(this);
   }
 
-  void _initializeApp() async {
-    _currentHome = await _decideStartPage();
-    setState(() => _isInitialized = true);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   void initThemeMode() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final bool repeat = prefs.getBool(KConstants.themeModeKey) ?? false;
     isDarkModeNotifier.value = repeat;
-  }
-
-  Future<Widget> _decideStartPage() async {
-    User? user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      DocumentSnapshot userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-
-      if (userDoc.exists && userDoc['role'] != null) {
-        String role = userDoc['role'];
-
-        if (role == 'customer') {
-          return const CustomerWidgetTree();
-        } else if (role == 'admin') {
-          return const AdminWidgetTree();
-        }
-      }
-    }
-
-    return const WelcomePage();
   }
 
   @override
@@ -86,27 +64,49 @@ class _MyAppState extends State<MyApp> {
               brightness: isDarkMode ? Brightness.dark : Brightness.light,
             ),
           ),
-          home:
-              _isInitialized
-                  ? StreamBuilder<User?>(
-                    stream: FirebaseAuth.instance.authStateChanges(),
-                    builder: (context, snapshot) {
-                      // ✅ Use the getter function
-                      if (getCheckoutLoginFlag()) {
-                        return _currentHome;
-                      }
+          home: FutureBuilder<bool>(
+            future: AuthService.isLoggedIn(),
+            builder: (context, snapshot) {
+              // Show loading while checking auth state
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
 
-                      final user = snapshot.data;
-                      if (user == null) {
-                        _currentHome = const WelcomePage();
-                      }
+              final bool isLoggedIn = snapshot.data ?? false;
 
-                      return _currentHome;
-                    },
-                  )
-                  : const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  ),
+              // User is not logged in
+              if (!isLoggedIn) {
+                return const WelcomePage();
+              }
+
+              // User is logged in - check their role
+              return FutureBuilder<Map<String, dynamic>?>(
+                future: AuthService.currentUser,
+                builder: (context, userSnapshot) {
+                  if (userSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  final user = userSnapshot.data;
+                  if (user != null && user['role'] != null) {
+                    String role = user['role'];
+                    if (role == 'customer') {
+                      return const CustomerWidgetTree();
+                    } else if (role == 'admin') {
+                      return const AdminWidgetTree();
+                    }
+                  }
+
+                  // Fallback if no role found
+                  return const WelcomePage();
+                },
+              );
+            },
+          ),
         );
       },
     );

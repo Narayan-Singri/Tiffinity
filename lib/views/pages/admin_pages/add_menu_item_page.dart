@@ -1,49 +1,51 @@
-import 'package:Tiffinity/views/widgets/auth_field.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:Tiffinity/services/menu_service.dart';
 import 'package:Tiffinity/services/image_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
 class AddMenuItemPage extends StatefulWidget {
-  final Map? existingItem;
-  final String messId;
-  final String? menuId;
-  final String? existingImageUrl;
+  final int messId;
+  final Map<String, dynamic>? existingItem;
 
-  const AddMenuItemPage({
-    super.key,
-    required this.messId,
-    this.existingItem,
-    this.menuId,
-    this.existingImageUrl,
-  });
+  const AddMenuItemPage({super.key, required this.messId, this.existingItem});
 
   @override
-  State createState() => _AddMenuItemPageState();
+  State<AddMenuItemPage> createState() => _AddMenuItemPageState();
 }
 
 class _AddMenuItemPageState extends State<AddMenuItemPage> {
-  final _nameController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  String _type = "Veg";
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController priceController = TextEditingController();
+  final TextEditingController descriptionController = TextEditingController();
+
+  String _selectedType = 'veg';
+  bool _isAvailable = true;
   bool _isLoading = false;
+
   File? _foodImage;
-  String? _existingImageUrl;
   final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     if (widget.existingItem != null) {
-      _nameController.text = widget.existingItem!['name'] ?? '';
-      _priceController.text = widget.existingItem!['price'].toString();
-      _descriptionController.text = widget.existingItem!['description'] ?? '';
-      _type = widget.existingItem!['type'] ?? "Veg";
-      _existingImageUrl = widget.existingItem!['foodImage']?.toString();
-      print('📸 Existing image URL loaded from item: $_existingImageUrl');
+      nameController.text = widget.existingItem!['name'] ?? '';
+      priceController.text = widget.existingItem!['price']?.toString() ?? '';
+      descriptionController.text = widget.existingItem!['description'] ?? '';
+      _selectedType = widget.existingItem!['type'] ?? 'veg';
+      _isAvailable = _toBool(
+        widget.existingItem!['is_available'],
+      ); // ✅ Convert int to bool
     }
+  }
+
+  // ✅ Helper function to convert int to bool
+  bool _toBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return true; // Default to available
   }
 
   void _showImageSourceDialog() {
@@ -57,14 +59,14 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _pickFoodImageFromGallery();
+                _pickImageFromDevice();
               },
-              child: const Text('Gallery'),
+              child: const Text('Device'),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _pickFoodImageFromCamera();
+                _pickImageFromCamera();
               },
               child: const Text('Camera'),
             ),
@@ -74,7 +76,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
     );
   }
 
-  Future<void> _pickFoodImageFromGallery() async {
+  Future<void> _pickImageFromDevice() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
@@ -115,7 +117,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
     }
   }
 
-  Future<void> _pickFoodImageFromCamera() async {
+  Future<void> _pickImageFromCamera() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.camera);
       if (image != null) {
@@ -156,34 +158,30 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
-
-  Future<void> _saveItem() async {
-    if (widget.menuId == null && _foodImage == null) {
-      _showError("Please upload a food item image (Required Field)");
+  Future<void> _saveMenuItem() async {
+    if (nameController.text.trim().isEmpty ||
+        priceController.text.trim().isEmpty) {
+      _showError('Please fill all required fields');
       return;
     }
 
-    if (_nameController.text.isEmpty ||
-        _priceController.text.isEmpty ||
-        _descriptionController.text.isEmpty) {
-      _showError("Please fill all fields");
+    final price = double.tryParse(priceController.text.trim());
+    if (price == null || price <= 0) {
+      _showError('Please enter a valid price');
       return;
     }
 
     setState(() => _isLoading = true);
+
     try {
-      String? foodImageUrl = widget.existingImageUrl;
+      String? imageUrl;
 
+      // Upload image if selected
       if (_foodImage != null) {
-        print('🖼️ Uploading menu item image...');
-        foodImageUrl = await ImageService.uploadToImgBB(_foodImage!);
+        print('🖼️ Uploading food image...');
+        imageUrl = await ImageService.uploadToImgBB(_foodImage!);
 
-        if (foodImageUrl == 'SIZE_EXCEEDED') {
+        if (imageUrl == 'SIZE_EXCEEDED') {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -197,7 +195,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
           return;
         }
 
-        if (foodImageUrl == null) {
+        if (imageUrl == null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -211,99 +209,105 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
         }
       }
 
-      final menuItem = {
-        'name': _nameController.text,
-        'price': double.tryParse(_priceController.text) ?? 0,
-        'description': _descriptionController.text,
-        'type': _type,
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (foodImageUrl != null) 'foodImage': foodImageUrl,
-      };
-
-      final menuRef = FirebaseFirestore.instance
-          .collection('messes')
-          .doc(widget.messId)
-          .collection('menu');
-
-      if (widget.menuId != null) {
-        await menuRef.doc(widget.menuId).update(menuItem);
-      } else {
-        await menuRef.add({
-          ...menuItem,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      // Keep existing image URL if not changing
+      if (imageUrl == null && widget.existingItem != null) {
+        imageUrl = widget.existingItem!['image_url'];
       }
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            widget.menuId != null
-                ? "Item updated successfully ✅"
-                : "Item added successfully ✅",
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context, menuItem);
+      if (widget.existingItem != null) {
+        // Update existing item
+        final success = await MenuService.updateMenuItem(
+          itemId: widget.existingItem!['id'],
+          name: nameController.text.trim(),
+          price: price,
+          description: descriptionController.text.trim(),
+          imageUrl: imageUrl,
+          type: _selectedType,
+          isAvailable: _isAvailable,
+        );
+
+        if (success && mounted) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Menu item updated successfully')),
+          );
+        } else {
+          _showError('Failed to update menu item');
+        }
+      } else {
+        // Add new item
+        final result = await MenuService.addMenuItem(
+          messId: widget.messId,
+          name: nameController.text.trim(),
+          price: price,
+          description: descriptionController.text.trim(),
+          imageUrl: imageUrl,
+          type: _selectedType,
+          isAvailable: _isAvailable,
+        );
+
+        if (result['success'] && mounted) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Menu item added successfully')),
+          );
+        } else {
+          _showError(result['message'] ?? 'Failed to add menu item');
+        }
+      }
     } catch (e) {
-      _showError("Error: $e");
+      _showError('Error: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _showError(String message) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Error"),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.existingItem != null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? "Edit Menu Item" : "Add Menu Item"),
-        centerTitle: true,
-        elevation: 0,
+        title: Text(
+          widget.existingItem != null ? 'Edit Menu Item' : 'Add Menu Item',
+        ),
+        backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+        foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ListView(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AuthField(
-              hintText: "Item Name",
-              icon: Icons.fastfood,
-              controller: _nameController,
-            ),
-            const SizedBox(height: 16),
-            AuthField(
-              hintText: "Price (₹)",
-              icon: Icons.currency_rupee,
-              controller: _priceController,
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            AuthField(
-              hintText: "Description",
-              icon: Icons.description,
-              controller: _descriptionController,
-            ),
-            const SizedBox(height: 16),
+            // Image Upload Section
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border.all(
-                  color:
-                      (widget.menuId == null && _foodImage == null)
-                          ? Colors.red
-                          : const Color.fromARGB(255, 27, 84, 78),
-                  width: 2,
-                ),
+                border: Border.all(color: Colors.grey[300]!),
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.grey[50],
               ),
               child: Column(
                 children: [
-                  if (_foodImage != null) ...{
+                  if (_foodImage != null)
                     Container(
                       width: double.infinity,
-                      height: 180,
+                      height: 200,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         image: DecorationImage(
@@ -311,72 +315,109 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
                           fit: BoxFit.cover,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                  } else if (isEditing && _existingImageUrl != null) ...{
+                    )
+                  else if (widget.existingItem != null &&
+                      widget.existingItem!['image_url'] != null)
                     Container(
                       width: double.infinity,
-                      height: 180,
+                      height: 200,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(_existingImageUrl!),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          widget.existingItem!['image_url'],
                           fit: BoxFit.cover,
-                          onError: (exception, stackTrace) {
-                            print('❌ Error loading image: $exception');
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[200],
+                              child: Icon(
+                                Icons.restaurant,
+                                size: 60,
+                                color: Colors.grey[400],
+                              ),
+                            );
                           },
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                  } else ...{
+                    )
+                  else
                     Container(
                       width: double.infinity,
-                      height: 180,
+                      height: 200,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         color: Colors.grey[200],
                       ),
                       child: Icon(
                         Icons.restaurant,
-                        size: 80,
+                        size: 60,
                         color: Colors.grey[400],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                  },
+                  const SizedBox(height: 12),
                   ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _showImageSourceDialog,
+                    onPressed: _showImageSourceDialog,
                     icon: const Icon(Icons.image),
                     label: Text(
-                      _foodImage == null && !isEditing
-                          ? 'Upload Food Image'
-                          : 'Change Image',
+                      _foodImage != null ||
+                              widget.existingItem?['image_url'] != null
+                          ? 'Change Image'
+                          : 'Upload Image',
                     ),
                     style: ElevatedButton.styleFrom(
-                      foregroundColor: Colors.white,
                       backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+                      foregroundColor: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  if (widget.menuId == null && _foodImage == null)
-                    const Text(
-                      '* Required Field',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  if (isEditing && _foodImage == null)
-                    Text(
-                      'Click to update image',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
                 ],
               ),
             ),
+            const SizedBox(height: 20),
+
+            // Name Field
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: 'Item Name *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.restaurant_menu),
+              ),
+            ),
             const SizedBox(height: 16),
+
+            // Price Field
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Price (₹) *',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.currency_rupee),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Description Field
+            TextField(
+              controller: descriptionController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.description),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Type Selection
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -386,77 +427,100 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Item Type',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
+                  const Text(
+                    'Food Type',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  RadioListTile(
-                    title: const Text("Veg"),
-                    value: "Veg",
-                    groupValue: _type,
-                    onChanged: (value) => setState(() => _type = value!),
-                    contentPadding: EdgeInsets.zero,
-                    visualDensity: const VisualDensity(vertical: -4),
-                  ),
-                  RadioListTile(
-                    title: const Text("Non-Veg"),
-                    value: "Non-Veg",
-                    groupValue: _type,
-                    onChanged: (value) => setState(() => _type = value!),
-                    contentPadding: EdgeInsets.zero,
-                    visualDensity: const VisualDensity(vertical: -4),
-                  ),
-                  RadioListTile(
-                    title: const Text("Jain"),
-                    value: "Jain",
-                    groupValue: _type,
-                    onChanged: (value) => setState(() => _type = value!),
-                    contentPadding: EdgeInsets.zero,
-                    visualDensity: const VisualDensity(vertical: -4),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Veg'),
+                          value: 'veg',
+                          groupValue: _selectedType,
+                          onChanged: (value) {
+                            setState(() => _selectedType = value!);
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: const VisualDensity(vertical: -4),
+                        ),
+                      ),
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Non-Veg'),
+                          value: 'non-veg',
+                          groupValue: _selectedType,
+                          onChanged: (value) {
+                            setState(() => _selectedType = value!);
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: const VisualDensity(vertical: -4),
+                        ),
+                      ),
+                      Expanded(
+                        child: RadioListTile<String>(
+                          title: const Text('Jain'),
+                          value: 'jain',
+                          groupValue: _selectedType,
+                          onChanged: (value) {
+                            setState(() => _selectedType = value!);
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: const VisualDensity(vertical: -4),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveItem,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  backgroundColor:
-                      isEditing ? Colors.orange.shade600 : Colors.green,
-                  foregroundColor: Colors.white,
-                  elevation: 4,
-                  shadowColor: Colors.black54,
-                  disabledBackgroundColor: Colors.grey,
-                ),
-                child:
-                    _isLoading
-                        ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                        : Text(
-                          isEditing ? "Save Changes" : "Add Item",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.1,
-                          ),
-                        ),
+            const SizedBox(height: 16),
+
+            // Availability Switch
+            SwitchListTile(
+              title: const Text('Available'),
+              subtitle: Text(
+                _isAvailable ? 'Item is available' : 'Item is not available',
               ),
+              value: _isAvailable,
+              onChanged: (value) {
+                setState(() => _isAvailable = value);
+              },
+              activeColor: const Color.fromARGB(255, 27, 84, 78),
+            ),
+            const SizedBox(height: 24),
+
+            // Save Button
+            ElevatedButton(
+              onPressed: _isLoading ? null : _saveMenuItem,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child:
+                  _isLoading
+                      ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                      : Text(
+                        widget.existingItem != null
+                            ? 'Update Item'
+                            : 'Add Item',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
             ),
           ],
         ),
@@ -466,9 +530,9 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _priceController.dispose();
-    _descriptionController.dispose();
+    nameController.dispose();
+    priceController.dispose();
+    descriptionController.dispose();
     super.dispose();
   }
 }

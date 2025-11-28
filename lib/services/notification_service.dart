@@ -1,8 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:typed_data'; // Add this import for Int64List
+import 'dart:typed_data';
 
 // Top-level function for background messages
 @pragma('vm:entry-point')
@@ -35,8 +33,7 @@ class NotificationService {
 
     // Initialize local notifications
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/launcher_icon'); // app logo
-
+        AndroidInitializationSettings('@mipmap/launcher_icon');
     const DarwinInitializationSettings iosSettings =
         DarwinInitializationSettings(
           requestSoundPermission: true,
@@ -64,54 +61,25 @@ class NotificationService {
     FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
   }
 
-  // Save FCM token to Firestore for the logged-in mess owner
-  // Save FCM token ONCE - use a static flag to prevent duplicate saves
-  static bool _tokenSaveInitialized = false;
-
-  Future<void> saveTokenToFirestore() async {
-    if (_tokenSaveInitialized) return; // Already initialized - skip
-
-    _tokenSaveInitialized = true;
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    String? token = await _firebaseMessaging.getToken();
-    if (token == null) return;
-
-    // Find the mess document for this owner
-    final messQuery =
-        await FirebaseFirestore.instance
-            .collection('messes')
-            .where('ownerId', isEqualTo: user.uid)
-            .limit(1)
-            .get();
-
-    if (messQuery.docs.isNotEmpty) {
-      final messRef = messQuery.docs.first.reference;
-
-      // Save token ONCE
-      await messRef.update({
-        'fcmToken': token,
-        'tokenUpdatedAt': FieldValue.serverTimestamp(),
-      });
-      print('✅ FCM Token saved: $token');
-
-      // Listen for token REFRESH ONLY ONCE (outside async)
-      _firebaseMessaging.onTokenRefresh.listen((newToken) async {
-        await messRef.update({
-          'fcmToken': newToken,
-          'tokenUpdatedAt': FieldValue.serverTimestamp(),
-        });
-        print('🔄 FCM Token refreshed: $newToken');
-      });
+  // Get FCM token
+  Future<String?> getToken() async {
+    try {
+      String? token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        print('✅ FCM Token: $token');
+        // TODO: Send this token to your MySQL backend to save
+        // You can create an API endpoint to save FCM tokens
+      }
+      return token;
+    } catch (e) {
+      print('Error getting FCM token: $e');
+      return null;
     }
   }
 
   // Handle foreground messages with loud notification
   void _handleForegroundMessage(RemoteMessage message) {
     print('Foreground message: ${message.notification?.title}');
-
     _showLoudNotification(
       title: message.notification?.title ?? 'New Order',
       body: message.notification?.body ?? 'You have a new order',
@@ -138,16 +106,12 @@ class NotificationService {
           playSound: true,
           enableVibration: true,
           vibrationPattern: vibrationPattern,
-          // Remove custom sound if you don't have the file
-          // sound: RawResourceAndroidNotificationSound('notification_sound'),
         );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
-      // Remove custom sound if you don't have the file
-      // sound: 'notification_sound.aiff',
     );
 
     final NotificationDetails notificationDetails = NotificationDetails(
@@ -167,52 +131,19 @@ class NotificationService {
   // Handle notification tap
   void _onNotificationTap(NotificationResponse response) {
     print('Notification tapped: ${response.payload}');
-    // Navigate to orders page or specific order
+    // TODO: Navigate to orders page or specific order
   }
 
   void _handleNotificationTap(RemoteMessage message) {
     print('Notification opened app: ${message.data}');
-    // Navigate based on message data
+    // TODO: Navigate based on message data
   }
 
-  // Send notification when order is placed (called from customer app)
-  Future<void> sendOrderNotificationToMess({
-    required String messId,
-    required String orderId,
-    required String customerName,
-    required double totalAmount,
+  // Send local notification (for testing)
+  Future<void> showLocalNotification({
+    required String title,
+    required String body,
   }) async {
-    try {
-      final messDoc =
-          await FirebaseFirestore.instance
-              .collection('messes')
-              .doc(messId)
-              .get();
-
-      final messData = messDoc.data();
-      final fcmToken = messData?['fcmToken'] as String?;
-
-      if (fcmToken == null) {
-        print('No FCM token found for this mess');
-        return;
-      }
-
-      // Create notification document in Firestore
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'messId': messId,
-        'fcmToken': fcmToken,
-        'title': '🔔 New Order Received!',
-        'body':
-            'Order #$orderId from $customerName - ₹${totalAmount.toStringAsFixed(0)}',
-        'orderId': orderId,
-        'type': 'new_order',
-        'createdAt': FieldValue.serverTimestamp(),
-        'sent': false,
-      });
-
-      print('Notification queued for mess owner');
-    } catch (e) {
-      print('Error sending notification: $e');
-    }
+    await _showLoudNotification(title: title, body: body);
   }
 }

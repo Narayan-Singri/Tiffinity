@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_home_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_orders_page.dart';
@@ -7,8 +7,30 @@ import 'package:Tiffinity/views/pages/customer_pages/customer_profile_page.dart'
 import 'package:Tiffinity/views/widgets/customer_navbar_widget.dart';
 import 'package:Tiffinity/data/notifiers.dart';
 
-class CustomerWidgetTree extends StatelessWidget {
+class CustomerWidgetTree extends StatefulWidget {
   const CustomerWidgetTree({super.key});
+
+  @override
+  State<CustomerWidgetTree> createState() => _CustomerWidgetTreeState();
+}
+
+class _CustomerWidgetTreeState extends State<CustomerWidgetTree> {
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final isLoggedIn = await AuthService.isLoggedIn();
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = isLoggedIn;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,37 +48,29 @@ class CustomerWidgetTree extends StatelessWidget {
         ),
         centerTitle: true,
         actions: [
-          // Login button for guest users
-          StreamBuilder<User?>(
-            stream: FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.data == null) {
-                return IconButton(
-                  icon: const Icon(Icons.login),
-                  tooltip: 'Login',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const BothLoginPage(role: 'customer'),
-                      ),
-                    );
-                  },
+          if (!_isLoggedIn)
+            IconButton(
+              icon: const Icon(Icons.login),
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BothLoginPage(role: 'customer'),
+                  ),
                 );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-          // ❌ REMOVED THEME TOGGLE FROM HERE
+                // Recheck login status after returning from login page
+                _checkLoginStatus();
+              },
+            ),
         ],
       ),
-      body: ValueListenableBuilder<int>(
+      body: ValueListenableBuilder(
         valueListenable: customerSelectedPageNotifier,
-        builder: (context, selectedPage, child) {
-          return pages.elementAt(selectedPage);
+        builder: (context, selectedIndex, _) {
+          return pages[selectedIndex];
         },
       ),
-      bottomNavigationBar: const CustomerNavbarWidget(),
+      bottomNavigationBar: const CustomerNavBarWidget(),
     );
   }
 }

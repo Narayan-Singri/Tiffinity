@@ -1,20 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:Tiffinity/data/constants.dart';
 import 'package:Tiffinity/data/notifiers.dart';
-import 'package:Tiffinity/views/auth/both_login_page.dart';
+import 'package:Tiffinity/services/auth_services.dart';
+import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_home_page.dart';
 import 'package:Tiffinity/views/pages/admin_pages/menu_management_page.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_profile_page.dart';
 import 'package:Tiffinity/views/widgets/admin_navbar_widget.dart';
 
-class AdminWidgetTree extends StatelessWidget {
+class AdminWidgetTree extends StatefulWidget {
   const AdminWidgetTree({super.key});
 
   @override
+  State<AdminWidgetTree> createState() => _AdminWidgetTreeState();
+}
+
+class _AdminWidgetTreeState extends State<AdminWidgetTree> {
+  String _messName = 'Tiffinity';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMessName();
+  }
+
+  Future<void> _loadMessName() async {
+    try {
+      final currentUser = await AuthService.currentUser;
+      if (currentUser != null) {
+        final mess = await MessService.getMessByOwner(currentUser['uid']);
+        if (mess != null && mounted) {
+          setState(() {
+            _messName = mess['name'] ?? 'Tiffinity';
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading mess name: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List pages = [
+    final List<Widget> pages = [
       const AdminHomePage(),
       const MenuManagementPage(),
       const AdminProfilePage(),
@@ -22,28 +49,9 @@ class AdminWidgetTree extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: StreamBuilder(
-          stream:
-              FirebaseFirestore.instance
-                  .collection('messes')
-                  .doc(FirebaseAuth.instance.currentUser?.uid)
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasData && snapshot.data!.exists) {
-              final messName = snapshot.data!.get('messName') ?? 'Mess';
-              return Text(
-                messName,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              );
-            }
-            return const Text(
-              'Tiffinity',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            );
-          },
+        title: Text(
+          _messName,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),

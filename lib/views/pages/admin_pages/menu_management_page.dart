@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'add_menu_item_page.dart';
+import 'package:Tiffinity/services/menu_service.dart';
+import 'package:Tiffinity/services/mess_service.dart';
+import 'package:Tiffinity/services/auth_services.dart';
+import 'package:Tiffinity/views/pages/admin_pages/add_menu_item_page.dart';
 
 class MenuManagementPage extends StatefulWidget {
   const MenuManagementPage({super.key});
@@ -11,163 +12,306 @@ class MenuManagementPage extends StatefulWidget {
 }
 
 class _MenuManagementPageState extends State<MenuManagementPage> {
-  String? _messId;
+  List<Map<String, dynamic>> _menuItems = [];
+  int? _messId;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchMessId();
+    _loadMenuItems();
   }
 
-  Future<void> _fetchMessId() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final messSnapshot =
-        await FirebaseFirestore.instance
-            .collection("messes")
-            .where("ownerId", isEqualTo: uid)
-            .limit(1)
-            .get();
+  // ✅ Helper function to convert int to bool
+  bool _toBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return true; // Default to available
+  }
 
-    if (messSnapshot.docs.isNotEmpty) {
-      setState(() {
-        _messId = messSnapshot.docs.first.id;
-      });
+  Future<void> _loadMenuItems() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final currentUser = await AuthService.currentUser;
+      if (currentUser == null) return;
+
+      // Get mess by owner
+      final mess = await MessService.getMessByOwner(currentUser['uid']);
+
+      if (mess != null) {
+        final menuItems = await MenuService.getMenuItems(mess['id']);
+        setState(() {
+          _messId = mess['id'];
+          _menuItems = menuItems;
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error loading menu: $e');
+      setState(() => _isLoading = false);
     }
   }
 
-  void _addMenuItem() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => AddMenuItemPage(messId: _messId!)),
-    );
-  }
-
-  void _editMenuItem(String menuId, Map<String, dynamic> itemData) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder:
-            (_) => AddMenuItemPage(
-              messId: _messId!,
-              menuId: menuId,
-              existingItem: itemData,
+  Future<void> _deleteMenuItem(int itemId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Item'),
+            content: const Text(
+              'Are you sure you want to delete this menu item?',
             ),
-      ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
     );
+
+    if (confirm == true) {
+      final success = await MenuService.deleteMenuItem(itemId);
+      if (success && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Menu item deleted')));
+        _loadMenuItems();
+      } else if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to delete item')));
+      }
+    }
   }
 
-  void _deleteMenuItem(String menuId) async {
-    await FirebaseFirestore.instance
-        .collection("messes")
-        .doc(_messId)
-        .collection("menu")
-        .doc(menuId)
-        .delete();
+  Future<void> _toggleAvailability(int itemId, bool currentStatus) async {
+    final success = await MenuService.updateMenuItem(
+      itemId: itemId,
+      isAvailable: !currentStatus,
+    );
+
+    if (success) {
+      _loadMenuItems();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to update availability')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_messId == null) {
+    if (_isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    if (_messId == null) {
+      return const Scaffold(
+        body: Center(child: Text('No mess found. Please create a mess first.')),
+      );
+    }
+
     return Scaffold(
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection("messes")
-                .doc(_messId)
-                .collection("menu")
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("Nothing to display"));
-          }
-
-          final menuItems = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: menuItems.length,
-            itemBuilder: (context, index) {
-              final doc = menuItems[index];
-              final data = doc.data() as Map<String, dynamic>;
-
-              return Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            data['name'] ?? '',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                "₹${data['price']}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
-                                ),
-                                onPressed: () => _editMenuItem(doc.id, data),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                onPressed: () => _deleteMenuItem(doc.id),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Type: ${data['type']}",
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                      if (data['description'] != null &&
-                          data['description'].toString().isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            data['description'],
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
+      appBar: AppBar(
+        title: const Text('Menu Management'),
+        backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+        foregroundColor: Colors.white,
       ),
+      body:
+          _menuItems.isEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.restaurant_menu,
+                      size: 80,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No menu items yet',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Tap + to add your first item',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              )
+              : RefreshIndicator(
+                onRefresh: _loadMenuItems,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: _menuItems.length,
+                  itemBuilder: (context, index) {
+                    final item = _menuItems[index];
+                    final isAvailable = _toBool(
+                      item['is_available'],
+                    ); // ✅ Convert int to bool
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 8,
+                      ),
+                      child: ListTile(
+                        leading:
+                            item['image_url'] != null
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    item['image_url'],
+                                    width: 60,
+                                    height: 60,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        width: 60,
+                                        height: 60,
+                                        color: Colors.grey[200],
+                                        child: Icon(
+                                          Icons.restaurant,
+                                          color: Colors.grey[400],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                )
+                                : Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    Icons.restaurant,
+                                    color: Colors.grey[400],
+                                  ),
+                                ),
+                        title: Text(
+                          item['name'] ?? 'Unnamed',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('₹${item['price']}'),
+                            Text(
+                              isAvailable ? 'Available' : 'Not Available',
+                              style: TextStyle(
+                                color: isAvailable ? Colors.green : Colors.red,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          itemBuilder:
+                              (context) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit, size: 20),
+                                      SizedBox(width: 8),
+                                      Text('Edit'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'toggle',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        isAvailable
+                                            ? Icons.visibility_off
+                                            : Icons.visibility,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        isAvailable
+                                            ? 'Mark Unavailable'
+                                            : 'Mark Available',
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.delete,
+                                        size: 20,
+                                        color: Colors.red,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Delete',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                          onSelected: (value) async {
+                            if (value == 'edit') {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => AddMenuItemPage(
+                                        messId: _messId!,
+                                        existingItem: item,
+                                      ),
+                                ),
+                              );
+                              if (result == true) {
+                                _loadMenuItems();
+                              }
+                            } else if (value == 'toggle') {
+                              _toggleAvailability(item['id'], isAvailable);
+                            } else if (value == 'delete') {
+                              _deleteMenuItem(item['id']);
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addMenuItem,
-        child: const Icon(Icons.add),
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddMenuItemPage(messId: _messId!),
+            ),
+          );
+          if (result == true) {
+            _loadMenuItems();
+          }
+        },
+        backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }

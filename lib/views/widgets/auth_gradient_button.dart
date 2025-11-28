@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AuthGradientButton extends StatelessWidget {
-  final String title;
-  final VoidCallback? onpressed;
+  final String text; // Changed from 'title' to 'text'
+  final VoidCallback? onTap; // Changed from 'onpressed' to 'onTap'
   final bool isLoading;
 
   const AuthGradientButton({
     super.key,
-    required this.title,
-    required this.onpressed,
+    required this.text,
+    required this.onTap,
     this.isLoading = false,
   });
 
@@ -24,7 +24,8 @@ class AuthGradientButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(7),
       ),
       child: ElevatedButton(
-        onPressed: isLoading ? null : onpressed,
+        onPressed:
+            isLoading ? null : onTap, // Changed from 'onpressed' to 'onTap'
         style: ElevatedButton.styleFrom(
           fixedSize: const Size(395, 55),
           backgroundColor: Colors.transparent,
@@ -35,7 +36,7 @@ class AuthGradientButton extends StatelessWidget {
             isLoading
                 ? const CircularProgressIndicator(color: Colors.white)
                 : Text(
-                  title,
+                  text, // Changed from 'title' to 'text'
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 17,

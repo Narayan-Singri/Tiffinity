@@ -1,8 +1,8 @@
 import 'package:Tiffinity/views/pages/admin_pages/admin_widget_tree.dart';
 import 'package:Tiffinity/views/widgets/auth_field.dart';
 import 'package:Tiffinity/views/widgets/auth_gradient_button.dart';
+import 'package:Tiffinity/services/mess_service.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:Tiffinity/services/image_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -19,7 +19,6 @@ class TimeSlot {
 
 class AdminSetupPage extends StatefulWidget {
   final String userId;
-
   const AdminSetupPage({super.key, required this.userId});
 
   @override
@@ -31,7 +30,6 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
   final descriptionController = TextEditingController();
-
   String _messType = "Veg";
   bool _isLoading = false;
 
@@ -70,13 +68,14 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
     );
   }
 
-  Future _pickMessImageFromDevice() async {
+  Future<void> _pickMessImageFromDevice() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         final file = File(image.path);
         final fileSize = await file.length();
         final fileSizeMB = fileSize / 1024 / 1024;
+
         if (fileSize > 32 * 1024 * 1024) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -91,6 +90,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
           }
           return;
         }
+
         setState(() => _messImage = file);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -109,13 +109,14 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
     }
   }
 
-  Future _pickMessImageFromCamera() async {
+  Future<void> _pickMessImageFromCamera() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.camera);
       if (image != null) {
         final file = File(image.path);
         final fileSize = await file.length();
         final fileSizeMB = fileSize / 1024 / 1024;
+
         if (fileSize > 32 * 1024 * 1024) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -130,6 +131,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
           }
           return;
         }
+
         setState(() => _messImage = file);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -170,8 +172,6 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
     setState(() => _isLoading = true);
 
     try {
-      final messId = widget.userId;
-
       String? imageUrl;
       if (_messImage != null) {
         print('🖼️ Uploading mess image...');
@@ -205,34 +205,29 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
         }
       }
 
-      List<Map<String, String>> timings =
-          timeSlots.map((slot) {
-            return {
-              "opening": slot.openingController.text,
-              "closing": slot.closingController.text,
-            };
-          }).toList();
-
-      await FirebaseFirestore.instance.collection('messes').doc(messId).set({
-        'messName': messNameController.text.trim(),
-        'phone': phoneController.text.trim(),
-        'address': addressController.text.trim(),
-        'description': descriptionController.text.trim(),
-        'messType': _messType,
-        'timings': timings,
-        'isOnline': true,
-        'ownerId': widget.userId,
-        if (imageUrl != null) 'messImage': imageUrl, // only when uploaded
-        'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Create mess using MySQL API
+      final result = await MessService.createMess(
+        ownerId: widget.userId,
+        name: messNameController.text.trim(),
+        description: descriptionController.text.trim(),
+        phone: phoneController.text.trim(),
+        address: addressController.text.trim(),
+        messType: _messType,
+        imageUrl: imageUrl,
+        isOnline: true,
+      );
 
       if (!mounted) return;
 
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const AdminWidgetTree()),
-        (route) => false,
-      );
+      if (result['success']) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminWidgetTree()),
+          (route) => false,
+        );
+      } else {
+        _showError(result['message'] ?? 'Failed to save mess details');
+      }
     } catch (e) {
       _showError("Failed to save details: ${e.toString()}");
     } finally {
@@ -304,7 +299,6 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -380,16 +374,12 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-
-                      // Mess Name
                       AuthField(
                         hintText: "Mess Name",
                         icon: Icons.store,
                         controller: messNameController,
                       ),
                       const SizedBox(height: 20),
-
-                      // Phone Number
                       AuthField(
                         hintText: "Phone Number",
                         icon: Icons.phone,
@@ -398,16 +388,12 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         maxLength: 10,
                       ),
                       const SizedBox(height: 20),
-
-                      // Description
                       AuthField(
                         hintText: "Description",
                         icon: Icons.description,
                         controller: descriptionController,
                       ),
                       const SizedBox(height: 20),
-
-                      // Mess Type (Vertical Radio Buttons)
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -465,11 +451,8 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-
-                      // Timing Slots
                       Column(
                         children: [
-                          // First slot (mandatory)
                           Column(
                             children: [
                               Row(
@@ -497,7 +480,6 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                                   ),
                                 ],
                               ),
-                              // + button aligned under first closing time
                               if (timeSlots.length == 1)
                                 Align(
                                   alignment: Alignment.centerRight,
@@ -517,8 +499,6 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
-
-                          // Second slot (optional)
                           if (timeSlots.length > 1)
                             Column(
                               children: [
@@ -547,7 +527,6 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                                     ),
                                   ],
                                 ),
-                                // Cancel button aligned under second closing time
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: IconButton(
@@ -568,8 +547,6 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ],
                       ),
                       const SizedBox(height: 20),
-
-                      // Address
                       AuthField(
                         hintText: "Address",
                         icon: Icons.location_on,
@@ -580,12 +557,10 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                   ),
                 ),
               ),
-
-              // Save & Continue Button
               AuthGradientButton(
-                title: "Save & Continue",
+                text: "Save & Continue",
                 isLoading: _isLoading,
-                onpressed: _saveMessDetails,
+                onTap: _saveMessDetails,
               ),
             ],
           ),
