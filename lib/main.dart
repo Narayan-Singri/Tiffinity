@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:Tiffinity/views/pages/delivery_pages/delivery_home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,17 +92,20 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     );
                   }
 
+                  // Inside your FutureBuilder where you check role
                   final user = userSnapshot.data;
                   if (user != null && user['role'] != null) {
                     String role = user['role'];
+
                     if (role == 'customer') {
                       return const CustomerWidgetTree();
                     } else if (role == 'admin') {
                       return const AdminWidgetTree();
+                    } else if (role == 'delivery') {
+                      return const DeliveryHomePage(); // Add this import
                     }
                   }
-
-                  // Fallback if no role found
+                  // Fallback
                   return const WelcomePage();
                 },
               );

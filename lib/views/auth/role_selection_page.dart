@@ -15,108 +15,109 @@ class RoleSelectionPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
-              'Are you a Customer or a Mess?', // ✅ Changed
+              'Who are you?',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 40),
-            Row(
-              children: [
-                // CUSTOMER
-                Expanded(
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(15),
-                      onTap: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CustomerWidgetTree(),
-                          ),
-                          (route) => false,
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          children: const [
-                            Icon(Icons.person, size: 48, color: Colors.teal),
-                            SizedBox(height: 12),
-                            Text(
-                              'Customer',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Order meals from nearby messes',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+            // CUSTOMER
+            _buildRoleCard(
+              context: context,
+              icon: Icons.person,
+              iconColor: Colors.teal,
+              title: 'Customer',
+              description: 'Order meals from nearby messes',
+              onTap: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CustomerWidgetTree(),
                   ),
-                ),
-                const SizedBox(width: 20),
-
-                // ✅ MESS (Previously Admin)
-                Expanded(
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(15),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) => const BothLoginPage(role: 'admin'),
-                          ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          children: const [
-                            Icon(
-                              Icons
-                                  .restaurant, // ✅ Changed to chef/restaurant icon
-                              size: 48,
-                              color: Colors.orange,
-                            ),
-                            SizedBox(height: 12),
-                            Text(
-                              'Mess', // ✅ Changed from 'Admin'
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Manage your mess and orders',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  (route) => false,
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            // MESS OWNER
+            _buildRoleCard(
+              context: context,
+              icon: Icons.restaurant,
+              iconColor: Colors.orange,
+              title: 'Mess',
+              description: 'Manage your mess and orders',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BothLoginPage(role: 'admin'),
                   ),
-                ),
-              ],
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            // DELIVERY PARTNER
+            _buildRoleCard(
+              context: context,
+              icon: Icons.delivery_dining,
+              iconColor: Colors.green,
+              title: 'Delivery Partner',
+              description: 'Deliver orders and earn money',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const BothLoginPage(role: 'delivery'),
+                  ),
+                );
+              },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleCard({
+    required BuildContext context,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              Icon(icon, size: 48, color: iconColor),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+            ],
+          ),
         ),
       ),
     );
