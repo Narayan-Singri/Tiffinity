@@ -29,7 +29,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   Future<void> _loadOrderDetails() async {
     setState(() => _isLoading = true);
-
     try {
       final order = await OrderService.getOrderById(widget.orderId);
       setState(() {
@@ -48,7 +47,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       widget.orderId,
       newStatus,
     );
-
     if (success && mounted) {
       setState(() => _currentStatus = newStatus);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,7 +100,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   String _formatDate(String? dateString) {
     if (dateString == null) return 'N/A';
-
     try {
       final date = DateTime.parse(dateString);
       return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
@@ -130,6 +127,24 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
   }
 
+  // Helper function to safely convert to double
+  double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  // Helper function to safely convert to int
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -153,7 +168,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
 
     final statusColor = _getStatusColor(_currentStatus);
-    final items = _orderDetails!['items'] as List<dynamic>? ?? [];
+    final items = _orderDetails!['items'] as List? ?? [];
 
     return Scaffold(
       appBar: AppBar(
@@ -271,6 +286,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                         : Column(
                           children:
                               items.map((item) {
+                                // ✅ FIX: Safely convert quantity and price to numbers
+                                final quantity = _toInt(item['quantity']);
+                                final priceAtTime = _toDouble(
+                                  item['price_at_time'],
+                                );
+                                final totalPrice = quantity * priceAtTime;
+
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 12),
                                   child: Row(
@@ -290,7 +312,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                                               ),
                                             ),
                                             Text(
-                                              'Qty: ${item['quantity']} × ₹${item['price_at_time']}',
+                                              'Qty: $quantity × ₹${priceAtTime.toStringAsFixed(0)}',
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 color: Colors.grey[600],
@@ -300,7 +322,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                                         ),
                                       ),
                                       Text(
-                                        '₹${(item['quantity'] * item['price_at_time']).toStringAsFixed(0)}',
+                                        '₹${totalPrice.toStringAsFixed(0)}',
                                         style: const TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
