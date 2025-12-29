@@ -28,7 +28,7 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage> {
       if (currentUser != null) {
         final orders = await OrderService.getCustomerOrders(currentUser['uid']);
         setState(() {
-          _orders = orders;
+          _orders = List<Map<String, dynamic>>.from(orders);
           _isLoading = false;
         });
       } else {

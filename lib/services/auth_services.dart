@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
-// Add this method to AuthService class
 import 'package:Tiffinity/services/notification_service.dart';
 
 class AuthService {
@@ -8,10 +7,11 @@ class AuthService {
     try {
       final notificationService = NotificationService();
       final token = await notificationService.getToken();
-
       if (token != null) {
-        // Save to backend
-        await ApiService.put('/users/$userId/fcm-token', {'fcm_token': token});
+        await ApiService.put('update_fcm_token.php', {
+          'user_id': userId,
+          'fcm_token': token,
+        });
         print('✅ FCM token saved for user: $userId');
       }
     } catch (e) {
@@ -19,24 +19,23 @@ class AuthService {
     }
   }
 
-  // Current user data
+  // ✅ FIX: Add static getter for currentUser
   static Future<Map<String, dynamic>?> get currentUser async {
     return await ApiService.getUserData();
   }
 
-  // Check if user is logged in
   static Future<bool> isLoggedIn() async {
     final token = await ApiService.getToken();
     return token != null;
   }
 
-  // SIGN IN with Email/Password
+  // ✅ SIGN IN - Use FORM DATA
   Future<Map<String, dynamic>> signIn({
     required String email,
     required String password,
   }) async {
     try {
-      final response = await ApiService.post('/login', {
+      final response = await ApiService.postRequest('login.php', {
         'email': email,
         'password': password,
       });
@@ -55,7 +54,7 @@ class AuthService {
     }
   }
 
-  // SIGN UP with Email/Password
+  // ✅ SIGN UP - Use FORM DATA
   Future<Map<String, dynamic>> signUp({
     required String email,
     required String password,
@@ -64,7 +63,7 @@ class AuthService {
     required String role,
   }) async {
     try {
-      final response = await ApiService.post('/register', {
+      final response = await ApiService.postForm('register.php', {
         'email': email,
         'password': password,
         'name': name,
@@ -86,7 +85,6 @@ class AuthService {
     }
   }
 
-  // LOGOUT
   Future<void> logout() async {
     try {
       await ApiService.clearToken();

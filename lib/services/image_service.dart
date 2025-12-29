@@ -25,22 +25,18 @@ class ImageService {
       }
 
       print('📤 Uploading image to ImgBB...');
-
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('https://api.imgbb.com/1/upload?key=$apiKey'),
       );
-
       request.files.add(
         await http.MultipartFile.fromPath('image', imageFile.path),
       );
 
       var response = await request.send();
-
       if (response.statusCode == 200) {
         var responseData = await response.stream.toBytes();
         var jsonResponse = jsonDecode(String.fromCharCodes(responseData));
-
         final imageUrl = jsonResponse['data']['url'];
         print('✅ Image uploaded successfully: $imageUrl');
         return imageUrl;

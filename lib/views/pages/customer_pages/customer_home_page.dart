@@ -30,7 +30,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     try {
       final messes = await MessService.getAllMesses();
       setState(() {
-        _messes = messes;
+        _messes = List<Map<String, dynamic>>.from(messes);
         _isLoading = false;
       });
     } catch (e) {

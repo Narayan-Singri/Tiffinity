@@ -1,98 +1,63 @@
-import 'package:Tiffinity/services/api_service.dart';
+import '../services/api_service.dart';
 
 class MessService {
-  // Get all online messes
-  static Future<List<Map<String, dynamic>>> getAllMesses() async {
-    try {
-      final response = await ApiService.get('/messes');
-      if (response['success']) {
-        final data = response['data'] as List;
-        return data.map((e) => e as Map<String, dynamic>).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error fetching messes: $e');
-      return [];
-    }
+  // ✅ FIX: Added getAllMesses method
+  static Future<List<dynamic>> getAllMesses() async {
+    final data = await ApiService.getRequest('messes');
+    return data is List ? data : [];
   }
 
-  // Get mess by ID
+  static Future<List<dynamic>> getMesses() async {
+    final data = await ApiService.getRequest('messes');
+    return data is List ? data : [];
+  }
+
+  // ✅ FIX: Added getMessById method
   static Future<Map<String, dynamic>?> getMessById(int messId) async {
-    try {
-      final response = await ApiService.get('/messes/$messId');
-      if (response['success']) {
-        return response['data'] as Map<String, dynamic>;
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching mess: $e');
-      return null;
-    }
+    return await ApiService.getRequest('messes/$messId');
   }
 
-  // Get mess by owner ID
+  static Future<Map<String, dynamic>> getMess(int messId) async {
+    return await ApiService.getRequest('messes/$messId');
+  }
+
   static Future<Map<String, dynamic>?> getMessByOwner(String ownerId) async {
-    try {
-      final response = await ApiService.get('/messes/owner/$ownerId');
-      if (response['success']) {
-        return response['data'] as Map<String, dynamic>;
-      }
-      return null;
-    } catch (e) {
-      print('Error fetching owner mess: $e');
-      return null;
-    }
+    return await ApiService.getRequest('messes/owner/$ownerId');
   }
 
-  // Create new mess (for admin)
   static Future<Map<String, dynamic>> createMess({
-    required String ownerId,
     required String name,
-    required String description,
-    required String phone,
+    required String ownerId,
     required String address,
-    required String messType,
+    required String phone,
+    String? description,
+    String? messType,
     String? imageUrl,
-    bool isOnline = true,
+    bool? isOnline,
   }) async {
-    try {
-      final response = await ApiService.post('/messes', {
-        'owner_id': ownerId,
-        'name': name,
-        'description': description,
-        'phone': phone,
-        'address': address,
-        'mess_type': messType,
-        'image_url': imageUrl,
-        'isOnline': isOnline,
-      });
-
-      if (response['success']) {
-        return {
-          'success': true,
-          'mess_id': response['data']['mess_id'],
-          'message': 'Mess created successfully',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': response['message'] ?? 'Failed to create mess',
-        };
-      }
-    } catch (e) {
-      return {'success': false, 'message': 'Error: $e'};
-    }
+    // ✅ Changed from postRequest to postForm
+    return await ApiService.postForm('messes/create', {
+      'name': name,
+      'owner_id': ownerId,
+      'address': address,
+      'phone': phone,
+      if (description != null) 'description': description,
+      if (messType != null) 'mess_type': messType,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (isOnline != null) 'is_online': isOnline ? '1' : '0',
+    });
   }
 
-  // Toggle mess online/offline status
-  static Future<bool> toggleMessStatus(int messId, bool isOnline) async {
+  // ✅ FIX: Added bool status parameter
+  static Future<bool> toggleMessStatus(int messId, bool status) async {
     try {
-      final response = await ApiService.put('/messes/$messId/toggle-status', {
-        'isOnline': isOnline,
+      // ✅ Changed to postForm
+      await ApiService.postForm('messes/$messId/toggle-status', {
+        'is_online': status ? '1' : '0',
       });
-      return response['success'];
+      return true;
     } catch (e) {
-      print('Error toggling mess status: $e');
+      print('❌ Toggle Mess Status Error: $e');
       return false;
     }
   }

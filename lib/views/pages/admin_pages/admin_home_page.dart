@@ -63,10 +63,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
       if (mess != null) {
         // Load orders for this mess
         final orders = await OrderService.getMessOrders(mess['id']);
-
         setState(() {
           _messData = mess;
-          _orders = orders;
+          // Cast List<dynamic> to List<Map<String, dynamic>>
+          _orders = orders.map((e) => e as Map<String, dynamic>).toList();
           _isLoading = false;
         });
 
@@ -90,7 +90,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     if (_customerNames.containsKey(customerId)) return;
 
     try {
-      final user = await UserService.getUserById(customerId);
+      final user = await UserService.getUser(customerId);
       if (user != null && mounted) {
         setState(() {
           _customerNames[customerId] = user['name'] ?? 'Customer';
@@ -103,16 +103,15 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> _toggleOnlineStatus(bool status) async {
     if (_messData == null) return;
-
     try {
+      // ✅ FIX: Pass both messId and status
       final success = await MessService.toggleMessStatus(
         _messData!['id'],
         status,
       );
-
       if (success && mounted) {
         setState(() {
-          _messData!['isOnline'] = status ? 1 : 0; // Store as int for MySQL
+          _messData!['isOnline'] = status ? 1 : 0;
         });
       }
     } catch (e) {

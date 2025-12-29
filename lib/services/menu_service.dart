@@ -1,17 +1,16 @@
-import 'package:Tiffinity/services/api_service.dart';
+import '../services/api_service.dart';
 
 class MenuService {
   // Get all menu items for a mess
   static Future<List<Map<String, dynamic>>> getMenuItems(int messId) async {
     try {
-      final response = await ApiService.get('/messes/$messId/menu');
-      if (response['success']) {
-        final data = response['data'] as List;
+      final data = await ApiService.getRequest('menu/$messId'); // ✅ Clean URL
+      if (data is List) {
         return data.map((e) => e as Map<String, dynamic>).toList();
       }
       return [];
     } catch (e) {
-      print('Error fetching menu: $e');
+      print('❌ Error fetching menu: $e');
       return [];
     }
   }
@@ -27,29 +26,24 @@ class MenuService {
     bool isAvailable = true,
   }) async {
     try {
-      final response = await ApiService.post('/menu', {
-        'mess_id': messId,
+      final response = await ApiService.postRequest('menu/items', {
+        // ✅ Clean URL
+        'mess_id': messId.toString(),
         'name': name,
-        'price': price,
-        'description': description,
-        'image_url': imageUrl,
+        'price': price.toString(),
+        if (description != null) 'description': description,
+        if (imageUrl != null) 'image_url': imageUrl,
         'type': type,
-        'is_available': isAvailable,
+        'is_available': isAvailable ? '1' : '0',
       });
 
-      if (response['success']) {
-        return {
-          'success': true,
-          'item_id': response['data']['item_id'],
-          'message': 'Menu item added',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': response['message'] ?? 'Failed to add item',
-        };
-      }
+      return {
+        'success': true,
+        'item_id': response['item_id'] ?? response['id'],
+        'message': 'Menu item added successfully',
+      };
     } catch (e) {
+      print('❌ Error adding menu item: $e');
       return {'success': false, 'message': 'Error: $e'};
     }
   }
@@ -65,17 +59,18 @@ class MenuService {
     bool? isAvailable,
   }) async {
     try {
-      final response = await ApiService.put('/menu/$itemId', {
+      await ApiService.putRequest('menu/items/$itemId', {
+        // ✅ Clean URL
         if (name != null) 'name': name,
-        if (price != null) 'price': price,
+        if (price != null) 'price': price.toString(),
         if (description != null) 'description': description,
         if (imageUrl != null) 'image_url': imageUrl,
         if (type != null) 'type': type,
-        if (isAvailable != null) 'is_available': isAvailable,
+        if (isAvailable != null) 'is_available': isAvailable ? '1' : '0',
       });
-      return response['success'];
+      return true;
     } catch (e) {
-      print('Error updating menu item: $e');
+      print('❌ Error updating menu item: $e');
       return false;
     }
   }
@@ -83,10 +78,10 @@ class MenuService {
   // Delete menu item
   static Future<bool> deleteMenuItem(int itemId) async {
     try {
-      final response = await ApiService.delete('/menu/$itemId');
-      return response['success'];
+      await ApiService.deleteRequest('menu/items/$itemId'); // ✅ Clean URL
+      return true;
     } catch (e) {
-      print('Error deleting menu item: $e');
+      print('❌ Error deleting menu item: $e');
       return false;
     }
   }

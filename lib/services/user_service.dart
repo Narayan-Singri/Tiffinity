@@ -1,17 +1,29 @@
-import 'package:Tiffinity/services/api_service.dart';
+import '../services/api_service.dart';
 
 class UserService {
-  // Get user by ID
-  static Future<Map<String, dynamic>?> getUserById(String userId) async {
+  // Get user details
+  static Future<Map<String, dynamic>> getUser(String userId) async {
     try {
-      final response = await ApiService.get('/users/$userId');
-      if (response['success']) {
-        return response['data'] as Map<String, dynamic>;
-      }
-      return null;
+      return await ApiService.getRequest('users/$userId'); // ✅ Clean URL
     } catch (e) {
-      print('Error fetching user: $e');
-      return null;
+      print('❌ Get User Error: $e');
+      rethrow;
+    }
+  }
+
+  // Update FCM token for notifications
+  static Future<void> updateFcmToken({
+    required String userId,
+    required String fcmToken,
+  }) async {
+    try {
+      await ApiService.putRequest('users/$userId/fcm-token', {
+        // ✅ Clean URL
+        'fcm_token': fcmToken,
+      });
+    } catch (e) {
+      print('❌ Update FCM Token Error: $e');
+      rethrow;
     }
   }
 }

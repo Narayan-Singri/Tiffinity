@@ -94,8 +94,8 @@ class _BothSignupPageState extends State<BothSignupPage> {
           );
         }
       }
-    } on AuthException catch (e) {
-      _showError(e.message);
+    } on Exception catch (e) {
+      _showError(e.toString());
     } catch (e) {
       _showError("Sign up failed: $e");
     } finally {

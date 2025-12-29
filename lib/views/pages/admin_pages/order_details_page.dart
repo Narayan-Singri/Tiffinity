@@ -42,11 +42,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
   }
 
+  // ✅ FIX: Changed to use named parameters
   Future<void> _updateOrderStatus(String newStatus) async {
     final success = await OrderService.updateOrderStatus(
-      widget.orderId,
-      newStatus,
+      orderId: widget.orderId, // ✅ Named parameter
+      status: newStatus, // ✅ Named parameter
     );
+
     if (success && mounted) {
       setState(() => _currentStatus = newStatus);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -258,6 +260,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                 label: const Text('Update Order Status'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
