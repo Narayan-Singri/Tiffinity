@@ -36,7 +36,7 @@ class MessService {
     bool? isOnline,
   }) async {
     // ✅ Changed from postRequest to postForm
-    return await ApiService.postForm('messes/create', {
+    return await ApiService.postForm('messes/create_mess', {
       'name': name,
       'owner_id': ownerId,
       'address': address,
