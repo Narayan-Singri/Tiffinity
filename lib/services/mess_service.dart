@@ -161,10 +161,13 @@ class MessService {
     }
   }
 
-  // ✅ FIXED: Correct folder path with query parameter
+  // mess_service.dart
+
   static Future<bool> toggleMessStatus(int messId, bool status) async {
     try {
-      await ApiService.postForm('messes/toggle_mess_status.php?id=$messId', {
+      // ✅ NEW: Send ID in the body, removed from URL
+      await ApiService.postForm('messes/toggle_mess_status.php', {
+        'id': messId.toString(),
         'isOnline': status ? '1' : '0',
       });
       return true;

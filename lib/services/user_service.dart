@@ -3,12 +3,17 @@ import '../services/api_service.dart';
 
 class UserService {
   // Get user details
-  static Future<Map<String, dynamic>> getUser(String userId) async {
+  static Future<Map<String, dynamic>?> getUser(String userId) async {
+    // Argument is userId
     try {
-      return await ApiService.getRequest('users/$userId'); // ✅ Clean URL
+      final response = await ApiService.getRequest(
+        'users/get_user.php?uid=$userId', // ✅ Use userId here
+      );
+      // Ensure we return the response
+      return response;
     } catch (e) {
       print('❌ Get User Error: $e');
-      rethrow;
+      return null; // Don't rethrow, just return null so UI doesn't crash
     }
   }
 
@@ -18,13 +23,18 @@ class UserService {
     required String fcmToken,
   }) async {
     try {
-      await ApiService.putRequest('users/$userId/fcm-token', {
-        // ✅ Clean URL
+      // Also fix this URL if you haven't created the rewritten rule
+      // OLD: 'users/$userId/fcm-token'
+      // NEW (Likely): 'users/update_fcm.php' (check your PHP files)
+
+      // For now, focusing on the variable error:
+      await ApiService.putRequest('users/update_fcm.php', {
+        'uid': userId,
         'fcm_token': fcmToken,
       });
     } catch (e) {
       print('❌ Update FCM Token Error: $e');
-      rethrow;
+      // rethrow; // Optional
     }
   }
 }

@@ -12,10 +12,13 @@ class OrderService {
     required double totalAmount,
   }) async {
     try {
-      final response = await ApiService.postRequest('orders', {
+      // NEW CODE (Sends Form Data)
+      final response = await ApiService.postForm('orders/create_order.php', {
         'customer_id': customerId,
         'mess_id': messId.toString(),
-        'items': json.encode(items),
+        'items': json.encode(
+          items,
+        ), // PHP receives this as a string and needs json_decode
         'total_amount': totalAmount.toString(),
       });
       return response;
@@ -28,7 +31,7 @@ class OrderService {
   // ✅ FIX: Added getOrderById method
   static Future<Map<String, dynamic>?> getOrderById(String orderId) async {
     try {
-      return await ApiService.getRequest('orders/$orderId');
+      return await ApiService.getRequest('orders/get_order.php?id=$orderId');
     } catch (e) {
       print('❌ Get Order By ID Error: $e');
       rethrow;
@@ -48,8 +51,9 @@ class OrderService {
   // Get all orders for a customer
   static Future<List<dynamic>> getCustomerOrders(String customerId) async {
     try {
-      final data = await ApiService.getRequest('orders/customer/$customerId');
-
+      final data = await ApiService.getRequest(
+        'orders/get_customer_orders.php?customer_id=$customerId',
+      );
       // ✅ FIX: Defensive response parsing
       if (data is List) {
         return List<Map<String, dynamic>>.from(
