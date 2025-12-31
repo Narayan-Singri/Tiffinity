@@ -8,7 +8,8 @@ class AuthService {
       final notificationService = NotificationService();
       final token = await notificationService.getToken();
       if (token != null) {
-        await ApiService.put('update_fcm_token.php', {
+        // ✅ FIXED: Correct path with folder structure
+        await ApiService.put('users/update_fcm_token.php', {
           'user_id': userId,
           'fcm_token': token,
         });
@@ -19,7 +20,6 @@ class AuthService {
     }
   }
 
-  // ✅ FIX: Add static getter for currentUser
   static Future<Map<String, dynamic>?> get currentUser async {
     return await ApiService.getUserData();
   }
@@ -29,13 +29,13 @@ class AuthService {
     return token != null;
   }
 
-  // ✅ SIGN IN - Use FORM DATA
+  // ✅ SIGN IN - Using postForm for auth (correct)
   Future<Map<String, dynamic>> signIn({
     required String email,
     required String password,
   }) async {
     try {
-      final response = await ApiService.postRequest('login.php', {
+      final response = await ApiService.postForm('login.php', {
         'email': email,
         'password': password,
       });
@@ -54,7 +54,7 @@ class AuthService {
     }
   }
 
-  // ✅ SIGN UP - Use FORM DATA
+  // ✅ SIGN UP - Using postForm for auth (correct)
   Future<Map<String, dynamic>> signUp({
     required String email,
     required String password,

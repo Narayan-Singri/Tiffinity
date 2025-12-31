@@ -52,7 +52,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-
     try {
       final currentUser = await AuthService.currentUser;
       if (currentUser == null) return;
@@ -61,18 +60,45 @@ class _AdminHomePageState extends State<AdminHomePage> {
       final mess = await MessService.getMessByOwner(currentUser['uid']);
 
       if (mess != null) {
-        // Load orders for this mess
-        final orders = await OrderService.getMessOrders(mess['id']);
-        setState(() {
-          _messData = mess;
-          // Cast List<dynamic> to List<Map<String, dynamic>>
-          _orders = orders.map((e) => e as Map<String, dynamic>).toList();
-          _isLoading = false;
-        });
+        // ✅ FIX: Convert String to int
+        final messId = int.parse(mess['id'].toString());
 
-        // Load customer names
-        for (var order in orders) {
-          _fetchCustomerName(order['customer_id']);
+        // Load orders for this mess
+        try {
+          final orders = await OrderService.getMessOrders(messId);
+
+          setState(() {
+            _messData = mess;
+
+            // ✅ IMPROVED: Better null/empty handling
+            if (orders != null && orders is List) {
+              _orders =
+                  orders
+                      .where((e) => e is Map) // Filter only valid Maps
+                      .map((e) => Map<String, dynamic>.from(e as Map))
+                      .toList();
+            } else {
+              _orders = [];
+            }
+
+            _isLoading = false;
+          });
+
+          // Load customer names ONLY if we have orders
+          if (_orders.isNotEmpty) {
+            for (var order in _orders) {
+              if (order.containsKey('customer_id')) {
+                _fetchCustomerName(order['customer_id']?.toString() ?? '');
+              }
+            }
+          }
+        } catch (orderError) {
+          debugPrint('Error loading orders: $orderError');
+          setState(() {
+            _messData = mess;
+            _orders = []; // Set to empty array on error
+            _isLoading = false;
+          });
         }
       } else {
         setState(() {

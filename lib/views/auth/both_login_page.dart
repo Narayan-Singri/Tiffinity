@@ -54,6 +54,7 @@ class _BothLoginPageState extends State<BothLoginPage> {
 
         // Navigate based on role
         if (mounted) {
+          // NEW CORRECTED CODE
           if (storedRole == 'admin') {
             Navigator.pushAndRemoveUntil(
               context,
@@ -61,6 +62,7 @@ class _BothLoginPageState extends State<BothLoginPage> {
               (route) => false,
             );
           } else {
+            // Default to Customer
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(

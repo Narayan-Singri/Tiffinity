@@ -117,19 +117,26 @@ class ApiService {
     }
   }
 
-  /// GET request - returns data field from response
+  /// GET request - with robust type conversion
   static Future<dynamic> getRequest(String endpoint) async {
     try {
       debugPrint('📤 GET: $baseUrl/$endpoint');
-
       final response = await http.get(Uri.parse('$baseUrl/$endpoint'));
-
       debugPrint('📥 Response Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        // Return the 'data' field if it exists, otherwise return full response
-        return responseData['data'] ?? responseData;
+        final dynamic responseData = json.decode(response.body);
+
+        // Handle "data" wrapper if present
+        dynamic data;
+        if (responseData is Map && responseData.containsKey('data')) {
+          data = responseData['data'];
+        } else {
+          data = responseData;
+        }
+
+        // Convert recursively
+        return _convertDeep(data);
       } else {
         throw Exception('Request failed with status ${response.statusCode}');
       }
@@ -167,15 +174,18 @@ class ApiService {
     }
   }
 
-  /// PUT request with form data (legacy - for FCM token updates)
+  /// PUT request with form data (for FCM token updates and other form submissions)
   static Future<void> put(String endpoint, Map<String, String> data) async {
     try {
       debugPrint('📤 PUT Form to: $baseUrl/$endpoint');
+      debugPrint('📤 Data: $data');
 
       final response = await http.put(
         Uri.parse('$baseUrl/$endpoint'),
         body: data,
       );
+
+      debugPrint('📥 Response Status: ${response.statusCode}');
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         throw Exception('PUT request failed');
@@ -205,441 +215,53 @@ class ApiService {
   }
 
   // ============================================
-  // AUTH ENDPOINTS (Legacy methods for backward compatibility)
+  // Helper METHODS
   // ============================================
+  /// Helper method to convert types - ensures proper Map<String, dynamic> typing
+  static Map<String, dynamic> _convertTypes(Map item) {
+    final Map<String, dynamic> converted = {};
+    item.forEach((key, value) {
+      // Ensure key is String
+      final String stringKey = key.toString();
 
-  /// Register new user (legacy method)
-  static Future<Map<String, dynamic>> register({
-    required String email,
-    required String password,
-    required String name,
-    required String phone,
-    required String role,
-  }) async {
-    try {
-      print('📤 Registering user...');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/register'),
-        body: {
-          'email': email,
-          'password': password,
-          'name': name,
-          'phone': phone,
-          'role': role,
-        },
-      );
-
-      print('📥 Response Status: ${response.statusCode}');
-      print('📥 Response Body: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          return data['data'];
-        } else {
-          throw Exception(data['message'] ?? 'Registration failed');
+      // Try to convert numeric strings to numbers
+      if (value is String) {
+        final intValue = int.tryParse(value);
+        if (intValue != null) {
+          converted[stringKey] = intValue;
+          return;
         }
-      } else {
-        final data = json.decode(response.body);
-        throw Exception(data['message'] ?? 'Server error');
-      }
-    } catch (e) {
-      print('❌ Registration Error: $e');
-      rethrow;
-    }
-  }
 
-  /// Login user (legacy method)
-  static Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
-  }) async {
-    try {
-      print('📤 Logging in...');
-      print('📤 Form Data: {email: $email, password: $password}');
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/login'),
-        body: {'email': email, 'password': password},
-      );
-
-      print('📥 Response Status: ${response.statusCode}');
-      print('📥 Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          return data['data'];
-        } else {
-          throw Exception(data['message'] ?? 'Login failed');
+        final doubleValue = double.tryParse(value);
+        if (doubleValue != null) {
+          converted[stringKey] = doubleValue;
+          return;
         }
-      } else {
-        final data = json.decode(response.body);
-        throw Exception(data['message'] ?? 'Invalid credentials');
       }
-    } catch (e) {
-      print('❌ Login Error: $e');
-      rethrow;
-    }
+
+      // Keep original value if not convertible
+      converted[stringKey] = value;
+    });
+    return converted;
   }
 
-  // ============================================
-  // MESS ENDPOINTS (Legacy methods)
-  // ============================================
+  // Recursive converter that handles nested Lists and Maps
+  static dynamic _convertDeep(dynamic input) {
+    if (input is List) {
+      return input.map((e) => _convertDeep(e)).toList();
+    } else if (input is Map) {
+      // Cast keys to String and values recursively
+      final Map<String, dynamic> converted = {};
+      input.forEach((key, value) {
+        final String strKey = key.toString();
 
-  /// Get all messes (legacy method)
-  static Future<List<dynamic>> getMesses() async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/messes'));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'] ?? [];
-      } else {
-        throw Exception('Failed to load messes');
-      }
-    } catch (e) {
-      debugPrint('❌ Get Messes Error: $e');
-      rethrow;
+        // Try to parse numeric strings for specific fields if needed,
+        // OR just return the cleaned value.
+        // For safety, let's keep values as they are but ensure Map<String, dynamic> structure
+        converted[strKey] = _convertDeep(value);
+      });
+      return converted;
     }
-  }
-
-  /// Get single mess by ID (legacy method)
-  static Future<Map<String, dynamic>> getMess(int messId) async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/messes/$messId'));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'];
-      } else {
-        throw Exception('Failed to load mess');
-      }
-    } catch (e) {
-      debugPrint('❌ Get Mess Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Get mess by owner ID (legacy method)
-  static Future<Map<String, dynamic>> getMessByOwner(String ownerId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/messes/owner/$ownerId'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'];
-      } else {
-        throw Exception('Failed to load mess');
-      }
-    } catch (e) {
-      debugPrint('❌ Get Mess By Owner Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Create new mess (legacy method)
-  static Future<Map<String, dynamic>> createMess({
-    required String name,
-    required String ownerId,
-    required String address,
-    required String phone,
-    String? description,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/messes/create'),
-        body: {
-          'name': name,
-          'owner_id': ownerId,
-          'address': address,
-          'phone': phone,
-          if (description != null) 'description': description,
-        },
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data['data'];
-      } else {
-        throw Exception('Failed to create mess');
-      }
-    } catch (e) {
-      debugPrint('❌ Create Mess Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Toggle mess status (legacy method)
-  static Future<void> toggleMessStatus(int messId) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/messes/$messId/toggle-status'),
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to toggle mess status');
-      }
-    } catch (e) {
-      debugPrint('❌ Toggle Mess Status Error: $e');
-      rethrow;
-    }
-  }
-
-  // ============================================
-  // MENU ENDPOINTS (Legacy methods)
-  // ============================================
-
-  /// Get menu for a mess (legacy method)
-  static Future<List<dynamic>> getMenu(int messId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/messes/$messId/menu'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'] ?? [];
-      } else {
-        throw Exception('Failed to load menu');
-      }
-    } catch (e) {
-      debugPrint('❌ Get Menu Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Add menu item (legacy method)
-  static Future<Map<String, dynamic>> addMenuItem({
-    required int messId,
-    required String name,
-    required String category,
-    required double price,
-    String? description,
-    String? imageUrl,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/menu'),
-        body: {
-          'mess_id': messId.toString(),
-          'name': name,
-          'category': category,
-          'price': price.toString(),
-          if (description != null) 'description': description,
-          if (imageUrl != null) 'image_url': imageUrl,
-        },
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data['data'];
-      } else {
-        throw Exception('Failed to add menu item');
-      }
-    } catch (e) {
-      debugPrint('❌ Add Menu Item Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Update menu item (legacy method)
-  static Future<void> updateMenuItem({
-    required int itemId,
-    String? name,
-    String? category,
-    double? price,
-    String? description,
-    String? imageUrl,
-    bool? isAvailable,
-  }) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/menu/$itemId'),
-        body: {
-          if (name != null) 'name': name,
-          if (category != null) 'category': category,
-          if (price != null) 'price': price.toString(),
-          if (description != null) 'description': description,
-          if (imageUrl != null) 'image_url': imageUrl,
-          if (isAvailable != null) 'is_available': isAvailable ? '1' : '0',
-        },
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to update menu item');
-      }
-    } catch (e) {
-      debugPrint('❌ Update Menu Item Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Delete menu item (legacy method)
-  static Future<void> deleteMenuItem(int itemId) async {
-    try {
-      final response = await http.delete(Uri.parse('$baseUrl/menu/$itemId'));
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to delete menu item');
-      }
-    } catch (e) {
-      debugPrint('❌ Delete Menu Item Error: $e');
-      rethrow;
-    }
-  }
-
-  // ============================================
-  // ORDER ENDPOINTS (Legacy methods)
-  // ============================================
-
-  /// Create order (legacy method)
-  static Future<Map<String, dynamic>> createOrder({
-    required String customerId,
-    required int messId,
-    required List<Map<String, dynamic>> items,
-    required double totalAmount,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/orders'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'customer_id': customerId,
-          'mess_id': messId,
-          'items': items,
-          'total_amount': totalAmount,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data['data'];
-      } else {
-        throw Exception('Failed to create order');
-      }
-    } catch (e) {
-      debugPrint('❌ Create Order Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Get order by ID (legacy method)
-  static Future<Map<String, dynamic>> getOrder(String orderId) async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/orders/$orderId'));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'];
-      } else {
-        throw Exception('Failed to load order');
-      }
-    } catch (e) {
-      debugPrint('❌ Get Order Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Get customer orders (legacy method)
-  static Future<List<dynamic>> getCustomerOrders(String customerId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/orders/customer/$customerId'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'] ?? [];
-      } else {
-        throw Exception('Failed to load orders');
-      }
-    } catch (e) {
-      debugPrint('❌ Get Customer Orders Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Get mess orders (legacy method)
-  static Future<List<dynamic>> getMessOrders(int messId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/orders/mess/$messId'),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'] ?? [];
-      } else {
-        throw Exception('Failed to load orders');
-      }
-    } catch (e) {
-      debugPrint('❌ Get Mess Orders Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Update order status (legacy method)
-  static Future<void> updateOrderStatus({
-    required String orderId,
-    required String status,
-  }) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/orders/$orderId/status'),
-        body: {'status': status},
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to update order status');
-      }
-    } catch (e) {
-      debugPrint('❌ Update Order Status Error: $e');
-      rethrow;
-    }
-  }
-
-  // ============================================
-  // USER ENDPOINTS (Legacy methods)
-  // ============================================
-
-  /// Get user by ID (legacy method)
-  static Future<Map<String, dynamic>> getUser(String userId) async {
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/users/$userId'));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data['data'];
-      } else {
-        throw Exception('Failed to load user');
-      }
-    } catch (e) {
-      debugPrint('❌ Get User Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Update FCM token (legacy method)
-  static Future<void> updateFcmToken({
-    required String userId,
-    required String fcmToken,
-  }) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/users/$userId/fcm-token'),
-        body: {'fcm_token': fcmToken},
-      );
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to update FCM token');
-      }
-    } catch (e) {
-      debugPrint('❌ Update FCM Token Error: $e');
-      rethrow;
-    }
+    return input;
   }
 }

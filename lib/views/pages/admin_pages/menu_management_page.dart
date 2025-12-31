@@ -12,9 +12,9 @@ class MenuManagementPage extends StatefulWidget {
 }
 
 class _MenuManagementPageState extends State<MenuManagementPage> {
-  List<Map<String, dynamic>> _menuItems = [];
-  int? _messId;
-  bool _isLoading = true;
+  List<Map<String, dynamic>> menuItems = [];
+  int? messId;
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -22,7 +22,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     _loadMenuItems();
   }
 
-  // ✅ Helper function to convert int to bool
+  // Helper function to convert int to bool
   bool _toBool(dynamic value) {
     if (value is bool) return value;
     if (value is int) return value == 1;
@@ -31,7 +31,9 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
   }
 
   Future<void> _loadMenuItems() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       final currentUser = await AuthService.currentUser;
@@ -43,16 +45,20 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
       if (mess != null) {
         final menuItems = await MenuService.getMenuItems(mess['id']);
         setState(() {
-          _messId = mess['id'];
-          _menuItems = menuItems;
-          _isLoading = false;
+          messId = mess['id'];
+          this.menuItems = menuItems;
+          isLoading = false;
         });
       } else {
-        setState(() => _isLoading = false);
+        setState(() {
+          isLoading = false;
+        });
       }
     } catch (e) {
-      debugPrint('Error loading menu: $e');
-      setState(() => _isLoading = false);
+      debugPrint('❌ Error loading menu: $e');
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -63,7 +69,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
           (context) => AlertDialog(
             title: const Text('Delete Item'),
             content: const Text(
-              'Are you sure you want to delete this menu item?',
+              'Are you sure you want to delete this menu item? This action cannot be undone.',
             ),
             actions: [
               TextButton(
@@ -82,7 +88,9 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     );
 
     if (confirm == true) {
+      // ✅ FIX: MenuService.deleteMenuItem() returns bool
       final success = await MenuService.deleteMenuItem(itemId);
+
       if (success && mounted) {
         ScaffoldMessenger.of(
           context,
@@ -97,6 +105,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
   }
 
   Future<void> _toggleAvailability(int itemId, bool currentStatus) async {
+    // ✅ FIX: MenuService.updateMenuItem() returns bool
     final success = await MenuService.updateMenuItem(
       itemId: itemId,
       isAvailable: !currentStatus,
@@ -113,11 +122,11 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (_messId == null) {
+    if (messId == null) {
       return const Scaffold(
         body: Center(child: Text('No mess found. Please create a mess first.')),
       );
@@ -130,7 +139,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
         foregroundColor: Colors.white,
       ),
       body:
-          _menuItems.isEmpty
+          menuItems.isEmpty
               ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -157,20 +166,21 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                 onRefresh: _loadMenuItems,
                 child: ListView.builder(
                   padding: const EdgeInsets.all(8),
-                  itemCount: _menuItems.length,
+                  itemCount: menuItems.length,
                   itemBuilder: (context, index) {
-                    final item = _menuItems[index];
-                    final isAvailable = _toBool(
-                      item['is_available'],
-                    ); // ✅ Convert int to bool
+                    final item = menuItems[index];
+                    final isAvailable = _toBool(item['is_available']);
 
                     return Card(
                       margin: const EdgeInsets.symmetric(
                         vertical: 8,
                         horizontal: 8,
                       ),
+                      // Dim card if out of stock
+                      color: isAvailable ? null : Colors.grey[200],
                       child: ListTile(
-                        leading:
+                        leading: Stack(
+                          children: [
                             item['image_url'] != null
                                 ? ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
@@ -183,7 +193,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                                       return Container(
                                         width: 60,
                                         height: 60,
-                                        color: Colors.grey[200],
+                                        color: Colors.grey[300],
                                         child: Icon(
                                           Icons.restaurant,
                                           color: Colors.grey[400],
@@ -196,7 +206,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                                   width: 60,
                                   height: 60,
                                   decoration: BoxDecoration(
-                                    color: Colors.grey[200],
+                                    color: Colors.grey[300],
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Icon(
@@ -204,27 +214,88 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                                     color: Colors.grey[400],
                                   ),
                                 ),
-                        title: Text(
-                          item['name'] ?? 'Unnamed',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                            // Show overlay if out of stock
+                            if (!isAvailable)
+                              Container(
+                                width: 60,
+                                height: 60,
+                                decoration: BoxDecoration(
+                                  color: Colors.black45,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.remove_circle_outline,
+                                  color: Colors.white,
+                                  size: 30,
+                                ),
+                              ),
+                          ],
                         ),
+                        // Inside ListView.builder -> Card -> ListTile
+                        title: Text(
+                          (item['name'] ?? 'Unnamed')
+                              .toString(), // Ensure it's a string
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16, // Ensure visible size
+                            decoration:
+                                isAvailable
+                                    ? TextDecoration.none
+                                    : TextDecoration.lineThrough,
+                            // Force color to black so it's visible on white cards
+                            color:
+                                isAvailable ? Colors.black : Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow.ellipsis, // Prevent layout break
+                        ),
+
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('₹${item['price']}'),
                             Text(
-                              isAvailable ? 'Available' : 'Not Available',
+                              '₹${item['price']}',
                               style: TextStyle(
-                                color: isAvailable ? Colors.green : Colors.red,
-                                fontSize: 12,
+                                color:
+                                    isAvailable ? Colors.black87 : Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            // Status badge with distinct styling
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    isAvailable
+                                        ? Colors.green.withOpacity(0.1)
+                                        : Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color:
+                                      isAvailable ? Colors.green : Colors.red,
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                isAvailable ? 'Available' : 'Out of Stock',
+                                style: TextStyle(
+                                  color:
+                                      isAvailable ? Colors.green : Colors.red,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
                         ),
                         trailing: PopupMenuButton<String>(
                           itemBuilder:
-                              (context) => [
-                                const PopupMenuItem(
+                              (context) => const [
+                                PopupMenuItem(
                                   value: 'edit',
                                   child: Row(
                                     children: [
@@ -238,22 +309,13 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                                   value: 'toggle',
                                   child: Row(
                                     children: [
-                                      Icon(
-                                        isAvailable
-                                            ? Icons.visibility_off
-                                            : Icons.visibility,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        isAvailable
-                                            ? 'Mark Unavailable'
-                                            : 'Mark Available',
-                                      ),
+                                      Icon(Icons.toggle_on, size: 20),
+                                      SizedBox(width: 8),
+                                      Text('Toggle Availability'),
                                     ],
                                   ),
                                 ),
-                                const PopupMenuItem(
+                                PopupMenuItem(
                                   value: 'delete',
                                   child: Row(
                                     children: [
@@ -278,14 +340,12 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
                                 MaterialPageRoute(
                                   builder:
                                       (context) => AddMenuItemPage(
-                                        messId: _messId!,
+                                        messId: messId!,
                                         existingItem: item,
                                       ),
                                 ),
                               );
-                              if (result == true) {
-                                _loadMenuItems();
-                              }
+                              if (result == true) _loadMenuItems();
                             } else if (value == 'toggle') {
                               _toggleAvailability(item['id'], isAvailable);
                             } else if (value == 'delete') {
@@ -303,12 +363,10 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddMenuItemPage(messId: _messId!),
+              builder: (context) => AddMenuItemPage(messId: messId!),
             ),
           );
-          if (result == true) {
-            _loadMenuItems();
-          }
+          if (result == true) _loadMenuItems();
         },
         backgroundColor: const Color.fromARGB(255, 27, 84, 78),
         child: const Icon(Icons.add, color: Colors.white),

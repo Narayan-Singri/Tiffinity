@@ -53,23 +53,6 @@ class RoleSelectionPage extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 16),
-            // DELIVERY PARTNER
-            _buildRoleCard(
-              context: context,
-              icon: Icons.delivery_dining,
-              iconColor: Colors.green,
-              title: 'Delivery Partner',
-              description: 'Deliver orders and earn money',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const BothLoginPage(role: 'delivery'),
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ),

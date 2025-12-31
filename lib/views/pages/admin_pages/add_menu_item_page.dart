@@ -19,12 +19,11 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
   final TextEditingController priceController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
 
-  String _selectedType = 'veg';
-  bool _isAvailable = true;
-  bool _isLoading = false;
-
-  File? _foodImage;
-  final ImagePicker _picker = ImagePicker();
+  String selectedType = 'veg';
+  bool isAvailable = true;
+  bool isLoading = false;
+  File? foodImage;
+  final ImagePicker picker = ImagePicker();
 
   @override
   void initState() {
@@ -33,14 +32,12 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
       nameController.text = widget.existingItem!['name'] ?? '';
       priceController.text = widget.existingItem!['price']?.toString() ?? '';
       descriptionController.text = widget.existingItem!['description'] ?? '';
-      _selectedType = widget.existingItem!['type'] ?? 'veg';
-      _isAvailable = _toBool(
-        widget.existingItem!['is_available'],
-      ); // ✅ Convert int to bool
+      selectedType = widget.existingItem!['type'] ?? 'veg';
+      isAvailable = _toBool(widget.existingItem!['is_available']);
     }
   }
 
-  // ✅ Helper function to convert int to bool
+  // Convert int to bool
   bool _toBool(dynamic value) {
     if (value is bool) return value;
     if (value is int) return value == 1;
@@ -54,7 +51,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Upload Food Photo'),
-          content: const Text('Choose where to upload photo from:'),
+          content: const Text('Choose where to upload photo from'),
           actions: [
             TextButton(
               onPressed: () {
@@ -78,18 +75,19 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
 
   Future<void> _pickImageFromDevice() async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
       if (image != null) {
         final file = File(image.path);
         final fileSize = await file.length();
-        final fileSizeMB = fileSize / 1024 / 1024;
+        final fileSizeMB = fileSize / (1024 * 1024);
 
         if (fileSize > 32 * 1024 * 1024) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '❌ Image too large: ${fileSizeMB.toStringAsFixed(2)}MB\nMax: 32MB allowed',
+                  'Image too large (\${fileSizeMB.toStringAsFixed(2)}MB). 32MB allowed.',
                 ),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
@@ -99,12 +97,15 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
           return;
         }
 
-        setState(() => _foodImage = file);
+        setState(() {
+          foodImage = file;
+        });
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '✅ Image selected: ${fileSizeMB.toStringAsFixed(2)}MB',
+                'Image selected (\${fileSizeMB.toStringAsFixed(2)}MB)',
               ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
@@ -119,18 +120,19 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
 
   Future<void> _pickImageFromCamera() async {
     try {
-      final XFile? image = await _picker.pickImage(source: ImageSource.camera);
+      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+
       if (image != null) {
         final file = File(image.path);
         final fileSize = await file.length();
-        final fileSizeMB = fileSize / 1024 / 1024;
+        final fileSizeMB = fileSize / (1024 * 1024);
 
         if (fileSize > 32 * 1024 * 1024) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '❌ Image too large: ${fileSizeMB.toStringAsFixed(2)}MB\nMax: 32MB allowed',
+                  'Image too large (\${fileSizeMB.toStringAsFixed(2)}MB). 32MB allowed.',
                 ),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
@@ -140,12 +142,15 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
           return;
         }
 
-        setState(() => _foodImage = file);
+        setState(() {
+          foodImage = file;
+        });
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '✅ Image selected: ${fileSizeMB.toStringAsFixed(2)}MB',
+                'Image selected (\${fileSizeMB.toStringAsFixed(2)}MB)',
               ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
@@ -171,27 +176,31 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      isLoading = true;
+    });
 
     try {
       String? imageUrl;
 
       // Upload image if selected
-      if (_foodImage != null) {
-        print('🖼️ Uploading food image...');
-        imageUrl = await ImageService.uploadToImgBB(_foodImage!);
+      if (foodImage != null) {
+        print('📤 Uploading food image...');
+        imageUrl = await ImageService.uploadToImgBB(foodImage!);
 
         if (imageUrl == 'SIZE_EXCEEDED') {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('❌ Image too large! Maximum 32MB allowed.'),
+                content: Text('Image too large! Maximum 32MB allowed.'),
                 backgroundColor: Colors.red,
                 duration: Duration(seconds: 3),
               ),
             );
           }
-          setState(() => _isLoading = false);
+          setState(() {
+            isLoading = false;
+          });
           return;
         }
 
@@ -199,12 +208,14 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('❌ Image upload failed. Check internet.'),
+                content: Text('Image upload failed. Check internet.'),
                 backgroundColor: Colors.red,
               ),
             );
           }
-          setState(() => _isLoading = false);
+          setState(() {
+            isLoading = false;
+          });
           return;
         }
       }
@@ -216,14 +227,15 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
 
       if (widget.existingItem != null) {
         // Update existing item
+        // ✅ FIX: MenuService.updateMenuItem() returns bool, not Map
         final success = await MenuService.updateMenuItem(
           itemId: widget.existingItem!['id'],
           name: nameController.text.trim(),
           price: price,
           description: descriptionController.text.trim(),
           imageUrl: imageUrl,
-          type: _selectedType,
-          isAvailable: _isAvailable,
+          type: selectedType,
+          isAvailable: isAvailable,
         );
 
         if (success && mounted) {
@@ -236,29 +248,34 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
         }
       } else {
         // Add new item
-        final result = await MenuService.addMenuItem(
+        // ✅ FIX: MenuService.addMenuItem() returns bool, not Map
+        final success = await MenuService.addMenuItem(
           messId: widget.messId,
           name: nameController.text.trim(),
           price: price,
           description: descriptionController.text.trim(),
           imageUrl: imageUrl,
-          type: _selectedType,
-          isAvailable: _isAvailable,
+          type: selectedType,
+          isAvailable: isAvailable,
         );
 
-        if (result['success'] && mounted) {
+        if (success && mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Menu item added successfully')),
           );
         } else {
-          _showError(result['message'] ?? 'Failed to add menu item');
+          _showError('Failed to add menu item');
         }
       }
     } catch (e) {
       _showError('Error: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -267,12 +284,12 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text("Error"),
+            title: const Text('Error'),
             content: Text(message),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
+                child: const Text('OK'),
               ),
             ],
           ),
@@ -304,14 +321,14 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
               ),
               child: Column(
                 children: [
-                  if (_foodImage != null)
+                  if (foodImage != null)
                     Container(
                       width: double.infinity,
                       height: 200,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         image: DecorationImage(
-                          image: FileImage(_foodImage!),
+                          image: FileImage(foodImage!),
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -361,7 +378,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
                     onPressed: _showImageSourceDialog,
                     icon: const Icon(Icons.image),
                     label: Text(
-                      _foodImage != null ||
+                      foodImage != null ||
                               widget.existingItem?['image_url'] != null
                           ? 'Change Image'
                           : 'Upload Image',
@@ -394,7 +411,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
               controller: priceController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Price (₹) *',
+                labelText: 'Price *',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -438,9 +455,11 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
                         child: RadioListTile<String>(
                           title: const Text('Veg'),
                           value: 'veg',
-                          groupValue: _selectedType,
+                          groupValue: selectedType,
                           onChanged: (value) {
-                            setState(() => _selectedType = value!);
+                            setState(() {
+                              selectedType = value!;
+                            });
                           },
                           contentPadding: EdgeInsets.zero,
                           visualDensity: const VisualDensity(vertical: -4),
@@ -450,9 +469,11 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
                         child: RadioListTile<String>(
                           title: const Text('Non-Veg'),
                           value: 'non-veg',
-                          groupValue: _selectedType,
+                          groupValue: selectedType,
                           onChanged: (value) {
-                            setState(() => _selectedType = value!);
+                            setState(() {
+                              selectedType = value!;
+                            });
                           },
                           contentPadding: EdgeInsets.zero,
                           visualDensity: const VisualDensity(vertical: -4),
@@ -462,9 +483,11 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
                         child: RadioListTile<String>(
                           title: const Text('Jain'),
                           value: 'jain',
-                          groupValue: _selectedType,
+                          groupValue: selectedType,
                           onChanged: (value) {
-                            setState(() => _selectedType = value!);
+                            setState(() {
+                              selectedType = value!;
+                            });
                           },
                           contentPadding: EdgeInsets.zero,
                           visualDensity: const VisualDensity(vertical: -4),
@@ -481,11 +504,13 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
             SwitchListTile(
               title: const Text('Available'),
               subtitle: Text(
-                _isAvailable ? 'Item is available' : 'Item is not available',
+                isAvailable ? 'Item is available' : 'Item is not available',
               ),
-              value: _isAvailable,
+              value: isAvailable,
               onChanged: (value) {
-                setState(() => _isAvailable = value);
+                setState(() {
+                  isAvailable = value;
+                });
               },
               activeColor: const Color.fromARGB(255, 27, 84, 78),
             ),
@@ -493,7 +518,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
 
             // Save Button
             ElevatedButton(
-              onPressed: _isLoading ? null : _saveMenuItem,
+              onPressed: isLoading ? null : _saveMenuItem,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 27, 84, 78),
                 foregroundColor: Colors.white,
@@ -503,7 +528,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
                 ),
               ),
               child:
-                  _isLoading
+                  isLoading
                       ? const SizedBox(
                         height: 20,
                         width: 20,
