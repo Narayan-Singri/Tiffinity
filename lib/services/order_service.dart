@@ -111,13 +111,16 @@ class OrderService {
     }
   }
 
-  // ✅ FIX: Added return type bool
   static Future<bool> updateOrderStatus({
     required String orderId,
     required String status,
   }) async {
     try {
-      await ApiService.putRequest('orders/$orderId/status', {'status': status});
+      // ✅ FIX: Changed URL to point to the actual PHP file and passed ID as a query parameter
+      await ApiService.putRequest(
+        'orders/update_order_status.php?id=$orderId',
+        {'status': status},
+      );
       return true;
     } catch (e) {
       print('❌ Update Order Status Error: $e');
