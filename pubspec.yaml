@@ -17,7 +17,13 @@ dependencies:
   lottie: ^3.3.1
   shared_preferences: ^2.5.3
   flutter_launcher_icons: ^0.14.4
-  url_launcher: ^6.2.2 # For phone calls
+  shimmer: ^3.0.0 # Loading skeleton
+  slide_to_act: ^2.0.1 # Swipe slider button
+  confetti: ^0.7.0 # Celebration animation
+  url_launcher: ^6.2.2 # Phone calls
+  pull_to_refresh: ^2.0.0 # Pull to refresh
+  timeago: ^3.6.0 # Relative time (e.g., "15 mins ago")
+  flutter_animate: ^4.5.0 # Smooth animations
 
   # Keep ONLY Firebase Messaging for notifications
   firebase_core: ^3.6.0

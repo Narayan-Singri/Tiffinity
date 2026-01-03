@@ -1,4 +1,3 @@
-// ✅ FIXED order_service.dart - Matching your ApiService methods
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import 'dart:convert';
@@ -12,49 +11,38 @@ class OrderService {
     required double totalAmount,
   }) async {
     try {
-      // NEW CODE (Sends Form Data)
       final response = await ApiService.postForm('orders/create_order.php', {
         'customer_id': customerId,
         'mess_id': messId.toString(),
-        'items': json.encode(
-          items,
-        ), // PHP receives this as a string and needs json_decode
+        'items': json.encode(items),
         'total_amount': totalAmount.toString(),
       });
       return response;
     } catch (e) {
-      print('❌ Create Order Error: $e');
+      debugPrint('❌ Create Order Error: $e');
       rethrow;
     }
   }
 
-  // ✅ FIX: Added getOrderById method
+  // Get order by ID (Enhanced with full details)
   static Future<Map<String, dynamic>?> getOrderById(String orderId) async {
     try {
       return await ApiService.getRequest('orders/get_order.php?id=$orderId');
     } catch (e) {
-      print('❌ Get Order By ID Error: $e');
-      rethrow;
-    }
-  }
-
-  // Get a specific order by ID (legacy method)
-  static Future<Map<String, dynamic>> getOrder(String orderId) async {
-    try {
-      return await ApiService.getRequest('orders/$orderId');
-    } catch (e) {
-      print('❌ Get Order Error: $e');
+      debugPrint('❌ Get Order By ID Error: $e');
       rethrow;
     }
   }
 
   // Get all orders for a customer
-  static Future<List<dynamic>> getCustomerOrders(String customerId) async {
+  static Future<List<Map<String, dynamic>>> getCustomerOrders(
+    String customerId,
+  ) async {
     try {
       final data = await ApiService.getRequest(
         'orders/get_customer_orders.php?customer_id=$customerId',
       );
-      // ✅ FIX: Defensive response parsing
+
       if (data is List) {
         return List<Map<String, dynamic>>.from(
           data.map((item) => Map<String, dynamic>.from(item)),
@@ -70,25 +58,23 @@ class OrderService {
       } else if (data is Map) {
         return [Map<String, dynamic>.from(data)];
       }
+
       return [];
     } catch (e) {
-      print('❌ Get Customer Orders Error: $e');
+      debugPrint('❌ Get Customer Orders Error: $e');
       rethrow;
     }
   }
 
-  // ✅ CORRECT: Get all orders for a mess
-  // File is in /api/orders/ folder, not /api/messes/ folder!
+  // Get all orders for a mess
   static Future<List<Map<String, dynamic>>> getMessOrders(int messId) async {
     try {
       final response = await ApiService.getRequest(
         'orders/get_mess_orders.php?mess_id=$messId',
       );
 
-      // Helper to safely parse
       Map<String, dynamic> safeParse(dynamic item) {
         if (item is! Map) return {};
-        // Ensure we return a clean Map<String, dynamic>
         return Map<String, dynamic>.from(item);
       }
 
@@ -98,32 +84,51 @@ class OrderService {
         if (response.containsKey('orders') && response['orders'] is List) {
           return (response['orders'] as List).map((e) => safeParse(e)).toList();
         }
+
         if (response.containsKey('data') && response['data'] is List) {
           return (response['data'] as List).map((e) => safeParse(e)).toList();
         }
+
         return [safeParse(response)];
       }
 
       return [];
     } catch (e) {
-      print('❌ Get Mess Orders Error: $e');
+      debugPrint('❌ Get Mess Orders Error: $e');
       rethrow;
     }
   }
 
+  // Update order status
   static Future<bool> updateOrderStatus({
     required String orderId,
     required String status,
   }) async {
     try {
-      // ✅ FIX: Changed URL to point to the actual PHP file and passed ID as a query parameter
       await ApiService.putRequest(
         'orders/update_order_status.php?id=$orderId',
         {'status': status},
       );
       return true;
     } catch (e) {
-      print('❌ Update Order Status Error: $e');
+      debugPrint('❌ Update Order Status Error: $e');
+      return false;
+    }
+  }
+
+  // ✅ NEW: Reject order with reason
+  static Future<bool> rejectOrder({
+    required String orderId,
+    required String reason,
+  }) async {
+    try {
+      final response = await ApiService.postForm('orders/reject_order.php', {
+        'order_id': orderId,
+        'reason': reason,
+      });
+      return response['success'] == true;
+    } catch (e) {
+      debugPrint('❌ Reject Order Error: $e');
       return false;
     }
   }
