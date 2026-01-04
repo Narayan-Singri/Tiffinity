@@ -1,3 +1,4 @@
+import 'package:Tiffinity/views/pages/customer_pages/customer_location_page.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/auth_services.dart';
@@ -87,9 +88,15 @@ class _BothSignupPageState extends State<BothSignupPage> {
             (route) => false,
           );
         } else {
+          // ✅ Navigate to Location Page for Customer
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (_) => const CustomerWidgetTree()),
+            MaterialPageRoute(
+              builder:
+                  (_) => CustomerLocationPage(
+                    userId: user['uid'], // Pass user ID from signup response
+                  ),
+            ),
             (route) => false,
           );
         }

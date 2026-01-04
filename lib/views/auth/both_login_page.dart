@@ -1,4 +1,5 @@
 import 'package:Tiffinity/views/pages/admin_pages/admin_widget_tree.dart';
+import 'package:Tiffinity/views/pages/customer_pages/customer_location_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/auth_services.dart';
@@ -53,8 +54,9 @@ class _BothLoginPageState extends State<BothLoginPage> {
         }
 
         // Navigate based on role
+        // Navigate based on role
+        // Navigate based on role
         if (mounted) {
-          // NEW CORRECTED CODE
           if (storedRole == 'admin') {
             Navigator.pushAndRemoveUntil(
               context,
@@ -62,11 +64,13 @@ class _BothLoginPageState extends State<BothLoginPage> {
               (route) => false,
             );
           } else {
-            // Default to Customer
+            // ✅ CUSTOMER: Navigate to location page first (Swiggy style)
             Navigator.pushAndRemoveUntil(
               context,
               MaterialPageRoute(
-                builder: (context) => const CustomerWidgetTree(),
+                builder:
+                    (context) =>
+                        CustomerLocationPage(userId: user['uid'].toString()),
               ),
               (route) => false,
             );
@@ -78,7 +82,9 @@ class _BothLoginPageState extends State<BothLoginPage> {
     } catch (e) {
       _showError('Error: $e');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

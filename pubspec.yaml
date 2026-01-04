@@ -26,6 +26,9 @@ dependencies:
   flutter_animate: ^4.5.0 # Smooth animations
   cached_network_image: ^3.3.1
   intl: ^0.19.0
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  google_maps_flutter: ^2.5.0
 
   # Keep ONLY Firebase Messaging for notifications
   firebase_core: ^3.6.0
