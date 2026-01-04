@@ -50,6 +50,15 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     if (!silent) setState(() => _isLoading = true);
     try {
       final data = await OrderService.getOrderById(widget.orderId);
+
+      // DEBUG: Print the entire response
+      debugPrint("===== ORDER DATA =====");
+      debugPrint("Full response: ${data.toString()}");
+      debugPrint("Keys: ${data?.keys.toList()}");
+      debugPrint("Mess data: ${data?['mess']}");
+      debugPrint("Items data: ${data?['items']}");
+      debugPrint("=====================");
+
       if (mounted) {
         setState(() {
           _orderData = data;
@@ -416,8 +425,24 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildOrderItemsList(bool isDark) {
-    final items = _orderData!['items'] as List;
-    final mess = _orderData!['mess'];
+    final items = _orderData!['items'] as List? ?? [];
+    final messDetails =
+        _orderData!['mess_details']; // Changed from 'mess' to 'mess_details'
+
+    // Add null check for mess details
+    if (messDetails == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey[850] : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          'Mess information not available',
+          style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+        ),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -432,22 +457,15 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           childrenPadding: const EdgeInsets.only(bottom: 16),
           leading: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              mess['image'] ?? '',
+            child: Container(
               width: 40,
               height: 40,
-              fit: BoxFit.cover,
-              errorBuilder:
-                  (_, __, ___) => Container(
-                    width: 40,
-                    height: 40,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.store, size: 20),
-                  ),
+              color: Colors.grey[200],
+              child: const Icon(Icons.store, size: 20),
             ),
           ),
           title: Text(
-            mess['name'],
+            messDetails['name']?.toString() ?? 'Mess',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 15,
@@ -455,7 +473,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           ),
           subtitle: Text(
-            mess['address'] ?? '',
+            _orderData!['delivery_address']?.toString() ?? '',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -464,7 +482,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           ),
           children:
-              items.map<Widget>((item) {
+              items.where((item) => item != null && item is Map).map((item) {
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: Row(
@@ -472,7 +490,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                       Icon(
                         Icons.circle,
                         color:
-                            (item['type'] ?? 'veg').toString().toLowerCase() ==
+                            (item['type']?.toString().toLowerCase() ?? 'veg') ==
                                     'veg'
                                 ? Colors.green
                                 : Colors.red,
@@ -480,7 +498,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        "${item['quantity']}x",
+                        "${item['quantity'] ?? 1}x",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: _primaryColor,
@@ -489,7 +507,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          item['name'] ?? 'Item',
+                          item['name']?.toString() ?? 'Item',
                           style: TextStyle(
                             fontSize: 14,
                             color: isDark ? Colors.white : Colors.black,
@@ -497,7 +515,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                         ),
                       ),
                       Text(
-                        "₹${item['price']}",
+                        "₹${item['price_at_time'] ?? item['price'] ?? 0}", // Use price_at_time
                         style: TextStyle(
                           fontWeight: FontWeight.w500,
                           color: isDark ? Colors.white : Colors.black,
@@ -513,8 +531,19 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildBillDetails(bool isDark) {
-    final bill = _orderData!['bill'];
-    if (bill == null) return const SizedBox.shrink();
+    // Get values from root level, not from 'bill' object
+    final totalAmount = _orderData!['total_amount'];
+    final deliveryFee = _orderData!['delivery_fee'];
+
+    // Calculate item total and taxes
+    final itemTotal =
+        totalAmount != null && deliveryFee != null
+            ? (double.tryParse(totalAmount.toString()) ?? 0) -
+                (double.tryParse(deliveryFee.toString()) ?? 0)
+            : 0;
+    final taxes = itemTotal * 0.05; // 5% tax
+
+    if (totalAmount == null) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -534,9 +563,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           ),
           const SizedBox(height: 16),
-          _buildBillRow("Item Total", "₹${bill['item_total']}", isDark),
-          _buildBillRow("Delivery Fee", "₹${bill['delivery_fee']}", isDark),
-          _buildBillRow("Taxes (5%)", "₹${bill['taxes']}", isDark),
+          _buildBillRow(
+            "Item Total",
+            "₹${itemTotal.toStringAsFixed(2)}",
+            isDark,
+          ),
+          _buildBillRow("Delivery Fee", "₹${deliveryFee ?? 0}", isDark),
+          _buildBillRow("Taxes (5%)", "₹${taxes.toStringAsFixed(2)}", isDark),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Divider(color: isDark ? Colors.grey[700] : Colors.grey[300]),
@@ -545,7 +578,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Paid Amount",
+                "Total Amount",
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -553,7 +586,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 ),
               ),
               Text(
-                "₹${bill['grand_total']}",
+                "₹$totalAmount",
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
