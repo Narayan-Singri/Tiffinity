@@ -1,6 +1,5 @@
 import 'package:Tiffinity/views/pages/admin_pages/admin_widget_tree.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_location_page.dart';
-import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/both_signup_page.dart';

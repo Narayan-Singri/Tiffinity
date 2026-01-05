@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 
 class UserService {
@@ -7,7 +6,7 @@ class UserService {
     // Argument is userId
     try {
       final response = await ApiService.getRequest(
-        'users/get_user.php?uid=$userId', // ✅ Use userId here
+        'users/get_user.php?uid=$userId',
       );
       // Ensure we return the response
       return response;

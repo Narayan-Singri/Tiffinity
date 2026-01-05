@@ -16,26 +16,25 @@ dependencies:
   cupertino_icons: ^1.0.8
   lottie: ^3.3.1
   shared_preferences: ^2.5.3
-  flutter_launcher_icons: ^0.14.4
-  shimmer: ^3.0.0 # Loading skeleton
-  slide_to_act: ^2.0.1 # Swipe slider button
-  confetti: ^0.7.0 # Celebration animation
-  url_launcher: ^6.2.2 # Phone calls
-  pull_to_refresh: ^2.0.0 # Pull to refresh
-  timeago: ^3.6.0 # Relative time (e.g., "15 mins ago")
-  flutter_animate: ^4.5.0 # Smooth animations
+  shimmer: ^3.0.0
+  slide_to_act: ^2.0.1
+  confetti: ^0.7.0
+  url_launcher: ^6.2.2
+  pull_to_refresh: ^2.0.0
+  timeago: ^3.6.0
+  flutter_animate: ^4.5.0
   cached_network_image: ^3.3.1
   intl: ^0.19.0
   geolocator: ^10.1.0
   geocoding: ^2.1.1
   google_maps_flutter: ^2.5.0
+  flutter_dotenv: ^6.0.0
 
-  # Keep ONLY Firebase Messaging for notifications
-  firebase_core: ^3.6.0
-  firebase_messaging: ^15.1.3
+  # KEEP for local notifications display
   flutter_local_notifications: ^18.0.1
 
-  flutter_dotenv: ^6.0.0
+  # ADD for device token generation
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:

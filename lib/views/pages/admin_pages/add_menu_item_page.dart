@@ -87,7 +87,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Image too large (\${fileSizeMB.toStringAsFixed(2)}MB). 32MB allowed.',
+                  "Image too large (${fileSizeMB.toStringAsFixed(2)}MB). 32MB allowed.",
                 ),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
@@ -105,7 +105,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Image selected (\${fileSizeMB.toStringAsFixed(2)}MB)',
+                "Image selected (\${fileSizeMB.toStringAsFixed(2)}MB)",
               ),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
@@ -132,7 +132,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Image too large (\${fileSizeMB.toStringAsFixed(2)}MB). 32MB allowed.',
+                  'Image too large (${fileSizeMB.toStringAsFixed(2)}MB). 32MB allowed.',
                 ),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),

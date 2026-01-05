@@ -7,15 +7,13 @@ import 'package:Tiffinity/services/notification_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
 
-  // Initialize Firebase only for messaging
-  await Firebase.initializeApp();
+  // Initialize custom notification service (NO Firebase!)
   await NotificationService().initialize();
 
   // Load cart data
@@ -58,16 +56,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       builder: (context, isDarkMode, child) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
+          navigatorKey: NotificationService.navigatorKey,
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.teal,
               brightness: isDarkMode ? Brightness.dark : Brightness.light,
             ),
           ),
-          home: FutureBuilder<bool>(
+          home: FutureBuilder(
             future: AuthService.isLoggedIn(),
             builder: (context, snapshot) {
-              // Show loading while checking auth state
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
@@ -75,13 +73,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
               }
 
               final bool isLoggedIn = snapshot.data ?? false;
-
-              // User is not logged in
               if (!isLoggedIn) {
                 return const WelcomePage();
               }
 
-              // User is logged in - check their role
               return FutureBuilder<Map<String, dynamic>?>(
                 future: AuthService.currentUser,
                 builder: (context, userSnapshot) {
@@ -91,18 +86,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                     );
                   }
 
-                  // Inside your FutureBuilder where you check role
                   final user = userSnapshot.data;
                   if (user != null && user['role'] != null) {
                     String role = user['role'];
-
                     if (role == 'customer') {
                       return const CustomerWidgetTree();
                     } else if (role == 'admin') {
                       return const AdminWidgetTree();
                     }
                   }
-                  // Fallback
+
                   return const WelcomePage();
                 },
               );

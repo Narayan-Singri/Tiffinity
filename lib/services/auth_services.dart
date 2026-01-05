@@ -6,7 +6,7 @@ class AuthService {
   static Future<void> saveFCMToken(String userId) async {
     try {
       final notificationService = NotificationService();
-      final token = await notificationService.getToken();
+      final token = await notificationService.getDeviceToken();
       if (token != null) {
         // ✅ FIXED: Correct path with folder structure
         await ApiService.put('users/update_fcm_token.php', {
