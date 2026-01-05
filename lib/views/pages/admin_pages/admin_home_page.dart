@@ -71,7 +71,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
             _messData = mess;
 
             // ✅ IMPROVED: Better null/empty handling
-            if (orders != null && orders is List) {
+            if (orders is List) {
               _orders =
                   orders
                       .where((e) => e is Map) // Filter only valid Maps

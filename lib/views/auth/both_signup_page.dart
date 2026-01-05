@@ -3,7 +3,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
-import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 import 'package:Tiffinity/views/widgets/auth_field.dart';
 import 'package:Tiffinity/views/widgets/auth_gradient_button.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_setup_page.dart';
