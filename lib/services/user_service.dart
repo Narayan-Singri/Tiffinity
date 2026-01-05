@@ -6,7 +6,7 @@ class UserService {
     // Argument is userId
     try {
       final response = await ApiService.getRequest(
-        'users/get_user.php?uid=$userId',
+        'users/get_user.php?uid=$userId', // ✅ Use userId here
       );
       // Ensure we return the response
       return response;
