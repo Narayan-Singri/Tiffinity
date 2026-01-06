@@ -5,7 +5,7 @@ class MenuService {
   static Future<List<Map<String, dynamic>>> getMenuItems(int messId) async {
     try {
       final response = await ApiService.getRequest(
-        'menu/get_menu.php?mess_id=$messId',
+        'menu/get_menu.php?mess_id=$messId&for_customer=false',
       );
 
       // Helper to safely parse a single item
@@ -105,6 +105,78 @@ class MenuService {
     } catch (e) {
       print('❌ Error deleting menu item: $e');
       return false;
+    }
+  }
+
+  // Restore deleted menu item
+  static Future<bool> restoreMenuItem(int itemId) async {
+    try {
+      await ApiService.postForm('menu/restore_menu_item.php', {
+        'item_id': itemId.toString(),
+      });
+      return true;
+    } catch (e) {
+      print('❌ Error restoring menu item: $e');
+      return false;
+    }
+  }
+
+  // Get deleted menu items
+  static Future<List<Map<String, dynamic>>> getDeletedMenuItems(
+    int messId,
+  ) async {
+    try {
+      final response = await ApiService.getRequest(
+        'menu/get_deleted_menu.php?mess_id=$messId',
+      );
+
+      if (response is List) {
+        return response.map((e) => e as Map<String, dynamic>).toList();
+      }
+      return [];
+    } catch (e) {
+      print('❌ Error fetching deleted menu: $e');
+      return [];
+    }
+  }
+
+  // Get menu items for customers (only available items)
+  static Future<List<Map<String, dynamic>>> getCustomerMenuItems(
+    int messId,
+  ) async {
+    try {
+      final response = await ApiService.getRequest(
+        'menu/get_menu.php?mess_id=$messId&for_customer=true',
+      );
+
+      // Helper to safely parse a single item
+      Map<String, dynamic> safeParse(dynamic item) {
+        if (item is! Map) return {};
+        return {
+          'id': int.tryParse(item['id']?.toString() ?? '0') ?? 0,
+          'mess_id': int.tryParse(item['mess_id']?.toString() ?? '0') ?? 0,
+          'name': item['name']?.toString() ?? '',
+          'description': item['description']?.toString() ?? '',
+          'price': double.tryParse(item['price']?.toString() ?? '0') ?? 0.0,
+          'image_url': item['image_url']?.toString(),
+          'type': item['type']?.toString() ?? 'veg',
+          'is_available':
+              int.tryParse(item['is_available']?.toString() ?? '1') ?? 1,
+        };
+      }
+
+      if (response is List) {
+        return response.map((e) => safeParse(e)).toList();
+      } else if (response is Map) {
+        if (response.containsKey('data') && response['data'] is List) {
+          return (response['data'] as List).map((e) => safeParse(e)).toList();
+        }
+        return [safeParse(response)];
+      }
+      return [];
+    } catch (e) {
+      print('❌ Error fetching customer menu: $e');
+      return [];
     }
   }
 }

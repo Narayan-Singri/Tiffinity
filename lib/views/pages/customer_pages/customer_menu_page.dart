@@ -37,8 +37,10 @@ class _MenuPageState extends State<MenuPage> {
       // Load mess data
       final mess = await MessService.getMessById(int.parse(widget.messId));
 
-      // Load menu items
-      final menu = await MenuService.getMenuItems(int.parse(widget.messId));
+      // Load menu items (customer view - only available items)
+      final menu = await MenuService.getCustomerMenuItems(
+        int.parse(widget.messId),
+      );
 
       setState(() {
         _messData = mess;
