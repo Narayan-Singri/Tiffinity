@@ -1,3 +1,4 @@
+import 'package:Tiffinity/services/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/data/notifiers.dart';
 import 'package:Tiffinity/data/constants.dart';
@@ -7,6 +8,7 @@ import 'package:Tiffinity/services/order_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/widgets/checkout_login_dialog.dart';
 import 'order_tracking_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MenuPage extends StatefulWidget {
   final String messId;
@@ -1082,7 +1084,7 @@ class _MenuPageState extends State<MenuPage> {
     final isLoggedIn = await AuthService.isLoggedIn();
     if (!isLoggedIn) {
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop(context); // Close cart bottom sheet
       showDialog(
         context: context,
         builder:
@@ -1094,26 +1096,74 @@ class _MenuPageState extends State<MenuPage> {
       return;
     }
 
-    // Show pickup time dialog
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder:
-          (context) => PickupTimeDialog(
-            onConfirm: (pickupTime) async {
-              await _placeOrder(pickupTime, totalAmount);
-            },
-          ),
-    );
+    // ✅ DIRECTLY PLACE ORDER WITHOUT PICKUP TIME DIALOG
+    Navigator.pop(context); // Close cart bottom sheet first
+    await _placeOrder(totalAmount);
   }
 
-  Future<void> _placeOrder(String pickupTime, double totalAmount) async {
+  Future _placeOrder(double totalAmount) async {
     final currentCart = _getCurrentMessCart();
     if (currentCart.isEmpty) return;
 
+    // Show loading indicator
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => const Center(
+            child: CircularProgressIndicator(
+              color: Color.fromARGB(255, 27, 84, 78),
+            ),
+          ),
+    );
+
     try {
       final currentUser = await AuthService.currentUser;
-      if (currentUser == null) return;
+      if (currentUser == null) {
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+
+      // ✅ GET DEFAULT DELIVERY ADDRESS FROM DATABASE
+      String deliveryAddress = 'Not provided';
+      try {
+        final addressResponse =
+            await ApiService.getRequest(
+                  'users/get_default_address.php?user_id=${currentUser['uid']}',
+                )
+                as Map<String, dynamic>;
+
+        if (addressResponse['success'] == true &&
+            addressResponse['address'] != null) {
+          final addr = addressResponse['address'];
+          deliveryAddress =
+              '${addr['room_no']}, ${addr['building']}, ${addr['area']}';
+        } else {
+          // No default address set - prompt user
+          if (mounted) {
+            Navigator.pop(context); // Close loading
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please select a delivery address first'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please select a delivery address'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
 
       // Prepare order items
       final orderItems =
@@ -1125,15 +1175,18 @@ class _MenuPageState extends State<MenuPage> {
             };
           }).toList();
 
-      // Create order
+      // Create order WITH DELIVERY ADDRESS
       final result = await OrderService.createOrder(
         customerId: currentUser['uid'],
         messId: int.parse(widget.messId),
         totalAmount: totalAmount,
         items: orderItems,
+        deliveryAddress: deliveryAddress, // ✅ PASS FORMATTED ADDRESS
       );
 
-      if (result['success']) {
+      if (mounted) Navigator.pop(context); // Close loading
+
+      if (result['message'] == 'Order created') {
         final orderId = result['order_id'];
 
         // Clear cart for this mess
@@ -1144,110 +1197,41 @@ class _MenuPageState extends State<MenuPage> {
         await CartHelper.clearPendingMess();
 
         if (mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Order placed: #$orderId')));
-
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => OrderTrackingPage(orderId: orderId),
+            ),
+          );
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Order placed successfully! #$orderId'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
             ),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] ?? 'Order failed')),
+            SnackBar(
+              content: Text(result['message'] ?? 'Order failed'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Order failed: $e')));
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
-  }
-}
-
-// Pickup Time Dialog Widget
-class PickupTimeDialog extends StatefulWidget {
-  final Function(String) onConfirm;
-  const PickupTimeDialog({super.key, required this.onConfirm});
-
-  @override
-  State<PickupTimeDialog> createState() => _PickupTimeDialogState();
-}
-
-class _PickupTimeDialogState extends State<PickupTimeDialog> {
-  TimeOfDay? _selectedTime;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('When will you pick up?'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Please select your estimated pickup time',
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          GestureDetector(
-            onTap: () async {
-              final time = await showTimePicker(
-                context: context,
-                initialTime: TimeOfDay.now(),
-              );
-              if (time != null) {
-                setState(() => _selectedTime = time);
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: const Color.fromARGB(255, 27, 84, 78),
-                ),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _selectedTime?.format(context) ?? 'Select time',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const Icon(
-                    Icons.access_time,
-                    color: Color.fromARGB(255, 27, 84, 78),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed:
-              _selectedTime == null
-                  ? null
-                  : () {
-                    Navigator.pop(context);
-                    widget.onConfirm(_selectedTime!.format(context));
-                  },
-          child: const Text('Confirm'),
-        ),
-      ],
-    );
   }
 }
