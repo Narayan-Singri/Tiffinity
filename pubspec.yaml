@@ -10,7 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.1
-  image_picker: ^1.1.2
+  image_picker: ^1.0.7
   permission_handler: ^11.3.0
   photo_view: ^0.15.0
   cupertino_icons: ^1.0.8

@@ -94,6 +94,8 @@ class AuthService {
       throw 'Logout failed. Please try again.';
     }
   }
+
+  Future<void> updateVerificationStatus({required String type, required String value}) async {}
 }
 
 class AuthException implements Exception {
