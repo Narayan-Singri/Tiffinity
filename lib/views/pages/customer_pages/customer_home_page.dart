@@ -4,6 +4,7 @@ import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/widgets/card_widget.dart';
 import 'package:Tiffinity/views/widgets/search_filter_bar.dart';
 import 'package:Tiffinity/data/address_notifier.dart';
+import 'package:Tiffinity/views/pages/customer_pages/customer_profile_page.dart';
 import 'customer_location_page.dart';
 
 class CustomerHomePage extends StatefulWidget {
@@ -25,8 +26,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
     super.initState();
     _loadData();
     _loadSelectedAddress();
-
-    // ✅ Listen to address changes
     selectedAddressNotifier.addListener(_updateAddress);
   }
 
@@ -63,7 +62,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
         setState(() => _userId = user['uid'].toString());
       }
 
-      // ✅ GET AND CAST MESSES
       final messesRaw = await MessService.getAllMesses();
       final messes =
           messesRaw
@@ -104,53 +102,55 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       );
       return;
     }
-
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CustomerLocationPage(userId: _userId!),
       ),
     );
-
-    // Reload address after returning
     _loadSelectedAddress();
+  }
+
+  void _openProfilePage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CustomerProfilePage()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.white,
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: CustomScrollView(
           slivers: [
-            // ✅ Custom App Bar with Address
+            // 1. Standard App Bar (Scrolls away)
             SliverAppBar(
-              floating: true,
-              snap: true,
-              elevation: 0,
+              floating: false, // Standard scroll behavior
+              pinned: false, // Scrolls out of view
               backgroundColor: const Color(0xFF00695C),
+              elevation: 0,
               title: GestureDetector(
                 onTap: _openLocationPage,
                 child: Row(
                   children: [
                     const Icon(
-                      Icons.location_on,
+                      Icons.location_on_rounded,
                       color: Colors.white,
-                      size: 24,
+                      size: 20,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Text(
                             'Deliver to',
                             style: TextStyle(
-                              fontSize: 12,
                               color: Colors.white70,
-                              fontWeight: FontWeight.w400,
+                              fontSize: 12,
                             ),
                           ),
                           Row(
@@ -159,18 +159,17 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                                 child: Text(
                                   _selectedAddress,
                                   style: const TextStyle(
-                                    fontSize: 16,
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
-                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               const Icon(
                                 Icons.keyboard_arrow_down,
                                 color: Colors.white,
-                                size: 20,
+                                size: 18,
                               ),
                             ],
                           ),
@@ -180,24 +179,51 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                   ],
                 ),
               ),
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 16.0),
+                  child: GestureDetector(
+                    onTap: _openProfilePage,
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      child: const Icon(Icons.person, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
             ),
 
-            // Search Bar
+            // 2. Overlapping Search Bar Section (Scrolls away)
             SliverToBoxAdapter(
-              child: Container(
-                color: const Color(0xFF00695C),
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: SearchFilterBar(
-                  onSearchChanged: _filterMesses,
-                  onFilterPressed: () {}, // ✅ Add empty callback
-                ),
+              child: Stack(
+                children: [
+                  // Teal Background Extension (Top Half)
+                  Container(
+                    height: 35, // Half height of search bar approx
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF00695C),
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(24),
+                      ),
+                    ),
+                  ),
+                  // Search Bar Centered
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: SearchFilterBar(
+                      onSearchChanged: _filterMesses,
+                      onFilterPressed: () {},
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            // ✅ Greeting Section
+            // 3. Greeting Section
             SliverToBoxAdapter(
-              child: Container(
-                padding: const EdgeInsets.all(20),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -211,7 +237,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'What would you like to eat today?',
+                      'What are you craving today?',
                       style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
                   ],
@@ -219,10 +245,13 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               ),
             ),
 
-            // Popular Messes Header
+            // 4. Popular Messes Header
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -240,7 +269,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                         'See All',
                         style: TextStyle(
                           color: Color(0xFF00695C),
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -249,7 +278,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
               ),
             ),
 
-            // Messes List
+            // 5. Messes List
             _isLoading
                 ? const SliverFillRemaining(
                   child: Center(child: CircularProgressIndicator()),
@@ -278,7 +307,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
                   ),
                 )
                 : SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final mess = _filteredMesses[index];
