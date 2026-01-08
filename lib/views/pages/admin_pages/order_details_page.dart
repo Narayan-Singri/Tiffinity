@@ -1220,7 +1220,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
             Expanded(
               flex: 2,
               child: ElevatedButton(
-                onPressed: () => _updateOrderStatus('confirmed'),
+                onPressed: () => _updateOrderStatus('accepted'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -1243,7 +1243,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ],
         );
 
-      case 'confirmed':
       case 'accepted':
       case 'preparing':
         return SlideAction(

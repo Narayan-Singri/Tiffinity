@@ -9,6 +9,7 @@ class OrderService {
     required int messId,
     required List<Map<String, dynamic>> items,
     required double totalAmount,
+    required String deliveryAddress,
   }) async {
     try {
       final response = await ApiService.postForm('orders/create_order.php', {
@@ -16,6 +17,7 @@ class OrderService {
         'mess_id': messId.toString(),
         'items': json.encode(items),
         'total_amount': totalAmount.toString(),
+        'delivery_address': deliveryAddress,
       });
       return response;
     } catch (e) {
@@ -24,7 +26,7 @@ class OrderService {
     }
   }
 
-  // Get order by ID (Enhanced with full details)
+  // ✅ Get order by ID (Enhanced with full details)
   static Future<Map<String, dynamic>?> getOrderById(String orderId) async {
     try {
       return await ApiService.getRequest('orders/get_order.php?id=$orderId');
@@ -34,7 +36,7 @@ class OrderService {
     }
   }
 
-  // Get all orders for a customer
+  // ✅ Get all orders for a customer
   static Future<List<Map<String, dynamic>>> getCustomerOrders(
     String customerId,
   ) async {
@@ -116,7 +118,7 @@ class OrderService {
     }
   }
 
-  // ✅ NEW: Reject order with reason
+  // ✅ Reject order with reason
   static Future<bool> rejectOrder({
     required String orderId,
     required String reason,

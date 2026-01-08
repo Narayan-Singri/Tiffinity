@@ -155,15 +155,52 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
     );
   }
 
-  // ✅ Select saved address
+  // Select saved address and set as default
   void _selectAddress(Map<String, dynamic> address) async {
-    await AddressHelper.saveSelectedAddress(address);
+    try {
+      // Show loading
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
 
-    final displayAddress = '${address['room_no']}, ${address['building']}';
-    _showDeliveringAnimation(displayAddress);
+      // Get current user
+      final userData = await ApiService.getUserData();
+      if (userData == null || !userData.containsKey('uid')) {
+        if (mounted) {
+          Navigator.pop(context); // Close loading
+          _showError('User not logged in');
+        }
+        return;
+      }
+
+      // Set this address as default in database
+      await ApiService.postRequest('users/set_default_address.php', {
+        'user_id': userData['uid'],
+        'address_id': address['id'],
+      });
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading
+
+        // Save to local storage for quick access
+        await AddressHelper.saveSelectedAddress(address);
+
+        final displayAddress =
+            '${address['room_no']}, ${address['building']}, ${address['area']}';
+        _showDeliveringAnimation(displayAddress);
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading if open
+        _showError('Failed to set default address: $e');
+      }
+    }
   }
 
-  // ✅ Show Swiggy-like animation
+  // Show Swiggy-like animation
   void _showDeliveringAnimation(String address) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

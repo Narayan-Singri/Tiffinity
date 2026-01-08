@@ -147,12 +147,14 @@ class ApiService {
   }
 
   /// PUT request with JSON body
+  /// PUT request with JSON body
   static Future<Map<String, dynamic>> putRequest(
     String endpoint,
     Map<String, dynamic> data,
   ) async {
     try {
       debugPrint('📤 PUT to: $baseUrl/$endpoint');
+      debugPrint('📤 Data: ${json.encode(data)}');
 
       final response = await http.put(
         Uri.parse('$baseUrl/$endpoint'),
@@ -161,12 +163,24 @@ class ApiService {
       );
 
       debugPrint('📥 Response Status: ${response.statusCode}');
+      debugPrint('📥 Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = json.decode(response.body);
         return responseData as Map<String, dynamic>;
       } else {
-        throw Exception('Request failed');
+        // ✅ EXTRACT ERROR MESSAGE FROM RESPONSE
+        try {
+          final responseData = json.decode(response.body);
+          final errorMessage =
+              responseData['error'] ??
+              responseData['message'] ??
+              'Request failed with status ${response.statusCode}';
+          throw Exception(errorMessage);
+        } catch (e) {
+          // If JSON parsing fails, use generic error
+          throw Exception('Request failed with status ${response.statusCode}');
+        }
       }
     } catch (e) {
       debugPrint('❌ PUT Request Error: $e');
