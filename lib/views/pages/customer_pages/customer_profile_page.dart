@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
+import 'package:Tiffinity/views/auth/both_login_page.dart';
 
 class CustomerProfilePage extends StatefulWidget {
   const CustomerProfilePage({super.key});
@@ -101,7 +102,20 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const WelcomePage()),
-            (_) => false,
+        (_) => false,
+      );
+    }
+  }
+
+  Future<void> _handleLogin() async {
+    HapticFeedback.mediumImpact();
+    if (mounted) {
+      // Navigate to customer login page
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const BothLoginPage(role: 'customer'),
+        ),
       );
     }
   }
@@ -160,10 +174,16 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                   _glassContainer(
                     child: Column(
                       children: [
-                        _menuItem(Icons.calendar_month_rounded, 'My Subscriptions'),
+                        _menuItem(
+                          Icons.calendar_month_rounded,
+                          'My Subscriptions',
+                        ),
                         _menuItem(Icons.shopping_bag_outlined, 'My Orders'),
                         _menuItem(Icons.location_on_outlined, 'My Addresses'),
-                        _menuItem(Icons.account_balance_wallet_outlined, 'Wallet Balance'),
+                        _menuItem(
+                          Icons.account_balance_wallet_outlined,
+                          'Wallet Balance',
+                        ),
                         _menuItem(Icons.favorite_border_rounded, 'Favourites'),
                       ],
                     ),
@@ -178,7 +198,10 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                       children: [
                         _menuItem(Icons.group_outlined, 'Invite Friends'),
                         _menuItem(Icons.language, 'App Language'),
-                        _menuItem(Icons.support_agent_rounded, 'Help & Support'),
+                        _menuItem(
+                          Icons.support_agent_rounded,
+                          'Help & Support',
+                        ),
                         _menuItem(Icons.quiz_outlined, "FAQ's"),
                       ],
                     ),
@@ -190,7 +213,10 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
 
                   Text(
                     "v1.0.1",
-                    style: TextStyle(color: Colors.teal.withOpacity(0.3), fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.teal.withOpacity(0.3),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 20),
                 ],
@@ -235,9 +261,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color,
-        boxShadow: [
-          BoxShadow(color: color, blurRadius: 60, spreadRadius: 40),
-        ],
+        boxShadow: [BoxShadow(color: color, blurRadius: 60, spreadRadius: 40)],
       ),
     );
   }
@@ -252,7 +276,10 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
-              colors: [Colors.teal.withOpacity(0.1), Colors.teal.withOpacity(0.3)],
+              colors: [
+                Colors.teal.withOpacity(0.1),
+                Colors.teal.withOpacity(0.3),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -261,7 +288,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                 color: Colors.teal.withOpacity(0.2),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
-              )
+              ),
             ],
           ),
           child: CircleAvatar(
@@ -269,7 +296,11 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
             backgroundColor: Colors.white,
             child: Text(
               name.isNotEmpty ? name[0].toUpperCase() : 'U',
-              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.teal),
+              style: const TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                color: Colors.teal,
+              ),
             ),
           ),
         ),
@@ -357,11 +388,22 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       model.value.isEmpty ? "Not set" : model.value,
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2D3142)),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2D3142),
+                      ),
                     ),
                   ],
                 ),
@@ -374,12 +416,21 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                 InkWell(
                   onTap: () => _startVerification(model),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: isVerifying ? Colors.grey.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                      color:
+                          isVerifying
+                              ? Colors.grey.withOpacity(0.1)
+                              : Colors.orange.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isVerifying ? Colors.transparent : Colors.orange.withOpacity(0.3),
+                        color:
+                            isVerifying
+                                ? Colors.transparent
+                                : Colors.orange.withOpacity(0.3),
                       ),
                     ),
                     child: Text(
@@ -387,7 +438,8 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: isVerifying ? Colors.grey : Colors.orange.shade700,
+                        color:
+                            isVerifying ? Colors.grey : Colors.orange.shade700,
                       ),
                     ),
                   ),
@@ -412,7 +464,11 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
-                      style: const TextStyle(letterSpacing: 8, fontWeight: FontWeight.bold, color: Colors.teal),
+                      style: const TextStyle(
+                        letterSpacing: 8,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal,
+                      ),
                       decoration: const InputDecoration(
                         counterText: "",
                         border: InputBorder.none,
@@ -427,12 +483,18 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                 if (model.resendCooldown > 0)
                   Text(
                     "${model.resendCooldown}s",
-                    style: TextStyle(color: Colors.grey.shade400, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontWeight: FontWeight.bold,
+                    ),
                   )
                 else
                   TextButton(
                     onPressed: () => _startVerification(model),
-                    child: const Text("Resend", style: TextStyle(color: Colors.teal, fontSize: 12)),
+                    child: const Text(
+                      "Resend",
+                      style: TextStyle(color: Colors.teal, fontSize: 12),
+                    ),
                   ),
               ],
             ),
@@ -443,7 +505,12 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
   }
 
   Widget _buildDivider() {
-    return Divider(height: 1, color: Colors.grey.withOpacity(0.1), indent: 60, endIndent: 20);
+    return Divider(
+      height: 1,
+      color: Colors.grey.withOpacity(0.1),
+      indent: 60,
+      endIndent: 20,
+    );
   }
 
   Widget _menuItem(IconData icon, String title) {
@@ -458,10 +525,18 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF2D3142)),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF2D3142),
+                ),
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey.shade300),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: Colors.grey.shade300,
+            ),
           ],
         ),
       ),
@@ -469,8 +544,12 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
   }
 
   Widget _buildLogoutButton() {
+    // Check if user is logged in based on _userData
+    final bool isLoggedIn =
+        _userData != null && _userData!.isNotEmpty && _userData!['uid'] != null;
+
     return InkWell(
-      onTap: _handleLogout,
+      onTap: isLoggedIn ? _handleLogout : _handleLogin,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         width: double.infinity,
@@ -480,24 +559,36 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-                color: Colors.red.withOpacity(0.05),
-                blurRadius: 15,
-                offset: const Offset(0, 5)
+              color:
+                  isLoggedIn
+                      ? Colors.red.withOpacity(0.05)
+                      : Colors.teal.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
             ),
           ],
-          border: Border.all(color: Colors.red.withOpacity(0.1)),
+          border: Border.all(
+            color:
+                isLoggedIn
+                    ? Colors.red.withOpacity(0.1)
+                    : Colors.teal.withOpacity(0.1),
+          ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center, // Centers the content
-          children: const [
-            Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
-            SizedBox(width: 10), // Spacing between icon and text
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isLoggedIn ? Icons.logout_rounded : Icons.login_rounded,
+              color: isLoggedIn ? Colors.redAccent : Colors.teal,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
             Text(
-              "Logout",
+              isLoggedIn ? "Logout" : "Login",
               style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5
+                color: isLoggedIn ? Colors.redAccent : Colors.teal,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
               ),
             ),
           ],
