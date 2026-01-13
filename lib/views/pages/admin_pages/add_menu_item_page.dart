@@ -1,3 +1,4 @@
+import 'package:Tiffinity/data/category_model.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/menu_service.dart';
 import 'package:Tiffinity/services/image_service.dart';
@@ -18,6 +19,8 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
+  String? selectedCategory;
+  List<Category> availableCategories = [];
 
   String selectedType = 'veg';
   bool isAvailable = true;
@@ -28,12 +31,141 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
   @override
   void initState() {
     super.initState();
+
+    // Load categories first
+    loadCategories();
+
+    // Then load existing item data if editing
     if (widget.existingItem != null) {
       nameController.text = widget.existingItem!['name'] ?? '';
       priceController.text = widget.existingItem!['price']?.toString() ?? '';
       descriptionController.text = widget.existingItem!['description'] ?? '';
       selectedType = widget.existingItem!['type'] ?? 'veg';
       isAvailable = _toBool(widget.existingItem!['is_available']);
+
+      // ✅ CRITICAL: Load category from existing item
+      final itemCategory = widget.existingItem!['category']?.toString();
+      print('🔍 Existing item category: $itemCategory'); // Debug
+
+      if (itemCategory != null && itemCategory.isNotEmpty) {
+        setState(() {
+          selectedCategory = itemCategory;
+        });
+        print('✅ Set selectedCategory to: $selectedCategory'); // Debug
+      }
+    }
+  }
+
+  Future<void> loadCategories() async {
+    final categories = await MenuService.getCategories(widget.messId);
+
+    setState(() {
+      availableCategories = categories;
+
+      // ✅ ONLY set default if no category was set from existingItem
+      if (selectedCategory == null || selectedCategory!.isEmpty) {
+        if (availableCategories.isNotEmpty) {
+          selectedCategory = availableCategories.first.name;
+        } else {
+          selectedCategory = 'Daily Menu Items';
+        }
+      }
+
+      print('📦 Categories loaded. Selected: $selectedCategory'); // Debug
+    });
+  }
+
+  Future<void> _showCreateCategoryDialog() async {
+    final TextEditingController categoryController = TextEditingController();
+
+    final result = await showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Create New Category'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Category Name',
+                    hintText: 'e.g., Monday Specials',
+                    prefixIcon: Icon(Icons.category),
+                    border: OutlineInputBorder(),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  maxLength: 50,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Min 2 characters. Letters, numbers, spaces, and hyphens only.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final name = categoryController.text.trim();
+                  if (name.length >= 2) {
+                    Navigator.pop(context, name);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Category name must be at least 2 characters',
+                        ),
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Create'),
+              ),
+            ],
+          ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      // Create the category
+      final success = await MenuService.createCategory(
+        messId: widget.messId,
+        categoryName: result,
+      );
+
+      if (success) {
+        // Reload categories
+        await loadCategories();
+
+        // Select the newly created category
+        setState(() {
+          selectedCategory = result;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Category "$result" created successfully')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to create category'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -235,6 +367,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
           description: descriptionController.text.trim(),
           imageUrl: imageUrl,
           type: selectedType,
+          category: selectedCategory,
           isAvailable: isAvailable,
         );
 
@@ -256,6 +389,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
           description: descriptionController.text.trim(),
           imageUrl: imageUrl,
           type: selectedType,
+          category: selectedCategory,
           isAvailable: isAvailable,
         );
 
@@ -498,6 +632,110 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey[300]!),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Category',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _showCreateCategoryDialog,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Create New'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color.fromARGB(
+                            255,
+                            27,
+                            84,
+                            78,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // ✅ FIXED: Better empty state and dropdown validation
+                  if (availableCategories.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.category,
+                            size: 40,
+                            color: Colors.orange[300],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'No categories yet',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Create your first category to organize menu items',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      // ✅ CRITICAL FIX: Validate value before setting
+                      value:
+                          availableCategories.any(
+                                (cat) => cat.name == selectedCategory,
+                              )
+                              ? selectedCategory
+                              : availableCategories
+                                  .first
+                                  .name, // Use first as fallback
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.category),
+                        border: OutlineInputBorder(),
+                        hintText: 'Select a category',
+                      ),
+                      items:
+                          availableCategories.map((category) {
+                            return DropdownMenuItem<String>(
+                              value: category.name,
+                              child: Text(category.name),
+                            );
+                          }).toList(),
+                      onChanged: (value) {
+                        setState(() => selectedCategory = value);
+                      },
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please select a category';
+                        }
+                        return null;
+                      },
+                    ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 16),
 
             // Availability Switch
