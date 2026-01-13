@@ -1,4 +1,5 @@
 {
-    "editor.formatOnSave": true,
-    "cmake.sourceDirectory": "C:/Tiffinty/real-tiffinity/linux"
+  "editor.formatOnSave": true,
+  "cmake.sourceDirectory": "C:/Tiffinty/real-tiffinity/linux",
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

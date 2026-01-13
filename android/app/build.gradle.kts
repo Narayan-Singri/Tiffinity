@@ -11,7 +11,7 @@ android {
 
     namespace = "com.example.practise"
 
-    compileSdk = 35 // Changed from flutter.compileSdkVersion to 35
+    compileSdk = 36 // Changed from flutter.compileSdkVersion to 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
