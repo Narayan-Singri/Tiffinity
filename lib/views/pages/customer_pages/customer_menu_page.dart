@@ -1,11 +1,11 @@
 import 'dart:ui';
-import 'package:Tiffinity/views/pages/customer_pages/subscription_duration_page.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/data/notifiers.dart';
 import 'package:Tiffinity/data/constants.dart';
 import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/services/menu_service.dart';
 import 'cart_checkout_page.dart';
+import 'subscription_duration_page.dart';
 
 class MenuPage extends StatefulWidget {
   final String messId;
@@ -139,6 +139,21 @@ class _MenuPageState extends State<MenuPage> {
               IconButton(
                 icon: const Icon(Icons.favorite_border, color: Colors.white),
                 onPressed: () {},
+              ),
+              IconButton(
+                icon: const Icon(Icons.card_membership, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => SubscriptionDurationPage(
+                            messId: widget.messId,
+                            messName: _messData?['name'] ?? 'Mess',
+                          ),
+                    ),
+                  );
+                },
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(

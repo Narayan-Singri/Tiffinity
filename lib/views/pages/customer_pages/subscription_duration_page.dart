@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'subscription_date_selection_page.dart';
 
 class SubscriptionDurationPage extends StatefulWidget {
@@ -26,13 +25,12 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (_) => SubscriptionDateSelectionPage(
-              messId: widget.messId,
-              messName: widget.messName,
-              selectedDays: _selectedDays,
-              selectedPrice: selectedPrice,
-            ),
+        builder: (_) => SubscriptionDateSelectionPage(
+          messId: widget.messId,
+          messName: widget.messName.isNotEmpty ? widget.messName : 'Mess',
+          selectedDays: _selectedDays,
+          selectedPrice: selectedPrice,
+        ),
       ),
     );
   }

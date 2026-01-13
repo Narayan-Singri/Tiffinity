@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/auth_services.dart';
-import 'package:Tiffinity/views/auth/both_login_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_home_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_orders_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_profile_page.dart'; // ✅ Ensure this is imported
