@@ -139,6 +139,21 @@ class _MenuPageState extends State<MenuPage> {
                 icon: const Icon(Icons.favorite_border, color: Colors.white),
                 onPressed: () {},
               ),
+              IconButton(
+                icon: const Icon(Icons.card_membership, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => SubscriptionDurationPage(
+                            messId: widget.messId,
+                            messName: _messData?['name'] ?? 'Mess',
+                          ),
+                    ),
+                  );
+                },
+              ),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
