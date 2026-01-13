@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:Tiffinity/views/pages/customer_pages/subscription_duration_page.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/data/notifiers.dart';
 import 'package:Tiffinity/data/constants.dart';
