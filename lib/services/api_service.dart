@@ -10,34 +10,29 @@ class ApiService {
   // TOKEN & USER DATA STORAGE METHODS
   // ============================================
 
-  /// Save authentication token to local storage
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
     debugPrint('✅ Token saved');
   }
 
-  /// Get authentication token from local storage
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('auth_token');
   }
 
-  /// Clear authentication token from local storage
   static Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     debugPrint('✅ Token cleared');
   }
 
-  /// Save user data to local storage
   static Future<void> saveUserData(Map<String, dynamic> user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_data', json.encode(user));
     debugPrint('✅ User data saved');
   }
 
-  /// Get user data from local storage
   static Future<Map<String, dynamic>?> getUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final userData = prefs.getString('user_data');
@@ -47,7 +42,6 @@ class ApiService {
     return null;
   }
 
-  /// Clear user data from local storage
   static Future<void> clearUserData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user_data');
@@ -58,7 +52,7 @@ class ApiService {
   // GENERIC HTTP METHODS
   // ============================================
 
-  /// POST request with form data (for auth endpoints)
+  /// POST request with form data (URL-encoded)
   static Future<Map<String, dynamic>> postForm(
     String endpoint,
     Map<String, String> data,
@@ -69,6 +63,11 @@ class ApiService {
 
       final response = await http.post(
         Uri.parse('$baseUrl/$endpoint'),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        encoding: Encoding.getByName('utf-8'),
         body: data,
       );
 
@@ -98,7 +97,10 @@ class ApiService {
 
       final response = await http.post(
         Uri.parse('$baseUrl/$endpoint'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: json.encode(data),
       );
 
@@ -117,11 +119,13 @@ class ApiService {
     }
   }
 
-  /// GET request - with robust type conversion
+  /// GET request
   static Future<dynamic> getRequest(String endpoint) async {
     try {
       debugPrint('📤 GET: $baseUrl/$endpoint');
+
       final response = await http.get(Uri.parse('$baseUrl/$endpoint'));
+
       debugPrint('📥 Response Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
@@ -135,7 +139,6 @@ class ApiService {
           data = responseData;
         }
 
-        // Convert recursively
         return _convertDeep(data);
       } else {
         throw Exception('Request failed with status ${response.statusCode}');
@@ -147,7 +150,6 @@ class ApiService {
   }
 
   /// PUT request with JSON body
-  /// PUT request with JSON body
   static Future<Map<String, dynamic>> putRequest(
     String endpoint,
     Map<String, dynamic> data,
@@ -158,7 +160,10 @@ class ApiService {
 
       final response = await http.put(
         Uri.parse('$baseUrl/$endpoint'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: json.encode(data),
       );
 
@@ -169,7 +174,6 @@ class ApiService {
         final responseData = json.decode(response.body);
         return responseData as Map<String, dynamic>;
       } else {
-        // ✅ EXTRACT ERROR MESSAGE FROM RESPONSE
         try {
           final responseData = json.decode(response.body);
           final errorMessage =
@@ -178,7 +182,6 @@ class ApiService {
               'Request failed with status ${response.statusCode}';
           throw Exception(errorMessage);
         } catch (e) {
-          // If JSON parsing fails, use generic error
           throw Exception('Request failed with status ${response.statusCode}');
         }
       }
@@ -188,7 +191,7 @@ class ApiService {
     }
   }
 
-  /// PUT request with form data (for FCM token updates and other form submissions)
+  /// PUT request with form data (URL-encoded)
   static Future<void> put(String endpoint, Map<String, String> data) async {
     try {
       debugPrint('📤 PUT Form to: $baseUrl/$endpoint');
@@ -196,10 +199,16 @@ class ApiService {
 
       final response = await http.put(
         Uri.parse('$baseUrl/$endpoint'),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        encoding: Encoding.getByName('utf-8'),
         body: data,
       );
 
       debugPrint('📥 Response Status: ${response.statusCode}');
+      debugPrint('📥 Response Body: ${response.body}');
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         throw Exception('PUT request failed');
@@ -231,14 +240,12 @@ class ApiService {
   // ============================================
   // Helper METHODS
   // ============================================
-  /// Helper method to convert types - ensures proper Map<String, dynamic> typing
-  static Map<String, dynamic> _convertTypes(Map item) {
+
+  static Map<String, dynamic> _convertTypes(Map<dynamic, dynamic> item) {
     final Map<String, dynamic> converted = {};
     item.forEach((key, value) {
-      // Ensure key is String
       final String stringKey = key.toString();
 
-      // Try to convert numeric strings to numbers
       if (value is String) {
         final intValue = int.tryParse(value);
         if (intValue != null) {
@@ -253,25 +260,18 @@ class ApiService {
         }
       }
 
-      // Keep original value if not convertible
       converted[stringKey] = value;
     });
     return converted;
   }
 
-  // Recursive converter that handles nested Lists and Maps
   static dynamic _convertDeep(dynamic input) {
     if (input is List) {
       return input.map((e) => _convertDeep(e)).toList();
     } else if (input is Map) {
-      // Cast keys to String and values recursively
       final Map<String, dynamic> converted = {};
       input.forEach((key, value) {
         final String strKey = key.toString();
-
-        // Try to parse numeric strings for specific fields if needed,
-        // OR just return the cleaned value.
-        // For safety, let's keep values as they are but ensure Map<String, dynamic> structure
         converted[strKey] = _convertDeep(value);
       });
       return converted;

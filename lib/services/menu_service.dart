@@ -1,8 +1,8 @@
 // menu_service.dart
-import 'package:Tiffinity/data/category_model.dart';
+import 'package:Tiffinity/models/category_model.dart';
 import 'package:Tiffinity/services/api_service.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:Tiffinity/models/weekly_menu_model.dart';
 
 class MenuService {
   // In menu_service.dart - getMenuItems() method
@@ -197,46 +197,26 @@ class MenuService {
   }
 
   // ============================================
-  // CATEGORY METHODS
+  // ENHANCED CATEGORY METHODS
   // ============================================
 
-  /// Fetch all categories for a mess
+  /// Fetch all categories (both default and custom)
   static Future<List<Category>> getCategories(int messId) async {
     try {
-      final url =
-          '${ApiService.baseUrl}/menu/get_categories.php?mess_id=$messId';
-      print('📥 GET: $url');
+      final response = await ApiService.getRequest(
+        'menu/get_categories.php?mess_id=$messId',
+      );
 
-      final response = await http.get(Uri.parse(url));
-      print('📊 Response Status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        // ✅ Handle both response formats
-        if (data is List) {
-          // Direct array format
-          final categories =
-              data.map((json) => Category.fromJson(json)).toList();
-
-          print('✅ Loaded ${categories.length} categories');
-          return categories;
-        } else if (data is Map && data['categories'] != null) {
-          // Wrapped format with "categories" key
-          final List<dynamic> categoriesJson = data['categories'];
-          final categories =
-              categoriesJson.map((json) => Category.fromJson(json)).toList();
-
-          print('✅ Loaded ${categories.length} categories');
-          return categories;
-        } else {
-          print('⚠️ Unexpected response format: $data');
-          return [];
-        }
-      } else {
-        print('❌ GET Request error: ${response.body}');
-        throw Exception('Request failed with status ${response.statusCode}');
+      if (response is Map && response['data'] is List) {
+        final categories =
+            (response['data'] as List)
+                .map((json) => Category.fromJson(json))
+                .toList();
+        print('✅ Loaded ${categories.length} categories');
+        return categories;
       }
+
+      return [];
     } catch (e) {
       print('❌ Error fetching categories: $e');
       return [];
@@ -246,15 +226,13 @@ class MenuService {
   /// Create a new category
   static Future<bool> createCategory({
     required int messId,
-    required String categoryName,
+    required String name,
   }) async {
     try {
-      // ✅ Use postForm (URL-encoded) for consistency
       final response = await ApiService.postForm('menu/create_category.php', {
         'mess_id': messId.toString(),
-        'category_name': categoryName,
+        'name': name,
       });
-
       return response['success'] == true;
     } catch (e) {
       print('❌ Error creating category: $e');
@@ -264,18 +242,16 @@ class MenuService {
 
   /// Update category name
   static Future<bool> updateCategory({
+    required int id,
     required int messId,
-    required String oldName,
-    required String newName,
+    required String name,
   }) async {
     try {
-      // ✅ Use postForm (URL-encoded) for consistency
       final response = await ApiService.postForm('menu/update_category.php', {
+        'id': id.toString(),
         'mess_id': messId.toString(),
-        'old_name': oldName,
-        'new_name': newName,
+        'name': name,
       });
-
       return response['success'] == true;
     } catch (e) {
       print('❌ Error updating category: $e');
@@ -283,18 +259,15 @@ class MenuService {
     }
   }
 
-  /// Delete category (moves items to Daily Menu Items)
+  /// Delete category
   static Future<bool> deleteCategory({
+    required int id,
     required int messId,
-    required String categoryName,
   }) async {
     try {
-      // ✅ Use postForm (URL-encoded) for consistency
-      final response = await ApiService.postForm('menu/delete_category.php', {
-        'mess_id': messId.toString(),
-        'category_name': categoryName,
-      });
-
+      final response = await ApiService.getRequest(
+        'menu/delete_category.php?id=$id&mess_id=$messId',
+      );
       return response['success'] == true;
     } catch (e) {
       print('❌ Error deleting category: $e');
@@ -302,52 +275,128 @@ class MenuService {
     }
   }
 
-  /// Get menu items by category
-  static Future<List<Map<String, dynamic>>> getMenuItemsByCategory(
-    int messId, {
-    String? category,
+  // ============================================
+  // WEEKLY MENU METHODS
+  // ============================================
+
+  /// Get weekly menu for a specific week
+  /// Get weekly menu for a specific week
+  /// Get weekly menu for a specific week
+  static Future<List<WeeklyMenuItem>> getWeeklyMenu({
+    required int messId,
+    String? weekStartDate,
   }) async {
     try {
       final url =
-          category != null
-              ? 'menu/get_menu_by_category.php?mess_id=$messId&category=${Uri.encodeComponent(category)}'
-              : 'menu/get_menu_by_category.php?mess_id=$messId';
+          weekStartDate != null
+              ? 'menu/weekly/get_weekly_menu.php?mess_id=$messId&week_start_date=$weekStartDate'
+              : 'menu/weekly/get_weekly_menu.php?mess_id=$messId';
 
       final response = await ApiService.getRequest(url);
 
-      if (response is Map && response['success'] == true) {
-        final data = response['data'] as List;
-        return data.map((e) => e as Map<String, dynamic>).toList();
-      } else if (response is List) {
-        return response.map((e) => e as Map<String, dynamic>).toList();
+      print('📦 Weekly Menu Raw Response: $response');
+      print('📦 Response Type: ${response.runtimeType}');
+
+      // ✅ FIXED: Handle both List and Map responses
+      if (response is List) {
+        // Response is directly a list
+        print('✅ Response is List with ${response.length} items');
+        return response.map((json) => WeeklyMenuItem.fromJson(json)).toList();
+      } else if (response is Map && response['data'] is List) {
+        // Response is wrapped in a Map with 'data' key
+        print('✅ Response is Map with data array');
+        return (response['data'] as List)
+            .map((json) => WeeklyMenuItem.fromJson(json))
+            .toList();
       }
 
+      print('⚠️ Response structure unexpected, returning empty list');
       return [];
     } catch (e) {
-      print('❌ Error fetching menu by category: $e');
+      print('❌ Error fetching weekly menu: $e');
       return [];
     }
   }
 
-  /// Assign multiple items to a category
-  static Future<bool> assignItemsToCategory({
+  /// Get today's menu
+  static Future<List<TodaysMenuItem>> getTodaysMenu(int messId) async {
+    try {
+      final response = await ApiService.getRequest(
+        'menu/weekly/get_todays_menu.php?mess_id=$messId',
+      );
+
+      if (response is Map && response['data'] is List) {
+        return (response['data'] as List)
+            .map((json) => TodaysMenuItem.fromJson(json))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      print('❌ Error fetching today\'s menu: $e');
+      return [];
+    }
+  }
+
+  /// Add items to weekly menu
+  static Future<bool> addWeeklyMenu({
     required int messId,
-    required List<int> itemIds,
-    required String categoryName,
+    required String weekStartDate,
+    required List<Map<String, dynamic>> items,
   }) async {
     try {
-      // ✅ Convert list to comma-separated string for URL encoding
+      print('📤 Adding weekly menu items...');
+      print('Mess ID: $messId');
+      print('Week Start: $weekStartDate');
+      print('Items: $items');
+
+      // ✅ Convert items list to JSON string for URL encoding
       final response = await ApiService.postForm(
-        'menu/assign_items_to_category.php',
+        'menu/weekly/add_weekly_menu.php',
         {
           'mess_id': messId.toString(),
-          'item_ids': itemIds.join(','), // ✅ Convert to comma-separated string
-          'category_name': categoryName,
+          'week_start_date': weekStartDate,
+          'items': jsonEncode(items), // ✅ Encode as JSON string
         },
+      );
+
+      print('✅ Weekly menu response: $response');
+      return response['success'] == true;
+    } catch (e) {
+      print('❌ Error adding weekly menu: $e');
+      return false;
+    }
+  }
+
+  /// Update day availability for a menu item
+  static Future<bool> updateDayAvailability({
+    required int id,
+    required String day,
+    required int? availability, // 1, 0, or null
+  }) async {
+    try {
+      final response =
+          await ApiService.postForm('menu/weekly/update_day_availability.php', {
+            'id': id.toString(),
+            'day': day.toLowerCase(),
+            'availability': availability?.toString() ?? 'null',
+          });
+      return response['success'] == true;
+    } catch (e) {
+      print('❌ Error updating day availability: $e');
+      return false;
+    }
+  }
+
+  /// Delete item from weekly menu
+  static Future<bool> deleteWeeklyMenuItem(int id, String day) async {
+    try {
+      final response = await ApiService.getRequest(
+        'menu/weekly/delete_weekly_menu.php?id=$id&day=$day',
       );
       return response['success'] == true;
     } catch (e) {
-      print('❌ Error assigning items to category: $e');
+      print('❌ Error deleting weekly menu item: $e');
       return false;
     }
   }

@@ -1,6 +1,6 @@
 // views/pages/admin_pages/category_management_page.dart
 
-import 'package:Tiffinity/data/category_model.dart';
+import 'package:Tiffinity/models/category_model.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/menu_service.dart';
 import 'package:Tiffinity/services/mess_service.dart';
@@ -52,47 +52,31 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   Future<void> _showAddCategoryDialog() async {
     final controller = TextEditingController();
 
-    final result = await showDialog<bool>(
+    final result = await showDialog<String>(
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Add New Category'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                    labelText: 'Category Name',
-                    hintText: 'e.g., Monday Specials',
-                    prefixIcon: Icon(Icons.category),
-                  ),
-                  textCapitalization: TextCapitalization.words,
-                  maxLength: 50,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Min 2 characters. Letters, numbers, spaces, and hyphens only.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
+            title: const Text('Create Category'),
+            content: TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                labelText: 'Category Name',
+                border: OutlineInputBorder(),
+                hintText: 'e.g., South Indian, Chinese',
+              ),
+              autofocus: true,
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () async {
-                  final name = controller.text.trim();
-                  if (name.length < 2) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Category name too short')),
-                    );
-                    return;
+                onPressed: () {
+                  final categoryName = controller.text.trim();
+                  if (categoryName.isNotEmpty) {
+                    Navigator.pop(context, categoryName);
                   }
-
-                  Navigator.pop(context, true);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 27, 84, 78),
@@ -104,21 +88,20 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           ),
     );
 
-    if (result == true && controller.text.trim().isNotEmpty) {
+    if (result != null && result.isNotEmpty) {
       final success = await MenuService.createCategory(
-        messId: messId!,
-        categoryName: controller.text.trim(),
+        messId: messId!, // Named parameter
+        name: result, // Named parameter
       );
 
-      if (mounted) {
-        if (success) {
+      if (success) {
+        _loadCategories();
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Category created successfully')),
-          );
-          _loadCategories();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to create category')),
+            SnackBar(
+              content: Text('Category "$result" created successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       }
@@ -126,16 +109,9 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
   }
 
   Future<void> _showEditCategoryDialog(Category category) async {
-    if (category.isReserved) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot edit reserved category')),
-      );
-      return;
-    }
-
     final controller = TextEditingController(text: category.name);
 
-    final result = await showDialog<bool>(
+    final result = await showDialog<String>(
       context: context,
       builder:
           (context) => AlertDialog(
@@ -144,18 +120,22 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
               controller: controller,
               decoration: const InputDecoration(
                 labelText: 'Category Name',
-                prefixIcon: Icon(Icons.edit),
+                border: OutlineInputBorder(),
               ),
-              textCapitalization: TextCapitalization.words,
-              maxLength: 50,
+              autofocus: true,
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () {
+                  final newName = controller.text.trim();
+                  if (newName.isNotEmpty && newName != category.name) {
+                    Navigator.pop(context, newName);
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 27, 84, 78),
                   foregroundColor: Colors.white,
@@ -166,28 +146,35 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           ),
     );
 
-    if (result == true && controller.text.trim() != category.name) {
+    if (result != null && result.isNotEmpty) {
       final success = await MenuService.updateCategory(
-        messId: messId!,
-        oldName: category.name,
-        newName: controller.text.trim(),
+        id: category.id, // ✅ Named parameter
+        messId: category.messId, // ✅ Named parameter
+        name: result, // ✅ Named parameter
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Category updated' : 'Update failed'),
-          ),
-        );
-        if (success) _loadCategories();
+      if (success) {
+        _loadCategories();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Category updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     }
   }
 
   Future<void> _deleteCategory(Category category) async {
-    if (category.isReserved) {
+    if (category.isReserved == 1) {
+      // ✅ Check as int
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cannot delete reserved category')),
+        const SnackBar(
+          content: Text('Cannot delete reserved category'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -198,7 +185,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
           (context) => AlertDialog(
             title: const Text('Delete Category'),
             content: Text(
-              'All ${category.itemCount} items will be moved to "Daily Menu Items". Continue?',
+              'Delete "${category.name}"? Items in this category will be uncategorized.',
             ),
             actions: [
               TextButton(
@@ -216,17 +203,20 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
 
     if (confirm == true) {
       final success = await MenuService.deleteCategory(
-        messId: messId!,
-        categoryName: category.name,
+        id: category.id, // ✅ Named parameter
+        messId: category.messId, // ✅ Named parameter
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Category deleted' : 'Delete failed'),
-          ),
-        );
-        if (success) _loadCategories();
+      if (success) {
+        _loadCategories();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Category deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     }
   }
@@ -305,7 +295,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                           child: ListTile(
                             leading: CircleAvatar(
                               backgroundColor:
-                                  category.isReserved
+                                  category.isReserved == 1
                                       ? Colors.blue[100]
                                       : const Color.fromARGB(
                                         255,
@@ -314,11 +304,11 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                                         78,
                                       ).withOpacity(0.1),
                               child: Icon(
-                                category.isReserved
+                                category.isReserved == 1
                                     ? Icons.star
                                     : Icons.category,
                                 color:
-                                    category.isReserved
+                                    category.isReserved == 1
                                         ? Colors.blue
                                         : const Color.fromARGB(255, 27, 84, 78),
                               ),
@@ -331,7 +321,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                             ),
                             subtitle: Text('${category.itemCount} items'),
                             trailing:
-                                category.isReserved
+                                category.isReserved == 1
                                     ? const Chip(
                                       label: Text(
                                         'Default',
