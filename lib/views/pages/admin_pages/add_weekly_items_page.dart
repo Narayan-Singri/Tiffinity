@@ -116,23 +116,8 @@ class _AddWeeklyItemsPageState extends State<AddWeeklyItemsPage> {
     final Map<String, List<Map<String, dynamic>>> grouped = {};
 
     for (var item in _filteredItems) {
-      final categoryId = item['category_id']?.toString() ?? '';
-      final categoryName =
-          _categories
-              .firstWhere(
-                (cat) => cat.id.toString() == categoryId,
-                orElse:
-                    () => Category(
-                      id: 0,
-                      messId: 0,
-                      name: 'Uncategorized',
-                      isReserved: 0,
-                      categoryType: 'custom',
-                      itemCount: 0,
-                      isDeletable: false,
-                    ),
-              )
-              .name;
+      // ✅ Use 'category' field (which contains the category NAME)
+      final categoryName = item['category']?.toString() ?? 'Uncategorized';
 
       if (!grouped.containsKey(categoryName)) {
         grouped[categoryName] = [];

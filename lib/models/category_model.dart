@@ -1,5 +1,3 @@
-// models/category_model.dart
-
 class Category {
   final int id;
   final int messId;
@@ -7,7 +5,8 @@ class Category {
   final int isReserved;
   final String categoryType;
   final int itemCount;
-  final bool isDeletable;
+  final String? createdAt;
+  final String? updatedAt;
 
   Category({
     required this.id,
@@ -16,21 +15,32 @@ class Category {
     required this.isReserved,
     required this.categoryType,
     required this.itemCount,
-    required this.isDeletable,
+    this.createdAt,
+    this.updatedAt,
   });
+
+  // ✅ Check if category can be deleted (non-reserved categories only)
+  bool get isDeletable => isReserved == 0;
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
-      messId: int.tryParse(json['mess_id']?.toString() ?? '0') ?? 0,
-      name: json['name']?.toString() ?? '',
-      isReserved: int.tryParse(json['is_reserved']?.toString() ?? '0') ?? 0,
-      categoryType: json['category_type']?.toString() ?? 'custom',
-      itemCount: int.tryParse(json['item_count']?.toString() ?? '0') ?? 0,
-      isDeletable:
-          json['is_deletable'] == true ||
-          json['is_deletable'] == 1 ||
-          json['is_deletable']?.toString() == '1',
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      messId:
+          json['mess_id'] is int
+              ? json['mess_id']
+              : int.parse(json['mess_id'].toString()),
+      name: json['name'].toString(),
+      isReserved:
+          json['is_reserved'] is int
+              ? json['is_reserved']
+              : int.parse(json['is_reserved'].toString()),
+      categoryType: json['category_type'].toString(),
+      itemCount:
+          json['item_count'] is int
+              ? json['item_count']
+              : int.parse(json['item_count'].toString()),
+      createdAt: json['created_at']?.toString(),
+      updatedAt: json['updated_at']?.toString(),
     );
   }
 
@@ -42,10 +52,8 @@ class Category {
       'is_reserved': isReserved,
       'category_type': categoryType,
       'item_count': itemCount,
-      'is_deletable': isDeletable,
+      'created_at': createdAt,
+      'updated_at': updatedAt,
     };
   }
-
-  // Helper getter
-  bool get isDefaultCategory => messId == 0 || isReserved == 1;
 }

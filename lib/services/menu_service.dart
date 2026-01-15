@@ -203,22 +203,57 @@ class MenuService {
   /// Fetch all categories (both default and custom)
   static Future<List<Category>> getCategories(int messId) async {
     try {
+      print('🔍 Fetching categories for mess_id: $messId');
+
       final response = await ApiService.getRequest(
         'menu/get_categories.php?mess_id=$messId',
       );
 
-      if (response is Map && response['data'] is List) {
-        final categories =
-            (response['data'] as List)
-                .map((json) => Category.fromJson(json))
-                .toList();
-        print('✅ Loaded ${categories.length} categories');
-        return categories;
+      print('📦 Raw response: $response');
+      print('📦 Response type: ${response.runtimeType}');
+
+      List categoriesList;
+
+      // ✅ HANDLE DIRECT LIST (your current API response)
+      if (response is List) {
+        print('✅ Response is a direct List - using it');
+        categoriesList = response;
+      }
+      // ✅ ALSO HANDLE WRAPPED FORMAT (for future)
+      else if (response is Map && response['data'] is List) {
+        print('✅ Response is wrapped - extracting data');
+        categoriesList = response['data'] as List;
+      } else {
+        print('❌ Unexpected response structure');
+        return [];
       }
 
-      return [];
-    } catch (e) {
+      if (categoriesList.isEmpty) {
+        print('⚠️ Categories list is empty');
+        return [];
+      }
+
+      print('✅ Found ${categoriesList.length} raw category objects');
+
+      // Parse each category
+      final categories = <Category>[];
+      for (var json in categoriesList) {
+        try {
+          final category = Category.fromJson(json);
+          categories.add(category);
+          print('   ✓ Parsed: ${category.name}');
+        } catch (e) {
+          print('   ✗ Failed to parse category: $json');
+          print('     Error: $e');
+        }
+      }
+
+      print('✅ Successfully loaded ${categories.length} categories');
+
+      return categories;
+    } catch (e, stackTrace) {
       print('❌ Error fetching categories: $e');
+      print('❌ Stack trace: $stackTrace');
       return [];
     }
   }
@@ -325,15 +360,36 @@ class MenuService {
         'menu/weekly/get_todays_menu.php?mess_id=$messId',
       );
 
-      if (response is Map && response['data'] is List) {
-        return (response['data'] as List)
-            .map((json) => TodaysMenuItem.fromJson(json))
-            .toList();
+      print('📦 getTodaysMenu Raw Response: $response');
+      print('📦 Response Type: ${response.runtimeType}');
+
+      // ✅ FIXED: Handle both List and Map responses
+      List dataList;
+
+      if (response is List) {
+        // Response is directly a list
+        print('✅ Response is direct List with ${response.length} items');
+        dataList = response;
+      } else if (response is Map && response['data'] is List) {
+        // Response is wrapped in a Map with 'data' key
+        print('✅ Response is Map with data array');
+        dataList = response['data'] as List;
+      } else {
+        print('⚠️ Response structure unexpected');
+        return [];
       }
 
-      return [];
-    } catch (e) {
+      final items =
+          dataList.map((json) {
+            print('  Parsing item: ${json['item_name']}');
+            return TodaysMenuItem.fromJson(json);
+          }).toList();
+
+      print('✅ Successfully parsed ${items.length} TodaysMenuItem objects');
+      return items;
+    } catch (e, stackTrace) {
       print('❌ Error fetching today\'s menu: $e');
+      print('❌ Stack trace: $stackTrace');
       return [];
     }
   }
