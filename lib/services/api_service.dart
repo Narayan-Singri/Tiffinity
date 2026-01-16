@@ -55,11 +55,16 @@ class ApiService {
   /// POST request with form data (URL-encoded)
   static Future<Map<String, dynamic>> postForm(
     String endpoint,
-    Map<String, String> data,
+    Map<String, dynamic> data,
   ) async {
     try {
       debugPrint('📤 POST Form to: $baseUrl/$endpoint');
-      debugPrint('📤 Data: $data');
+      // Convert all values to strings for form encoding
+      final formData = <String, String>{};
+      data.forEach((key, value) {
+        formData[key] = value?.toString() ?? '';
+      });
+      debugPrint('📤 Data: $formData');
 
       final response = await http.post(
         Uri.parse('$baseUrl/$endpoint'),
@@ -68,7 +73,7 @@ class ApiService {
           'Accept': 'application/json',
         },
         encoding: Encoding.getByName('utf-8'),
-        body: data,
+        body: formData,
       );
 
       debugPrint('📥 Response Status: ${response.statusCode}');

@@ -5,6 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
+import 'package:Tiffinity/services/language_service.dart';
+import 'package:Tiffinity/models/app_strings.dart';
+import 'my_subscriptions_page.dart';
+import 'app_language_page.dart';
 
 class CustomerProfilePage extends StatefulWidget {
   const CustomerProfilePage({super.key});
@@ -129,102 +133,126 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
       );
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F8), // Premium Off-White
-      body: Stack(
-        children: [
-          // 1. Animated Liquid Background
-          _buildLiquidBackground(),
+    return ValueListenableBuilder<String>(
+      valueListenable: LanguageService().currentLanguage,
+      builder: (context, languageCode, _) {
+        return Scaffold(
+          backgroundColor: const Color(0xFFF5F7F8),
+          body: Stack(
+            children: [
+              // 1. Animated Liquid Background
+              _buildLiquidBackground(),
 
-          // 2. Glass Content
-          SafeArea(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              child: Column(
-                children: [
-                  const SizedBox(height: 20),
-                  _buildProfileHeader(),
-                  const SizedBox(height: 30),
+              // 2. Glass Content
+              SafeArea(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      _buildProfileHeader(),
+                      const SizedBox(height: 30),
 
-                  // Contact & Verification Section
-                  _buildSectionTitle("Contact Details"),
-                  _glassContainer(
-                    child: Column(
-                      children: [
-                        _buildVerificationRow(
-                          icon: Icons.email_outlined,
-                          label: "Email Address",
-                          model: _emailState,
+                      // Contact & Verification Section
+                      _buildSectionTitle(AppStrings.getString('contact_details', languageCode)),
+                      _glassContainer(
+                        child: Column(
+                          children: [
+                            _buildVerificationRow(
+                              icon: Icons.email_outlined,
+                              label: AppStrings.getString('email_address', languageCode),
+                              model: _emailState,
+                            ),
+                            _buildDivider(),
+                            _buildVerificationRow(
+                              icon: Icons.phone_iphone_rounded,
+                              label: AppStrings.getString('phone_number', languageCode),
+                              model: _phoneState,
+                            ),
+                          ],
                         ),
-                        _buildDivider(),
-                        _buildVerificationRow(
-                          icon: Icons.phone_iphone_rounded,
-                          label: "Phone Number",
-                          model: _phoneState,
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      // Menu Section
+                      _buildSectionTitle(AppStrings.getString('my_account', languageCode)),
+                      _glassContainer(
+                        child: Column(
+                          children: [
+                            _menuItem(
+                              Icons.calendar_month_rounded,
+                              AppStrings.getString('my_subscriptions', languageCode),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const MySubscriptionsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _menuItem(Icons.shopping_bag_outlined, AppStrings.getString('my_orders', languageCode)),
+                            _menuItem(Icons.location_on_outlined, AppStrings.getString('my_addresses', languageCode)),
+                            _menuItem(
+                              Icons.account_balance_wallet_outlined,
+                              AppStrings.getString('wallet_balance', languageCode),
+                            ),
+                            _menuItem(Icons.favorite_border_rounded, AppStrings.getString('favourites', languageCode)),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      // Support Section
+                      _buildSectionTitle(AppStrings.getString('support_more', languageCode)),
+                      _glassContainer(
+                        child: Column(
+                          children: [
+                            _menuItem(Icons.group_outlined, AppStrings.getString('invite_friends', languageCode)),
+                            _menuItem(
+                              Icons.language,
+                              AppStrings.getString('app_language', languageCode),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AppLanguagePage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _menuItem(
+                              Icons.support_agent_rounded,
+                              AppStrings.getString('help_support', languageCode),
+                            ),
+                            _menuItem(Icons.quiz_outlined, AppStrings.getString('faqs', languageCode)),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+                      _buildLogoutButton(languageCode),
+                      const SizedBox(height: 40),
+
+                      Text(
+                        "v1.0.1",
+                        style: TextStyle(
+                          color: Colors.teal.withOpacity(0.3),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-
-                  const SizedBox(height: 25),
-
-                  // Menu Section
-                  _buildSectionTitle("My Account"),
-                  _glassContainer(
-                    child: Column(
-                      children: [
-                        _menuItem(
-                          Icons.calendar_month_rounded,
-                          'My Subscriptions',
-                        ),
-                        _menuItem(Icons.shopping_bag_outlined, 'My Orders'),
-                        _menuItem(Icons.location_on_outlined, 'My Addresses'),
-                        _menuItem(
-                          Icons.account_balance_wallet_outlined,
-                          'Wallet Balance',
-                        ),
-                        _menuItem(Icons.favorite_border_rounded, 'Favourites'),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  // Support Section
-                  _buildSectionTitle("Support & More"),
-                  _glassContainer(
-                    child: Column(
-                      children: [
-                        _menuItem(Icons.group_outlined, 'Invite Friends'),
-                        _menuItem(Icons.language, 'App Language'),
-                        _menuItem(
-                          Icons.support_agent_rounded,
-                          'Help & Support',
-                        ),
-                        _menuItem(Icons.quiz_outlined, "FAQ's"),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-                  _buildLogoutButton(),
-                  const SizedBox(height: 40),
-
-                  Text(
-                    "v1.0.1",
-                    style: TextStyle(
-                      color: Colors.teal.withOpacity(0.3),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -513,9 +541,9 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
     );
   }
 
-  Widget _menuItem(IconData icon, String title) {
+  Widget _menuItem(IconData icon, String title, {VoidCallback? onTap}) {
     return InkWell(
-      onTap: () {}, // Add navigation here
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
@@ -543,7 +571,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
     );
   }
 
-  Widget _buildLogoutButton() {
+  Widget _buildLogoutButton(String languageCode) {
     // Check if user is logged in based on _userData
     final bool isLoggedIn =
         _userData != null && _userData!.isNotEmpty && _userData!['uid'] != null;
@@ -584,7 +612,7 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
             ),
             const SizedBox(width: 10),
             Text(
-              isLoggedIn ? "Logout" : "Login",
+              isLoggedIn ? AppStrings.getString('logout', languageCode) : AppStrings.getString('login', languageCode),
               style: TextStyle(
                 color: isLoggedIn ? Colors.redAccent : Colors.teal,
                 fontWeight: FontWeight.bold,
