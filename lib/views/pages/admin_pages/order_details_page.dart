@@ -1192,6 +1192,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
   Widget _buildActionButtons() {
     switch (_currentStatus.toLowerCase()) {
+      // ==========================================
+      // PENDING: Mess can Accept or Reject
+      // ==========================================
       case 'pending':
         return Row(
           children: [
@@ -1243,43 +1246,31 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ],
         );
 
+      // ==========================================
+      // ACCEPTED: Delivery boy assigned, preparing food
+      // ==========================================
       case 'accepted':
       case 'preparing':
-        return SlideAction(
-          text: 'Swipe to mark Order Ready',
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-          innerColor: Colors.white,
-          outerColor: Colors.blue,
-          sliderButtonIcon: const Icon(Icons.arrow_forward, color: Colors.blue),
-          onSubmit: () {
-            _updateOrderStatus('ready');
-            return null;
-          },
-        );
-
-      case 'ready':
-      case 'ready_for_pickup':
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.1),
+                color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.purple),
+                  Icon(Icons.restaurant, color: Colors.blue),
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Waiting for delivery partner to pick up...',
-                      style: TextStyle(fontSize: 14),
+                      'Delivery partner assigned. Prepare the order.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -1287,26 +1278,68 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
             ),
             const SizedBox(height: 12),
             SlideAction(
-              text: 'Swipe when Out for Delivery',
+              text: 'Swipe to Mark Order Ready',
               textStyle: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
               innerColor: Colors.white,
-              outerColor: Colors.orange,
+              outerColor: Colors.blue,
               sliderButtonIcon: const Icon(
-                Icons.delivery_dining,
-                color: Colors.orange,
+                Icons.restaurant_menu,
+                color: Colors.blue,
               ),
               onSubmit: () {
-                _updateOrderStatus('out_for_delivery');
+                _updateOrderStatus('ready');
                 return null;
               },
             ),
           ],
         );
 
+      // ==========================================
+      // READY: Waiting for delivery boy to arrive
+      // ==========================================
+      case 'ready':
+      case 'ready_for_pickup':
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.purple.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.purple),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.shopping_bag, color: Colors.purple, size: 32),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Order Ready for Pickup',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Waiting for delivery partner to pick up the order',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+      // ==========================================
+      // OUT FOR DELIVERY / PICKED UP: Delivery boy has the order
+      // ==========================================
       case 'out_for_delivery':
       case 'picked_up':
         return Container(
@@ -1325,7 +1358,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Order in Transit',
+                      'Order Out for Delivery',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -1333,7 +1366,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Waiting for delivery partner to complete delivery',
+                      'Delivery partner is on the way to customer',
                       style: TextStyle(fontSize: 13),
                     ),
                   ],
@@ -1343,6 +1376,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ),
         );
 
+      // ==========================================
+      // DELIVERED: Order completed successfully
+      // ==========================================
       case 'delivered':
         return Container(
           padding: const EdgeInsets.all(16),
@@ -1357,7 +1393,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
               Icon(Icons.check_circle, color: Colors.green, size: 32),
               SizedBox(width: 12),
               Text(
-                'Order Completed Successfully',
+                'Order Delivered Successfully',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1368,6 +1404,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ),
         );
 
+      // ==========================================
+      // CANCELLED / REJECTED: Order not completed
+      // ==========================================
       case 'cancelled':
       case 'rejected':
         return Container(

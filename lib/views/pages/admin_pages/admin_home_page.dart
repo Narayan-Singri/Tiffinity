@@ -267,132 +267,150 @@ class _AdminHomePageState extends State<AdminHomePage> {
       );
     }
 
-    // ✅ Convert isOnline to bool
     final isOnline = _toBool(_messData!['isOnline']);
+    final messName = _messData!['name']?.toString() ?? 'My Mess';
 
     return Scaffold(
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadData,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                // Mess Status Section
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors:
-                          isOnline
-                              ? [Colors.green.shade400, Colors.green.shade600]
-                              : [Colors.red.shade400, Colors.red.shade600],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            isOnline
-                                ? Colors.green.withOpacity(0.3)
-                                : Colors.red.withOpacity(0.3),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isOnline ? Icons.store : Icons.store_mall_directory,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isOnline ? "Mess Open" : "Mess Closed",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              isOnline
-                                  ? "Orders are receivable"
-                                  : "Orders are stopped",
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: isOnline,
-                        onChanged: _toggleOnlineStatus,
-                        activeColor: Colors.white,
-                        activeTrackColor: Colors.green.shade300,
-                        inactiveThumbColor: Colors.white,
-                        inactiveTrackColor: Colors.red.shade300,
-                      ),
-                    ],
-                  ),
+        child: Column(
+          children: [
+            // ============================================
+            // FIXED HEADER SECTION (Non-scrollable)
+            // ============================================
+
+            // 1. SIMPLE MESS NAME - Centered, Black Text
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                messName,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
+                textAlign: TextAlign.center,
+              ),
+            ),
 
-                // Summary Cards
-                _buildSummaryCards(),
-
-                const SizedBox(height: 16),
-
-                // Search and Filter
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          onChanged: _filterOrders,
-                          decoration: InputDecoration(
-                            hintText: 'Search...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            prefixIcon: const Icon(Icons.search),
+            // 2. STATUS TOGGLE
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors:
+                      isOnline
+                          ? [Colors.green.shade400, Colors.green.shade600]
+                          : [Colors.red.shade400, Colors.red.shade600],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color:
+                        isOnline
+                            ? Colors.green.withOpacity(0.3)
+                            : Colors.red.withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isOnline ? Icons.store : Icons.store_mall_directory,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isOnline ? "Mess Open" : "Mess Closed",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        icon: const Icon(Icons.filter_list),
-                        onPressed: _showFilterOptions,
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        Text(
+                          isOnline
+                              ? "Orders are receivable"
+                              : "Orders are stopped",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Orders List
-                _buildOrdersList(),
-              ],
+                  Switch(
+                    value: isOnline,
+                    onChanged: _toggleOnlineStatus,
+                    activeColor: Colors.white,
+                    activeTrackColor: Colors.green.shade300,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: Colors.red.shade300,
+                  ),
+                ],
+              ),
             ),
-          ),
+
+            // 3. SUMMARY CARDS
+            const SizedBox(height: 16),
+            _buildSummaryCards(),
+            const SizedBox(height: 16),
+
+            // 4. SEARCH AND FILTER
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      onChanged: _filterOrders,
+                      decoration: InputDecoration(
+                        hintText: 'Search...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        prefixIcon: const Icon(Icons.search),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.filter_list),
+                    onPressed: _showFilterOptions,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ============================================
+            // SCROLLABLE ORDERS LIST
+            // ============================================
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _loadData,
+                child: _buildOrdersList(),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -527,33 +545,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Widget _buildOrdersList() {
-    if (_orders.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(50),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(Icons.receipt_long_outlined, size: 80, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                'No orders yet',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Orders from customers will appear here',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     // Filter orders
     final filteredOrders =
         _orders.where((order) {
@@ -561,7 +552,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
               _selectedStatus == "All" ||
               order['status'].toString().toLowerCase() ==
                   _selectedStatus.toLowerCase();
-
           final matchesSearch =
               _searchQuery.isEmpty ||
               order['id'].toString().toLowerCase().contains(
@@ -570,25 +560,63 @@ class _AdminHomePageState extends State<AdminHomePage> {
               (_customerNames[order['customer_id']] ?? '')
                   .toLowerCase()
                   .contains(_searchQuery.toLowerCase());
-
           return matchesStatus && matchesSearch;
         }).toList();
 
-    if (filteredOrders.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(50),
-        child: Center(
-          child: Text(
-            'No orders match your filter',
-            style: TextStyle(color: Colors.grey),
+    if (_orders.isEmpty) {
+      return ListView(
+        children: const [
+          Padding(
+            padding: EdgeInsets.all(50),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No orders yet',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Orders from customers will appear here',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
 
+    if (filteredOrders.isEmpty) {
+      return ListView(
+        children: const [
+          Padding(
+            padding: EdgeInsets.all(50),
+            child: Center(
+              child: Text(
+                'No orders match your filter',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ✅ FIX: Remove shrinkWrap and NeverScrollableScrollPhysics
     return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: filteredOrders.length,
       itemBuilder: (context, index) {
         final order = filteredOrders[index];

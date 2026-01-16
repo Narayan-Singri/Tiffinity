@@ -278,34 +278,75 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final status = _orderData!['status'].toString().toLowerCase();
     String title = "Order Placed";
     String subtitle = "Waiting for confirmation";
-    IconData icon = Icons.receipt_long; // ✅ Add this line
-    Color color = Colors.orange; // ✅ Add this line
+    IconData icon = Icons.receipt_long;
+    Color color = Colors.orange;
 
-    if (status == 'confirmed') {
-      title = "Order Confirmed";
-      subtitle = "Restaurant is preparing your order";
-      icon = Icons.check_circle_outline;
-      color = Colors.blue;
-    } else if (status == 'ready') {
-      title = "Order Ready";
-      subtitle = "Waiting for delivery partner to pick up";
-      icon = Icons.shopping_bag;
-      color = Colors.purple;
-    } else if (status == 'at_pickup_location') {
-      title = "Driver Arrived at Restaurant";
-      subtitle = "Waiting for order to be ready";
-      icon = Icons.local_shipping;
-      color = Colors.amber;
-    } else if (status == 'out_for_delivery') {
-      title = "On the Way";
-      subtitle = "Your order is out for delivery";
-      icon = Icons.delivery_dining;
-      color = _primaryColor;
-    } else if (status == 'delivered') {
-      title = "Delivered";
-      subtitle = "Enjoy your meal!";
-      icon = Icons.check_circle;
-      color = Colors.green;
+    // Define status display based on your actual workflow
+    switch (status) {
+      case 'pending':
+        title = "Order Placed";
+        subtitle = "Waiting for mess to accept your order";
+        icon = Icons.receipt_long;
+        color = Colors.orange;
+        break;
+
+      case 'accepted':
+      case 'confirmed':
+        title = "Order Accepted";
+        subtitle = "Delivery partner assigned. Mess is preparing your order";
+        icon = Icons.check_circle_outline;
+        color = Colors.blue;
+        break;
+
+      case 'preparing':
+        title = "Preparing Your Order";
+        subtitle = "Your food is being prepared";
+        icon = Icons.restaurant;
+        color = Colors.blue;
+        break;
+
+      case 'ready':
+      case 'ready_for_pickup':
+        title = "Order Ready";
+        subtitle = "Waiting for delivery partner to pick up";
+        icon = Icons.shopping_bag;
+        color = Colors.purple;
+        break;
+
+      case 'out_for_delivery':
+        title = "On the Way";
+        subtitle = "Your order is out for delivery";
+        icon = Icons.delivery_dining;
+        color = _primaryColor;
+        break;
+
+      case 'picked_up':
+        title = "Order Picked Up";
+        subtitle = "Delivery partner is heading to your location";
+        icon = Icons.delivery_dining;
+        color = Colors.orange;
+        break;
+
+      case 'delivered':
+        title = "Delivered";
+        subtitle = "Enjoy your meal! 🎉";
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+
+      case 'cancelled':
+      case 'rejected':
+        title = "Order Cancelled";
+        subtitle = "Your order has been cancelled";
+        icon = Icons.cancel;
+        color = Colors.red;
+        break;
+
+      default:
+        title = "Order Status";
+        subtitle = "Processing your order";
+        icon = Icons.info_outline;
+        color = Colors.grey;
     }
 
     return Container(
@@ -344,6 +385,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                     color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: TextStyle(
@@ -628,7 +670,15 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   Widget _buildActionButtons(bool isDark) {
     final status = _orderData!['status'].toString().toLowerCase();
-    bool canCancel = ['pending', 'confirmed', 'accepted'].contains(status);
+
+    // Can only cancel before delivery boy picks up
+    bool canCancel = [
+      'pending',
+      'confirmed',
+      'accepted',
+      'preparing',
+      'ready',
+    ].contains(status);
 
     return Column(
       children: [
@@ -637,7 +687,34 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () {
-                // TODO: Implement Cancel Order
+                // Show confirmation dialog
+                showDialog(
+                  context: context,
+                  builder:
+                      (context) => AlertDialog(
+                        title: const Text('Cancel Order?'),
+                        content: const Text(
+                          'Are you sure you want to cancel this order?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('No'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              // TODO: Implement cancel order API call
+                              // await OrderService.cancelOrder(widget.orderId);
+                            },
+                            child: const Text(
+                              'Yes, Cancel',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                );
               },
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
@@ -655,7 +732,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           width: double.infinity,
           child: TextButton.icon(
             onPressed: () {
-              // TODO: Open Support
+              // TODO: Open Support/Help
             },
             icon: const Icon(Icons.headset_mic, size: 18),
             label: Text(
