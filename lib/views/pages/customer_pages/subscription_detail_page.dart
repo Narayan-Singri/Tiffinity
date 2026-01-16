@@ -32,7 +32,8 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
   }
 
   void _save() {
-    final chosen = _selected.entries.where((e) => e.value).map((e) => e.key).toList();
+    final chosen =
+        _selected.entries.where((e) => e.value).map((e) => e.key).toList();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Saved next day items: ${chosen.join(', ')}')),
     );

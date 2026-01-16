@@ -23,10 +23,11 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
     setState(() => _isLoading = true);
     try {
       final messesRaw = await MessService.getAllMesses();
-      final messes = messesRaw
-          .whereType<Map>()
-          .map((m) => Map<String, dynamic>.from(m))
-          .toList();
+      final messes =
+          messesRaw
+              .whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              .toList();
       setState(() {
         _messes = messes;
         _isLoading = false;
@@ -49,52 +50,58 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
         backgroundColor: const Color.fromARGB(255, 27, 84, 78),
         foregroundColor: Colors.white,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadMesses,
-              child: _messes.isEmpty
-                  ? ListView(
-                      children: const [
-                        SizedBox(height: 120),
-                        Center(child: Text('No subscriptions found')),
-                      ],
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemBuilder: (context, index) {
-                        final mess = _messes[index];
-                        final messName = mess['name']?.toString() ?? 'Mess';
-                        final messType = mess['mess_type']?.toString() ?? '';
-                        final status = (mess['isOnline']?.toString() == '1')
-                            ? 'Active'
-                            : 'Paused';
-                        final items = _mockItemsForMess(messName);
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                onRefresh: _loadMesses,
+                child:
+                    _messes.isEmpty
+                        ? ListView(
+                          children: const [
+                            SizedBox(height: 120),
+                            Center(child: Text('No subscriptions found')),
+                          ],
+                        )
+                        : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemBuilder: (context, index) {
+                            final mess = _messes[index];
+                            final messName = mess['name']?.toString() ?? 'Mess';
+                            final messType =
+                                mess['mess_type']?.toString() ?? '';
+                            final status =
+                                (mess['isOnline']?.toString() == '1')
+                                    ? 'Active'
+                                    : 'Paused';
+                            final items = _mockItemsForMess(messName);
 
-                        return _SubscriptionCard(
-                          title: messName,
-                          period: messType.isNotEmpty ? messType : 'Plan',
-                          nextRenewal: 'Tomorrow',
-                          status: status,
-                          items: items,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SubscriptionDetailPage(
-                                  messName: messName,
-                                  nextDay: 'Tomorrow',
-                                  items: items,
-                                ),
-                              ),
+                            return _SubscriptionCard(
+                              title: messName,
+                              period: messType.isNotEmpty ? messType : 'Plan',
+                              nextRenewal: 'Tomorrow',
+                              status: status,
+                              items: items,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (_) => SubscriptionDetailPage(
+                                          messName: messName,
+                                          nextDay: 'Tomorrow',
+                                          items: items,
+                                        ),
+                                  ),
+                                );
+                              },
                             );
                           },
-                        );
-                      },
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemCount: _messes.length,
-                    ),
-            ),
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 12),
+                          itemCount: _messes.length,
+                        ),
+              ),
     );
   }
 }
@@ -154,7 +161,10 @@ class _SubscriptionCard extends StatelessWidget {
                 color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.restaurant_menu, color: Color.fromARGB(255, 27, 84, 78)),
+              child: const Icon(
+                Icons.restaurant_menu,
+                color: Color.fromARGB(255, 27, 84, 78),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(

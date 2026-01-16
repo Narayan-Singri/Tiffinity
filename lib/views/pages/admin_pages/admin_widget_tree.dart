@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:Tiffinity/data/notifiers.dart';
-import 'package:Tiffinity/services/auth_services.dart';
-import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_home_page.dart';
 import 'package:Tiffinity/views/pages/admin_pages/menu_management_page.dart';
+import 'package:Tiffinity/views/pages/admin_pages/weekly_menu_management_page.dart'; // NEW
 import 'package:Tiffinity/views/pages/admin_pages/admin_profile_page.dart';
-import 'package:Tiffinity/views/widgets/admin_navbar_widget.dart';
 
 class AdminWidgetTree extends StatefulWidget {
   const AdminWidgetTree({super.key});
@@ -15,53 +12,64 @@ class AdminWidgetTree extends StatefulWidget {
 }
 
 class _AdminWidgetTreeState extends State<AdminWidgetTree> {
-  String _messName = 'Tiffinity';
+  int _selectedIndex = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadMessName();
-  }
+  static final List<Widget> _pages = <Widget>[
+    const AdminHomePage(),
+    const MenuManagementPage(),
+    const WeeklyMenuManagementPage(), // NEW: Weekly Menu Page
+    const AdminProfilePage(),
+  ];
 
-  Future<void> _loadMessName() async {
-    try {
-      final currentUser = await AuthService.currentUser;
-      if (currentUser != null) {
-        final mess = await MessService.getMessByOwner(currentUser['uid']);
-        if (mess != null && mounted) {
-          setState(() {
-            _messName = mess['name'] ?? 'Tiffinity';
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading mess name: $e');
-    }
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [
-      const AdminHomePage(),
-      const MenuManagementPage(),
-      const AdminProfilePage(),
-    ];
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _messName,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
-        centerTitle: true,
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          selectedItemColor: const Color.fromARGB(255, 27, 84, 78),
+          unselectedItemColor: Colors.grey[600],
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.restaurant_menu_rounded),
+              label: 'Menu Items',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_month_rounded), // NEW
+              label: 'Weekly Menu', // NEW
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_rounded),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
-      body: ValueListenableBuilder(
-        valueListenable: adminSelectedPageNotifier,
-        builder: (context, selectedPage, child) {
-          return pages.elementAt(selectedPage);
-        },
-      ),
-      bottomNavigationBar: const AdminNavbarWidget(),
     );
   }
 }

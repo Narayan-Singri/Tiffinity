@@ -6,6 +6,7 @@ import 'package:Tiffinity/services/user_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/pages/admin_pages/order_details_page.dart';
 import 'package:Tiffinity/services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -60,33 +61,36 @@ class _AdminHomePageState extends State<AdminHomePage> {
       final mess = await MessService.getMessByOwner(currentUser['uid']);
 
       if (mess != null) {
-        // ✅ FIX: Convert String to int
+        // ✅ FIX: Save mess_id to SharedPreferences if not already saved
+        final prefs = await SharedPreferences.getInstance();
+        final savedMessId = prefs.getInt('mess_id');
         final messId = int.parse(mess['id'].toString());
+
+        if (savedMessId == null) {
+          await prefs.setInt('mess_id', messId);
+          print('✅ mess_id automatically saved: $messId');
+        }
 
         // Load orders for this mess
         try {
           final orders = await OrderService.getMessOrders(messId);
-
           setState(() {
             _messData = mess;
-
-            // ✅ IMPROVED: Better null/empty handling
             if (orders is List) {
-              _orders =
+              this._orders =
                   orders
-                      .where((e) => e is Map) // Filter only valid Maps
+                      .where((e) => e is Map)
                       .map((e) => Map<String, dynamic>.from(e as Map))
                       .toList();
             } else {
-              _orders = [];
+              this._orders = [];
             }
-
             _isLoading = false;
           });
 
-          // Load customer names ONLY if we have orders
-          if (_orders.isNotEmpty) {
-            for (var order in _orders) {
+          // Load customer names
+          if (this._orders.isNotEmpty) {
+            for (var order in this._orders) {
               if (order.containsKey('customer_id')) {
                 _fetchCustomerName(order['customer_id']?.toString() ?? '');
               }
@@ -96,7 +100,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           debugPrint('Error loading orders: $orderError');
           setState(() {
             _messData = mess;
-            _orders = []; // Set to empty array on error
+            _orders = [];
             _isLoading = false;
           });
         }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/image_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Model for a timing slot
 class TimeSlot {
@@ -151,11 +152,11 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
   }
 
   Future<void> _saveMessDetails() async {
+    // Validation
     if (_messImage == null) {
-      _showError("Please upload a mess image (Required Field)");
+      _showError('Please upload a mess image (Required Field)');
       return;
     }
-
     if (messNameController.text.trim().isEmpty ||
         addressController.text.trim().isEmpty ||
         descriptionController.text.trim().isEmpty ||
@@ -165,23 +166,24 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
               slot.openingController.text.trim().isEmpty ||
               slot.closingController.text.trim().isEmpty,
         )) {
-      _showError("Please fill all fields");
+      _showError('Please fill all fields');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      // Upload image
       String? imageUrl;
       if (_messImage != null) {
-        print('🖼️ Uploading mess image...');
+        print('Uploading mess image...');
         imageUrl = await ImageService.uploadToImgBB(_messImage!);
 
-        if (imageUrl == 'SIZE_EXCEEDED') {
+        if (imageUrl == "SIZEEXCEEDED") {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('❌ Image too large! Maximum 32MB allowed.'),
+                content: Text('Image too large! Maximum 32MB allowed.'),
                 backgroundColor: Colors.red,
                 duration: Duration(seconds: 3),
               ),
@@ -195,7 +197,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('❌ Image upload failed. Check internet.'),
+                content: Text('Image upload failed. Check internet.'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -220,18 +222,28 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
       if (!mounted) return;
 
       if (result['success']) {
+        // ✅ ✅ ✅ CRITICAL FIX: Save mess_id to SharedPreferences
+        final messId = result['messid'];
+        if (messId != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('mess_id', int.parse(messId.toString()));
+          print('✅ mess_id saved: $messId');
+        }
+
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const AdminWidgetTree()),
+          MaterialPageRoute(builder: (context) => const AdminWidgetTree()),
           (route) => false,
         );
       } else {
         _showError(result['message'] ?? 'Failed to save mess details');
       }
     } catch (e) {
-      _showError("Failed to save details: ${e.toString()}");
+      _showError('Failed to save details: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

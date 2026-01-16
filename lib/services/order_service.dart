@@ -107,10 +107,9 @@ class OrderService {
     required String status,
   }) async {
     try {
-      await ApiService.putRequest(
-        'orders/update_order_status.php?id=$orderId',
-        {'status': status},
-      );
+      await ApiService.postForm('orders/update_order_status.php?id=$orderId', {
+        'status': status,
+      });
       return true;
     } catch (e) {
       debugPrint('❌ Update Order Status Error: $e');

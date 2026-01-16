@@ -278,22 +278,27 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final status = _orderData!['status'].toString().toLowerCase();
     String title = "Order Placed";
     String subtitle = "Waiting for confirmation";
-    IconData icon = Icons.receipt_long;
-    Color color = Colors.orange;
+    IconData icon = Icons.receipt_long; // ✅ Add this line
+    Color color = Colors.orange; // ✅ Add this line
 
-    if (status == 'confirmed' || status == 'accepted') {
+    if (status == 'confirmed') {
       title = "Order Confirmed";
-      subtitle = "Restaurant has accepted your order";
+      subtitle = "Restaurant is preparing your order";
       icon = Icons.check_circle_outline;
       color = Colors.blue;
-    } else if (status == 'preparing') {
-      title = "Preparing Food";
-      subtitle = "Chef is cooking your meal";
-      icon = Icons.soup_kitchen;
-      color = Colors.orange;
+    } else if (status == 'ready') {
+      title = "Order Ready";
+      subtitle = "Waiting for delivery partner to pick up";
+      icon = Icons.shopping_bag;
+      color = Colors.purple;
+    } else if (status == 'at_pickup_location') {
+      title = "Driver Arrived at Restaurant";
+      subtitle = "Waiting for order to be ready";
+      icon = Icons.local_shipping;
+      color = Colors.amber;
     } else if (status == 'out_for_delivery') {
-      title = "Arriving in ${_orderData!['eta_mins'] ?? 25} mins";
-      subtitle = "Rider is on the way";
+      title = "On the Way";
+      subtitle = "Your order is out for delivery";
       icon = Icons.delivery_dining;
       color = _primaryColor;
     } else if (status == 'delivered') {
@@ -301,11 +306,6 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       subtitle = "Enjoy your meal!";
       icon = Icons.check_circle;
       color = Colors.green;
-    } else if (status == 'cancelled') {
-      title = "Cancelled";
-      subtitle = "This order was cancelled";
-      icon = Icons.cancel;
-      color = Colors.red;
     }
 
     return Container(

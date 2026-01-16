@@ -1,4 +1,4 @@
-import 'package:Tiffinity/data/category_model.dart';
+import 'package:Tiffinity/models/category_model.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/menu_service.dart';
 import 'package:Tiffinity/services/image_service.dart';
@@ -139,7 +139,7 @@ class _AddMenuItemPageState extends State<AddMenuItemPage> {
       // Create the category
       final success = await MenuService.createCategory(
         messId: widget.messId,
-        categoryName: result,
+        name: result,
       );
 
       if (success) {

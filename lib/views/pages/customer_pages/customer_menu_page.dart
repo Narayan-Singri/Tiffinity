@@ -32,16 +32,37 @@ class _MenuPageState extends State<MenuPage> {
     setState(() => _isLoading = true);
     try {
       final mess = await MessService.getMessById(int.parse(widget.messId));
-      final menu = await MenuService.getCustomerMenuItems(
+
+      // ✅ FETCH TODAY'S MENU ONLY (from weekly schedule)
+      final todaysItems = await MenuService.getTodaysMenu(
         int.parse(widget.messId),
       );
+
+      // Convert TodaysMenuItem to Map format (compatible with existing UI)
+      final menu =
+          todaysItems.map((item) {
+            return {
+              'id': item.menuItemId, // ✅ Use menuItemId for cart
+              'mess_id': int.parse(
+                widget.messId,
+              ), // ✅ Use widget.messId instead
+              'name': item.itemName,
+              'description': item.description ?? '',
+              'price': item.price,
+              'image_url': item.imageUrl ?? '',
+              'type': item.itemType,
+              'category': item.categoryName ?? 'Uncategorized',
+              'is_available': 1,
+            };
+          }).toList();
+
       setState(() {
         _messData = mess;
         _menuItems = menu;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
+      print('❌ Error loading today\'s menu: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -221,6 +242,7 @@ class _MenuPageState extends State<MenuPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Mess Name
                     Text(
                       _messData!['name']?.toString() ?? 'Restaurant Name',
                       style: const TextStyle(
@@ -229,12 +251,81 @@ class _MenuPageState extends State<MenuPage> {
                         color: Colors.black,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _messData!['mess_type']?.toString() ?? 'Cuisine Type',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                    ),
                     const SizedBox(height: 8),
+
+                    // ✨ TODAY'S MENU BADGE (NEW)
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color.fromARGB(255, 27, 84, 78),
+                                const Color.fromARGB(
+                                  255,
+                                  27,
+                                  84,
+                                  78,
+                                ).withOpacity(0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color.fromARGB(
+                                  255,
+                                  27,
+                                  84,
+                                  78,
+                                ).withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "Today's Menu • ${_getDayName(DateTime.now().weekday)}",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Cuisine Type
+                        Expanded(
+                          child: Text(
+                            _messData!['mess_type']?.toString() ??
+                                'Cuisine Type',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Rating and Timings Row
                     Row(
                       children: [
                         Container(
@@ -283,6 +374,8 @@ class _MenuPageState extends State<MenuPage> {
                       ],
                     ),
                     const SizedBox(height: 8),
+
+                    // Location and Delivery Time Row
                     Row(
                       children: [
                         Icon(
@@ -300,7 +393,7 @@ class _MenuPageState extends State<MenuPage> {
                         ),
                         const SizedBox(width: 16),
                         Icon(
-                          Icons.access_time,
+                          Icons.delivery_dining,
                           size: 16,
                           color: Colors.grey[600],
                         ),
@@ -942,5 +1035,19 @@ class _MenuPageState extends State<MenuPage> {
     }
     cartNotifier.value = cart;
     await CartHelper.saveCart(cart);
+  }
+
+  // Get day name from weekday number
+  String _getDayName(int weekday) {
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return days[weekday - 1];
   }
 }
