@@ -5,6 +5,7 @@ import 'package:Tiffinity/views/pages/admin_pages/admin_widget_tree.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 import 'package:Tiffinity/services/notification_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
+import 'package:Tiffinity/services/language_service.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,6 +16,9 @@ void main() async {
 
   // Initialize custom notification service (NO Firebase!)
   await NotificationService().initialize();
+
+  // Initialize Language Service
+  await LanguageService().initialize();
 
   // Load cart data
   await CartHelper.loadCart();
@@ -54,53 +58,58 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return ValueListenableBuilder(
       valueListenable: isDarkModeNotifier,
       builder: (context, isDarkMode, child) {
-        return MaterialApp(
-          debugShowCheckedModeBanner: false,
-          navigatorKey: NotificationService.navigatorKey,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.teal,
-              brightness: isDarkMode ? Brightness.dark : Brightness.light,
-            ),
-          ),
-          home: FutureBuilder(
-            future: AuthService.isLoggedIn(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              final bool isLoggedIn = snapshot.data ?? false;
-              if (!isLoggedIn) {
-                return const WelcomePage();
-              }
-
-              return FutureBuilder<Map<String, dynamic>?>(
-                future: AuthService.currentUser,
-                builder: (context, userSnapshot) {
-                  if (userSnapshot.connectionState == ConnectionState.waiting) {
+        return ValueListenableBuilder<String>(
+          valueListenable: LanguageService().currentLanguage,
+          builder: (context, languageCode, _) {
+            return MaterialApp(
+              debugShowCheckedModeBanner: false,
+              navigatorKey: NotificationService.navigatorKey,
+              theme: ThemeData(
+                colorScheme: ColorScheme.fromSeed(
+                  seedColor: Colors.teal,
+                  brightness: isDarkMode ? Brightness.dark : Brightness.light,
+                ),
+              ),
+              home: FutureBuilder(
+                future: AuthService.isLoggedIn(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Scaffold(
                       body: Center(child: CircularProgressIndicator()),
                     );
                   }
 
-                  final user = userSnapshot.data;
-                  if (user != null && user['role'] != null) {
-                    String role = user['role'];
-                    if (role == 'customer') {
-                      return const CustomerWidgetTree();
-                    } else if (role == 'admin') {
-                      return const AdminWidgetTree();
-                    }
+                  final bool isLoggedIn = snapshot.data ?? false;
+                  if (!isLoggedIn) {
+                    return const WelcomePage();
                   }
 
-                  return const WelcomePage();
+                  return FutureBuilder<Map<String, dynamic>?>(
+                    future: AuthService.currentUser,
+                    builder: (context, userSnapshot) {
+                      if (userSnapshot.connectionState == ConnectionState.waiting) {
+                        return const Scaffold(
+                          body: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+
+                      final user = userSnapshot.data;
+                      if (user != null && user['role'] != null) {
+                        String role = user['role'];
+                        if (role == 'customer') {
+                          return const CustomerWidgetTree();
+                        } else if (role == 'admin') {
+                          return const AdminWidgetTree();
+                        }
+                      }
+
+                      return const WelcomePage();
+                    },
+                  );
                 },
-              );
-            },
-          ),
+              ),
+            );
+          },
         );
       },
     );
