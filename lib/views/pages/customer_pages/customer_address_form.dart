@@ -24,6 +24,7 @@ class CustomerAddressForm extends StatefulWidget {
 class _CustomerAddressFormState extends State<CustomerAddressForm> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _roomController = TextEditingController();
   final TextEditingController _buildingController = TextEditingController();
   final TextEditingController _areaController = TextEditingController();
@@ -34,6 +35,7 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _roomController.dispose();
     _buildingController.dispose();
     _areaController.dispose();
@@ -46,11 +48,12 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.postForm('save_customer_location.php', {
+      final response = await ApiService.postForm('add_customer_address.php', {
         'user_id': widget.userId,
         'latitude': widget.latitude.toString(),
         'longitude': widget.longitude.toString(),
         'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
         'room_no': _roomController.text.trim(),
         'building': _buildingController.text.trim(),
         'area': _areaController.text.trim(),
@@ -149,6 +152,30 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter your name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Phone Number
+              TextFormField(
+                controller: _phoneController,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  hintText: 'e.g., 9876543210',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                ),
+                keyboardType: TextInputType.phone,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter phone number';
+                  }
+                  if (value.trim().length < 10) {
+                    return 'Please enter a valid phone number';
                   }
                   return null;
                 },

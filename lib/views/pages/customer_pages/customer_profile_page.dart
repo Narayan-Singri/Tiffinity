@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
+import 'my_subscriptions_page.dart';
 
 class CustomerProfilePage extends StatefulWidget {
   const CustomerProfilePage({super.key});
@@ -177,6 +178,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                         _menuItem(
                           Icons.calendar_month_rounded,
                           'My Subscriptions',
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MySubscriptionsPage(),
+                              ),
+                            );
+                          },
                         ),
                         _menuItem(Icons.shopping_bag_outlined, 'My Orders'),
                         _menuItem(Icons.location_on_outlined, 'My Addresses'),
@@ -513,9 +522,9 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
     );
   }
 
-  Widget _menuItem(IconData icon, String title) {
+  Widget _menuItem(IconData icon, String title, {VoidCallback? onTap}) {
     return InkWell(
-      onTap: () {}, // Add navigation here
+      onTap: onTap ?? () {},
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
