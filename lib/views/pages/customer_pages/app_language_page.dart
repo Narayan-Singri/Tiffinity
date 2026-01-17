@@ -47,10 +47,10 @@ class _AppLanguagePageState extends State<AppLanguagePage> {
   Future<void> _saveLanguage(String language) async {
     try {
       setState(() => _selectedLanguage = language);
-      
+
       final languageService = LanguageService();
       await languageService.setLanguage(language);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -77,73 +77,86 @@ class _AppLanguagePageState extends State<AppLanguagePage> {
             elevation: 0,
           ),
           backgroundColor: const Color(0xFFF5F7F8),
-          body: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(left: 10, bottom: 16),
-                        child: Text(
-                          AppStrings.getString('select_language', languageCode),
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2D3142),
-                              ),
-                        ),
-                      ),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _languages.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final language = _languages[index];
-                          final isSelected =
-                              _selectedLanguage == language['name'];
-
-                          return _buildLanguageCard(
-                            language: language['name']!,
-                            isSelected: isSelected,
-                            onTap: () => _saveLanguage(language['name']!),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 30),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.teal.withOpacity(0.2),
+          body:
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 10, bottom: 16),
+                          child: Text(
+                            AppStrings.getString(
+                              'select_language',
+                              languageCode,
+                            ),
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF2D3142),
+                            ),
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Colors.teal.shade700,
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _languages.length,
+                          separatorBuilder:
+                              (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final language = _languages[index];
+                            final isSelected =
+                                _selectedLanguage == language['name'];
+
+                            return _buildLanguageCard(
+                              language: language['name']!,
+                              isSelected: isSelected,
+                              onTap: () => _saveLanguage(language['name']!),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 30),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.teal.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.teal.withOpacity(0.2),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                AppStrings.getString('language_info', languageCode),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.teal.shade700,
-                                  fontWeight: FontWeight.w500,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.info_outline,
+                                color: Colors.teal.shade700,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  AppStrings.getString(
+                                    'language_info',
+                                    languageCode,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.teal.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
         );
       },
     );
@@ -163,26 +176,25 @@ class _AppLanguagePageState extends State<AppLanguagePage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected
-                ? Colors.teal
-                : Colors.grey.withOpacity(0.2),
+            color: isSelected ? Colors.teal : Colors.grey.withOpacity(0.2),
             width: isSelected ? 2 : 1,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.teal.withOpacity(0.15),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+          boxShadow:
+              isSelected
+                  ? [
+                    BoxShadow(
+                      color: Colors.teal.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                  : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
         ),
         child: Row(
           children: [
@@ -191,9 +203,10 @@ class _AppLanguagePageState extends State<AppLanguagePage> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.teal.withOpacity(0.15)
-                    : Colors.grey.withOpacity(0.1),
+                color:
+                    isSelected
+                        ? Colors.teal.withOpacity(0.15)
+                        : Colors.grey.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -221,24 +234,18 @@ class _AppLanguagePageState extends State<AppLanguagePage> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected
-                      ? Colors.teal
-                      : Colors.grey.withOpacity(0.3),
+                  color:
+                      isSelected ? Colors.teal : Colors.grey.withOpacity(0.3),
                   width: 2,
                 ),
-                color: isSelected
-                    ? Colors.teal
-                    : Colors.transparent,
+                color: isSelected ? Colors.teal : Colors.transparent,
               ),
-              child: isSelected
-                  ? const Center(
-                      child: Icon(
-                        Icons.check,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    )
-                  : null,
+              child:
+                  isSelected
+                      ? const Center(
+                        child: Icon(Icons.check, color: Colors.white, size: 16),
+                      )
+                      : null,
             ),
           ],
         ),

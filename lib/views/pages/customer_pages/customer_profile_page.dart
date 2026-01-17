@@ -9,6 +9,7 @@ import 'package:Tiffinity/services/language_service.dart';
 import 'package:Tiffinity/models/app_strings.dart';
 import 'my_subscriptions_page.dart';
 import 'app_language_page.dart';
+import 'customer_support_page.dart';
 
 class CustomerProfilePage extends StatefulWidget {
   const CustomerProfilePage({super.key});
@@ -147,7 +148,10 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
               SafeArea(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 10,
+                  ),
                   child: Column(
                     children: [
                       const SizedBox(height: 20),
@@ -155,19 +159,27 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                       const SizedBox(height: 30),
 
                       // Contact & Verification Section
-                      _buildSectionTitle(AppStrings.getString('contact_details', languageCode)),
+                      _buildSectionTitle(
+                        AppStrings.getString('contact_details', languageCode),
+                      ),
                       _glassContainer(
                         child: Column(
                           children: [
                             _buildVerificationRow(
                               icon: Icons.email_outlined,
-                              label: AppStrings.getString('email_address', languageCode),
+                              label: AppStrings.getString(
+                                'email_address',
+                                languageCode,
+                              ),
                               model: _emailState,
                             ),
                             _buildDivider(),
                             _buildVerificationRow(
                               icon: Icons.phone_iphone_rounded,
-                              label: AppStrings.getString('phone_number', languageCode),
+                              label: AppStrings.getString(
+                                'phone_number',
+                                languageCode,
+                              ),
                               model: _phoneState,
                             ),
                           ],
@@ -177,13 +189,18 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                       const SizedBox(height: 25),
 
                       // Menu Section
-                      _buildSectionTitle(AppStrings.getString('my_account', languageCode)),
+                      _buildSectionTitle(
+                        AppStrings.getString('my_account', languageCode),
+                      ),
                       _glassContainer(
                         child: Column(
                           children: [
                             _menuItem(
                               Icons.calendar_month_rounded,
-                              AppStrings.getString('my_subscriptions', languageCode),
+                              AppStrings.getString(
+                                'my_subscriptions',
+                                languageCode,
+                              ),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -193,13 +210,28 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                                 );
                               },
                             ),
-                            _menuItem(Icons.shopping_bag_outlined, AppStrings.getString('my_orders', languageCode)),
-                            _menuItem(Icons.location_on_outlined, AppStrings.getString('my_addresses', languageCode)),
+                            _menuItem(
+                              Icons.shopping_bag_outlined,
+                              AppStrings.getString('my_orders', languageCode),
+                            ),
+                            _menuItem(
+                              Icons.location_on_outlined,
+                              AppStrings.getString(
+                                'my_addresses',
+                                languageCode,
+                              ),
+                            ),
                             _menuItem(
                               Icons.account_balance_wallet_outlined,
-                              AppStrings.getString('wallet_balance', languageCode),
+                              AppStrings.getString(
+                                'wallet_balance',
+                                languageCode,
+                              ),
                             ),
-                            _menuItem(Icons.favorite_border_rounded, AppStrings.getString('favourites', languageCode)),
+                            _menuItem(
+                              Icons.favorite_border_rounded,
+                              AppStrings.getString('favourites', languageCode),
+                            ),
                           ],
                         ),
                       ),
@@ -207,14 +239,25 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                       const SizedBox(height: 25),
 
                       // Support Section
-                      _buildSectionTitle(AppStrings.getString('support_more', languageCode)),
+                      _buildSectionTitle(
+                        AppStrings.getString('support_more', languageCode),
+                      ),
                       _glassContainer(
                         child: Column(
                           children: [
-                            _menuItem(Icons.group_outlined, AppStrings.getString('invite_friends', languageCode)),
+                            _menuItem(
+                              Icons.group_outlined,
+                              AppStrings.getString(
+                                'invite_friends',
+                                languageCode,
+                              ),
+                            ),
                             _menuItem(
                               Icons.language,
-                              AppStrings.getString('app_language', languageCode),
+                              AppStrings.getString(
+                                'app_language',
+                                languageCode,
+                              ),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -226,9 +269,23 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                             ),
                             _menuItem(
                               Icons.support_agent_rounded,
-                              AppStrings.getString('help_support', languageCode),
+                              AppStrings.getString(
+                                'help_support',
+                                languageCode,
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CustomerSupportPage(),
+                                  ),
+                                );
+                              },
                             ),
-                            _menuItem(Icons.quiz_outlined, AppStrings.getString('faqs', languageCode)),
+                            _menuItem(
+                              Icons.quiz_outlined,
+                              AppStrings.getString('faqs', languageCode),
+                            ),
                           ],
                         ),
                       ),
@@ -612,7 +669,9 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
             ),
             const SizedBox(width: 10),
             Text(
-              isLoggedIn ? AppStrings.getString('logout', languageCode) : AppStrings.getString('login', languageCode),
+              isLoggedIn
+                  ? AppStrings.getString('logout', languageCode)
+                  : AppStrings.getString('login', languageCode),
               style: TextStyle(
                 color: isLoggedIn ? Colors.redAccent : Colors.teal,
                 fontWeight: FontWeight.bold,

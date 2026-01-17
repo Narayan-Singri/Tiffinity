@@ -7,6 +7,7 @@ import 'package:Tiffinity/services/notification_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/services/language_service.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -57,6 +58,22 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
             return MaterialApp(
               debugShowCheckedModeBanner: false,
               navigatorKey: NotificationService.navigatorKey,
+              locale: Locale(languageCode),
+              supportedLocales: const [
+                Locale('en'),
+                Locale('hi'),
+                Locale('gu'),
+                Locale('mr'),
+                Locale('te'),
+                Locale('ta'),
+                Locale('kn'),
+                Locale('ml'),
+              ],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
               theme: ThemeData(
                 colorScheme: ColorScheme.fromSeed(
                   seedColor: Colors.teal,
