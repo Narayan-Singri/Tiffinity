@@ -10,6 +10,8 @@ import 'package:Tiffinity/services/image_service.dart';
 import 'package:Tiffinity/services/api_service.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
 import 'package:intl/intl.dart';
+import 'package:Tiffinity/views/pages/admin_pages/admin_location_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminProfilePage extends StatefulWidget {
   const AdminProfilePage({super.key});
@@ -48,6 +50,8 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   // Time variables
   TimeOfDay? _openingTime;
   TimeOfDay? _closingTime;
+
+  String? _messLocation;
 
   // Animation
   late AnimationController _animationController;
@@ -151,6 +155,20 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       _ownerNameController.text = _userData!['name'] ?? '';
       _ownerEmailController.text = _userData!['email'] ?? '';
       _ownerPhoneController.text = _userData!['phone'] ?? '';
+    }
+    // 🆕 ADD THIS AT THE END (before the closing brace):
+    if (_messData!['latitude'] != null && _messData!['longitude'] != null) {
+      String shopNo = _messData!['shop_no'] ?? '';
+      String landmark = _messData!['landmark'] ?? '';
+      String pincode = _messData!['pincode'] ?? '';
+
+      List<String> locationParts = [];
+      if (shopNo.isNotEmpty) locationParts.add(shopNo);
+      if (landmark.isNotEmpty) locationParts.add(landmark);
+      if (pincode.isNotEmpty) locationParts.add(pincode);
+
+      _messLocation =
+          locationParts.isNotEmpty ? locationParts.join(', ') : 'Location set';
     }
   }
 
@@ -484,7 +502,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                         const SizedBox(height: 16),
                         _buildOwnerInfoCard(),
                         const SizedBox(height: 16),
+                        if (!_isEditMode)
+                          _buildLocationCard(), // 🆕 ADD THIS LINE
+                        const SizedBox(height: 16),
                         if (!_isEditMode) _buildStatisticsCard(),
+
                         if (!_isEditMode) const SizedBox(height: 16),
                         if (!_isEditMode) _buildLogoutButton(),
                         const SizedBox(height: 100),
@@ -838,6 +860,76 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                         'dd MMM yyyy',
                       ).format(DateTime.parse(_userData!['created_at']))
                       : 'N/A',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Mess Location',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color.fromARGB(255, 27, 84, 78),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.location_on, color: Colors.green),
+              ),
+              title: const Text('Change Mess Location'),
+              subtitle: Text(_messLocation ?? 'Set your mess location'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                final messId = _messData?['id'];
+
+                if (messId != null) {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => AdminLocationPage(
+                            messId: int.parse(messId.toString()),
+                            ownerName: _userData?['name'] ?? 'Owner',
+                          ),
+                    ),
+                  );
+
+                  if (result == true) {
+                    _loadProfileData();
+                  }
+                } else {
+                  _showSnackbar('Mess ID not found', isError: true);
+                }
+              },
             ),
           ],
         ),

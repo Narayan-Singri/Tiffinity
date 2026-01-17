@@ -125,11 +125,16 @@ class MessService {
     required String phone,
     required String address,
     required String messType,
-    String? imageUrl,
-    bool isOnline = true,
+    required String imageUrl,
+    required bool isOnline,
+    // 🆕 LOCATION PARAMETERS
+    required double latitude,
+    required double longitude,
+    required String shopNo,
+    required String landmark,
+    required String pincode,
   }) async {
     try {
-      debugPrint('📤 Creating mess...');
       final response = await ApiService.postForm('messes/create_mess.php', {
         'owner_id': ownerId,
         'name': name,
@@ -137,27 +142,20 @@ class MessService {
         'phone': phone,
         'address': address,
         'mess_type': messType,
-        if (imageUrl != null) 'image_url': imageUrl,
-        'isOnline': isOnline ? '1' : '0',
+        'image_url': imageUrl,
+        'is_online': isOnline ? '1' : '0',
+        // 🆕 LOCATION FIELDS
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+        'shop_no': shopNo,
+        'landmark': landmark,
+        'pincode': pincode,
       });
 
-      debugPrint('📥 Create Mess Response: $response');
-
-      if (response['message'] == 'Mess created') {
-        return {
-          'success': true,
-          'mess_id': response['mess_id'],
-          'message': 'Mess created successfully',
-        };
-      } else {
-        return {
-          'success': false,
-          'message': response['error'] ?? 'Failed to create mess',
-        };
-      }
+      return response;
     } catch (e) {
-      debugPrint('❌ Create Mess Error: $e');
-      return {'success': false, 'message': 'Error: $e'};
+      debugPrint('❌ Error creating mess: $e');
+      return {'success': false, 'message': 'Failed to create mess: $e'};
     }
   }
 

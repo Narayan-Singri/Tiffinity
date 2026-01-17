@@ -48,17 +48,18 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await ApiService.postForm('add_customer_address.php', {
-        'user_id': widget.userId,
-        'latitude': widget.latitude.toString(),
-        'longitude': widget.longitude.toString(),
-        'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'room_no': _roomController.text.trim(),
-        'building': _buildingController.text.trim(),
-        'area': _areaController.text.trim(),
-        'address_type': _selectedType,
-      });
+      final response =
+          await ApiService.postForm('users/save_customer_location.php', {
+            'user_id': widget.userId,
+            'latitude': widget.latitude.toString(),
+            'longitude': widget.longitude.toString(),
+            'name': _nameController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'room_no': _roomController.text.trim(),
+            'building': _buildingController.text.trim(),
+            'area': _areaController.text.trim(),
+            'address_type': _selectedType,
+          });
 
       if (response['success'] == true) {
         if (mounted) {

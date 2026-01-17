@@ -13,8 +13,16 @@ class AdminNavbarWidget extends StatelessWidget {
           destinations: [
             NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
             NavigationDestination(icon: Icon(Icons.menu_book), label: 'Menu'),
+            NavigationDestination(
+              icon: Icon(Icons.calendar_today),
+              label: 'Weekly',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.subscriptions),
+              label: 'Plans',
+            ),
             NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
-          ], //total 2 items
+          ],
           onDestinationSelected: (int value) {
             adminSelectedPageNotifier.value = value;
           },

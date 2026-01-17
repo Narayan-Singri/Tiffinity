@@ -34,7 +34,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Future<void> _initializeNotificationsOnce() async {
     if (_notificationsInitialized) return;
     _notificationsInitialized = true;
-
     try {
       await NotificationService().initialize();
       debugPrint('✅ Notifications initialized for admin');
@@ -43,7 +42,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // ✅ Helper function to convert int to bool
   bool _toBool(dynamic value) {
     if (value is bool) return value;
     if (value is int) return value == 1;
@@ -57,21 +55,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
       final currentUser = await AuthService.currentUser;
       if (currentUser == null) return;
 
-      // Load mess data
       final mess = await MessService.getMessByOwner(currentUser['uid']);
-
       if (mess != null) {
-        // ✅ FIX: Save mess_id to SharedPreferences if not already saved
         final prefs = await SharedPreferences.getInstance();
         final savedMessId = prefs.getInt('mess_id');
         final messId = int.parse(mess['id'].toString());
-
         if (savedMessId == null) {
           await prefs.setInt('mess_id', messId);
           print('✅ mess_id automatically saved: $messId');
         }
 
-        // Load orders for this mess
         try {
           final orders = await OrderService.getMessOrders(messId);
           setState(() {
@@ -88,7 +81,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
             _isLoading = false;
           });
 
-          // Load customer names
           if (this._orders.isNotEmpty) {
             for (var order in this._orders) {
               if (order.containsKey('customer_id')) {
@@ -118,7 +110,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> _fetchCustomerName(String customerId) async {
     if (_customerNames.containsKey(customerId)) return;
-
     try {
       final user = await UserService.getUser(customerId);
       if (user != null && mounted) {
@@ -134,7 +125,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Future<void> _toggleOnlineStatus(bool status) async {
     if (_messData == null) return;
     try {
-      // ✅ FIX: Pass both messId and status
       final success = await MessService.toggleMessStatus(
         _messData!['id'],
         status,
@@ -225,44 +215,42 @@ class _AdminHomePageState extends State<AdminHomePage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_messData == null) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.store_mall_directory,
-                color: Colors.grey,
-                size: 80,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'No mess found for your admin account.',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                child: const Text('Create Mess'),
-                onPressed: () async {
-                  final currentUser = await AuthService.currentUser;
-                  if (currentUser != null && mounted) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) =>
-                                AdminSetupPage(userId: currentUser['uid']),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.store_mall_directory,
+              color: Colors.grey,
+              size: 80,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No mess found for your admin account.',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              child: const Text('Create Mess'),
+              onPressed: () async {
+                final currentUser = await AuthService.currentUser;
+                if (currentUser != null && mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              AdminSetupPage(userId: currentUser['uid']),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
         ),
       );
     }
@@ -270,148 +258,331 @@ class _AdminHomePageState extends State<AdminHomePage> {
     final isOnline = _toBool(_messData!['isOnline']);
     final messName = _messData!['name']?.toString() ?? 'My Mess';
 
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ============================================
-            // FIXED HEADER SECTION (Non-scrollable)
-            // ============================================
+    // Filter orders for the list
+    final filteredOrders =
+        _orders.where((order) {
+          final matchesStatus =
+              _selectedStatus == "All" ||
+              order['status'].toString().toLowerCase() ==
+                  _selectedStatus.toLowerCase();
+          final matchesSearch =
+              _searchQuery.isEmpty ||
+              order['id'].toString().toLowerCase().contains(
+                _searchQuery.toLowerCase(),
+              ) ||
+              (_customerNames[order['customer_id']] ?? '')
+                  .toLowerCase()
+                  .contains(_searchQuery.toLowerCase());
+          return matchesStatus && matchesSearch;
+        }).toList();
 
-            // 1. SIMPLE MESS NAME - Centered, Black Text
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                messName,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.center,
+    // ✅ EVERYTHING IN ONE SCROLLABLE ListView
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 80), // Space for bottom nav
+        children: [
+          // 1. MESS NAME
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              messName,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
+              textAlign: TextAlign.center,
             ),
+          ),
 
-            // 2. STATUS TOGGLE
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors:
-                      isOnline
-                          ? [Colors.green.shade400, Colors.green.shade600]
-                          : [Colors.red.shade400, Colors.red.shade600],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        isOnline
-                            ? Colors.green.withOpacity(0.3)
-                            : Colors.red.withOpacity(0.3),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+          // 2. STATUS TOGGLE
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors:
+                    isOnline
+                        ? [Colors.green.shade400, Colors.green.shade600]
+                        : [Colors.red.shade400, Colors.red.shade600],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isOnline ? Icons.store : Icons.store_mall_directory,
-                      color: Colors.white,
-                      size: 32,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color:
+                      isOnline
+                          ? Colors.green.withOpacity(0.3)
+                          : Colors.red.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isOnline ? Icons.store : Icons.store_mall_directory,
+                    color: Colors.white,
+                    size: 32,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isOnline ? "Mess Open" : "Mess Closed",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isOnline
+                            ? "Orders are receivable"
+                            : "Orders are stopped",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: isOnline,
+                  onChanged: _toggleOnlineStatus,
+                  activeColor: Colors.white,
+                  activeTrackColor: Colors.green.shade300,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Colors.red.shade300,
+                ),
+              ],
+            ),
+          ),
+
+          // 3. SUMMARY CARDS
+          const SizedBox(height: 16),
+          _buildSummaryCards(),
+          const SizedBox(height: 16),
+
+          // 4. SEARCH AND FILTER
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    onChanged: _filterOrders,
+                    decoration: InputDecoration(
+                      hintText: 'Search...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      prefixIcon: const Icon(Icons.search),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: _showFilterOptions,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 5. ORDERS LIST - Direct children instead of nested ListView
+          if (_orders.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(50),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.receipt_long_outlined,
+                      size: 80,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'No orders yet',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Orders from customers will appear here',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (filteredOrders.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(50),
+              child: Center(
+                child: Text(
+                  'No orders match your filter',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            // List all order cards directly
+            ...filteredOrders.map((order) {
+              final status = order['status'] ?? 'pending';
+              final customerId = order['customer_id'];
+              final customerName = _customerNames[customerId] ?? 'Loading...';
+
+              String formattedTime = '';
+              if (order['created_at'] != null) {
+                try {
+                  final dateTime = DateTime.parse(
+                    order['created_at'].toString(),
+                  );
+                  formattedTime =
+                      '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+                } catch (e) {
+                  formattedTime = 'N/A';
+                }
+              }
+
+              Color statusColor = Colors.orange;
+              Color statusBgColor = Colors.orange.withOpacity(0.2);
+              IconData statusIcon = Icons.schedule;
+
+              if (status == 'delivered') {
+                statusColor = Colors.green;
+                statusBgColor = Colors.green.withOpacity(0.2);
+                statusIcon = Icons.check_circle;
+              } else if (status == 'cancelled') {
+                statusColor = Colors.red;
+                statusBgColor = Colors.red.withOpacity(0.2);
+                statusIcon = Icons.cancel;
+              } else if (status == 'accepted') {
+                statusColor = Colors.blue;
+                statusBgColor = Colors.blue.withOpacity(0.2);
+                statusIcon = Icons.schedule;
+              }
+
+              return GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => OrderDetailsPage(
+                            orderId: order['id'].toString(),
+                            orderData: order,
+                          ),
+                    ),
+                  );
+                },
+                child: Card(
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
                       children: [
-                        Text(
-                          isOnline ? "Mess Open" : "Mess Closed",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: statusBgColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(statusIcon, color: statusColor, size: 32),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Order #${order['id'] ?? ''}",
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                customerName,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.access_time,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    formattedTime,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          isOnline
-                              ? "Orders are receivable"
-                              : "Orders are stopped",
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 14,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: statusBgColor,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            status.toUpperCase(),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  Switch(
-                    value: isOnline,
-                    onChanged: _toggleOnlineStatus,
-                    activeColor: Colors.white,
-                    activeTrackColor: Colors.green.shade300,
-                    inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: Colors.red.shade300,
-                  ),
-                ],
-              ),
-            ),
-
-            // 3. SUMMARY CARDS
-            const SizedBox(height: 16),
-            _buildSummaryCards(),
-            const SizedBox(height: 16),
-
-            // 4. SEARCH AND FILTER
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      onChanged: _filterOrders,
-                      decoration: InputDecoration(
-                        hintText: 'Search...',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        prefixIcon: const Icon(Icons.search),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.filter_list),
-                    onPressed: _showFilterOptions,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            // ============================================
-            // SCROLLABLE ORDERS LIST
-            // ============================================
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _loadData,
-                child: _buildOrdersList(),
-              ),
-            ),
-          ],
-        ),
+                ),
+              );
+            }).toList(),
+        ],
       ),
     );
   }
@@ -545,7 +716,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 
   Widget _buildOrdersList() {
-    // Filter orders
     final filteredOrders =
         _orders.where((order) {
           final matchesStatus =
@@ -614,7 +784,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
       );
     }
 
-    // ✅ FIX: Remove shrinkWrap and NeverScrollableScrollPhysics
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 16),
       itemCount: filteredOrders.length,
@@ -624,7 +793,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
         final customerId = order['customer_id'];
         final customerName = _customerNames[customerId] ?? 'Loading...';
 
-        // Format time
         String formattedTime = '';
         if (order['created_at'] != null) {
           try {
@@ -636,7 +804,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
           }
         }
 
-        // Color coding based on status
         Color statusColor = Colors.orange;
         Color statusBgColor = Colors.orange.withOpacity(0.2);
         IconData statusIcon = Icons.schedule;

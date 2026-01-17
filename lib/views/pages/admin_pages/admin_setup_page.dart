@@ -7,6 +7,9 @@ import 'package:Tiffinity/services/image_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 // Model for a timing slot
 class TimeSlot {
@@ -31,8 +34,19 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
   final phoneController = TextEditingController();
   final addressController = TextEditingController();
   final descriptionController = TextEditingController();
+
+  // 🆕 LOCATION CONTROLLERS
+  final TextEditingController _shopNoController = TextEditingController();
+  final TextEditingController _landmarkController = TextEditingController();
+  final TextEditingController _pincodeController = TextEditingController();
+
   String _messType = "Veg";
   bool _isLoading = false;
+
+  // 🆕 LOCATION STATE
+  Position? _currentPosition;
+  String _currentAddress = 'Detecting location...';
+  bool _locationPermissionGranted = false;
 
   //Image picker
   File? _messImage;
@@ -40,6 +54,55 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
 
   // List of time slots (first mandatory)
   List<TimeSlot> timeSlots = [TimeSlot()];
+
+  @override
+  void initState() {
+    super.initState();
+    _requestLocationPermission(); // 🆕 Request location on load
+  }
+
+  // 🆕 REQUEST LOCATION PERMISSION
+  Future<void> _requestLocationPermission() async {
+    try {
+      final permission = await Permission.location.request();
+      if (permission.isGranted) {
+        setState(() => _locationPermissionGranted = true);
+        await _getCurrentLocation();
+      } else {
+        _showError('Location permission is required to set mess location');
+      }
+    } catch (e) {
+      _showError('Error requesting location permission: $e');
+    }
+  }
+
+  // 🆕 GET CURRENT LOCATION
+  Future<void> _getCurrentLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        setState(() {
+          _currentPosition = position;
+          _currentAddress =
+              '${place.street}, ${place.subLocality}, ${place.locality}';
+          // Auto-fill fields
+          _landmarkController.text = place.street ?? '';
+          _pincodeController.text = place.postalCode ?? '';
+        });
+      }
+    } catch (e) {
+      _showError('Error getting location: $e');
+    }
+  }
 
   void _showImageSourceDialog() {
     showDialog(
@@ -69,7 +132,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
     );
   }
 
-  Future<void> _pickMessImageFromDevice() async {
+  Future _pickMessImageFromDevice() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
@@ -110,7 +173,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
     }
   }
 
-  Future<void> _pickMessImageFromCamera() async {
+  Future _pickMessImageFromCamera() async {
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.camera);
       if (image != null) {
@@ -151,12 +214,19 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
     }
   }
 
-  Future<void> _saveMessDetails() async {
+  Future _saveMessDetails() async {
     // Validation
     if (_messImage == null) {
       _showError('Please upload a mess image (Required Field)');
       return;
     }
+
+    // 🆕 ADD LOCATION VALIDATION
+    if (_currentPosition == null) {
+      _showError('Please wait for location to be detected');
+      return;
+    }
+
     if (messNameController.text.trim().isEmpty ||
         addressController.text.trim().isEmpty ||
         descriptionController.text.trim().isEmpty ||
@@ -179,7 +249,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
         print('Uploading mess image...');
         imageUrl = await ImageService.uploadToImgBB(_messImage!);
 
-        if (imageUrl == "SIZEEXCEEDED") {
+        if (imageUrl == "SIZE_EXCEEDED") {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -207,7 +277,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
         }
       }
 
-      // Create mess using MySQL API
+      // 🆕 CREATE MESS WITH LOCATION
       final result = await MessService.createMess(
         ownerId: widget.userId,
         name: messNameController.text.trim(),
@@ -215,15 +285,21 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
         phone: phoneController.text.trim(),
         address: addressController.text.trim(),
         messType: _messType,
-        imageUrl: imageUrl,
+        imageUrl: imageUrl!,
         isOnline: true,
+        // 🆕 LOCATION PARAMETERS
+        latitude: _currentPosition!.latitude,
+        longitude: _currentPosition!.longitude,
+        shopNo: _shopNoController.text.trim(),
+        landmark: _landmarkController.text.trim(),
+        pincode: _pincodeController.text.trim(),
       );
 
       if (!mounted) return;
 
       if (result['success']) {
-        // ✅ ✅ ✅ CRITICAL FIX: Save mess_id to SharedPreferences
-        final messId = result['messid'];
+        // ✅ Save mess_id to SharedPreferences
+        final messId = result['mess_id'];
         if (messId != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setInt('mess_id', int.parse(messId.toString()));
@@ -311,6 +387,8 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
+
+                      // Image Upload Section
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -386,6 +464,8 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
+
+                      // Basic Details
                       AuthField(
                         hintText: "Mess Name",
                         icon: Icons.store,
@@ -406,6 +486,8 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         controller: descriptionController,
                       ),
                       const SizedBox(height: 20),
+
+                      // Mess Type
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -415,7 +497,7 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Mess Type',
                               style: TextStyle(
                                 fontSize: 14,
@@ -463,8 +545,11 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
+
+                      // Timing
                       Column(
                         children: [
+                          // First time slot (mandatory)
                           Column(
                             children: [
                               Row(
@@ -559,9 +644,109 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
                         ],
                       ),
                       const SizedBox(height: 20),
+
+                      // 🆕 LOCATION SECTION
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color:
+                                _locationPermissionGranted
+                                    ? const Color.fromARGB(255, 27, 84, 78)
+                                    : Colors.red,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.grey[50],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  _locationPermissionGranted
+                                      ? Icons.location_on
+                                      : Icons.location_off,
+                                  color:
+                                      _locationPermissionGranted
+                                          ? Colors.green
+                                          : Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _locationPermissionGranted
+                                        ? 'Mess Location Detected'
+                                        : 'Getting Location...',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                if (!_locationPermissionGranted)
+                                  TextButton(
+                                    onPressed: _requestLocationPermission,
+                                    child: const Text('Retry'),
+                                  ),
+                              ],
+                            ),
+                            if (_locationPermissionGranted) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                _currentAddress,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                controller: _shopNoController,
+                                decoration: InputDecoration(
+                                  labelText: 'Shop/Outlet Number',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  prefixIcon: const Icon(Icons.store),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _landmarkController,
+                                decoration: InputDecoration(
+                                  labelText: 'Landmark',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  prefixIcon: const Icon(Icons.place),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _pincodeController,
+                                keyboardType: TextInputType.number,
+                                maxLength: 6,
+                                decoration: InputDecoration(
+                                  labelText: 'Pin Code',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  prefixIcon: const Icon(Icons.pin_drop),
+                                  counterText: '',
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Full Address
                       AuthField(
-                        hintText: "Address",
-                        icon: Icons.location_on,
+                        hintText: "Full Address",
+                        icon: Icons.location_city,
                         controller: addressController,
                       ),
                       const SizedBox(height: 20),
@@ -587,6 +772,9 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
     phoneController.dispose();
     addressController.dispose();
     descriptionController.dispose();
+    _shopNoController.dispose();
+    _landmarkController.dispose();
+    _pincodeController.dispose();
     for (var slot in timeSlots) {
       slot.openingController.dispose();
       slot.closingController.dispose();

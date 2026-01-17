@@ -1,7 +1,7 @@
 import 'package:Tiffinity/data/constants.dart';
 import 'package:Tiffinity/data/notifiers.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
-import 'package:Tiffinity/views/pages/admin_pages/admin_widget_tree.dart';
+import 'package:Tiffinity/views/pages/admin_pages/admin_widget_tree.dart'; // ✅ CHANGED
 import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 import 'package:Tiffinity/services/notification_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
@@ -13,16 +13,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load();
-
-  // Initialize custom notification service (NO Firebase!)
   await NotificationService().initialize();
-
-  // Initialize Language Service
   await LanguageService().initialize();
-
-  // Load cart data
   await CartHelper.loadCart();
-
   runApp(const MyApp());
 }
 
@@ -58,7 +51,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     return ValueListenableBuilder(
       valueListenable: isDarkModeNotifier,
       builder: (context, isDarkMode, child) {
-        return ValueListenableBuilder<String>(
+        return ValueListenableBuilder(
           valueListenable: LanguageService().currentLanguage,
           builder: (context, languageCode, _) {
             return MaterialApp(
@@ -87,7 +80,8 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                   return FutureBuilder<Map<String, dynamic>?>(
                     future: AuthService.currentUser,
                     builder: (context, userSnapshot) {
-                      if (userSnapshot.connectionState == ConnectionState.waiting) {
+                      if (userSnapshot.connectionState ==
+                          ConnectionState.waiting) {
                         return const Scaffold(
                           body: Center(child: CircularProgressIndicator()),
                         );
@@ -99,10 +93,9 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                         if (role == 'customer') {
                           return const CustomerWidgetTree();
                         } else if (role == 'admin') {
-                          return const AdminWidgetTree();
+                          return const AdminWidgetTree(); // ✅ DIRECT USE
                         }
                       }
-
                       return const WelcomePage();
                     },
                   );
