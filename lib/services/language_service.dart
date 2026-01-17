@@ -3,11 +3,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LanguageService {
   static final LanguageService _instance = LanguageService._internal();
-  
+
   factory LanguageService() {
     return _instance;
   }
-  
+
   LanguageService._internal();
 
   final ValueNotifier<String> _currentLanguage = ValueNotifier<String>('en');
@@ -44,10 +44,10 @@ class LanguageService {
     try {
       final code = languageCodes[languageName] ?? 'en';
       _currentLanguage.value = code;
-      
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('app_language', languageName);
-      
+
       debugPrint('✅ Language changed to: $languageName ($code)');
     } catch (e) {
       debugPrint('❌ Error setting language: $e');
