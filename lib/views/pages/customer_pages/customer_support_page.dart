@@ -28,7 +28,8 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
       },
       {
         'question': 'How do I create an account?',
-        'answer': 'Download the app, sign up with your email/phone, and start ordering.',
+        'answer':
+            'Download the app, sign up with your email/phone, and start ordering.',
       },
     ],
     'Order Issues': [
@@ -55,7 +56,8 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
     'Delivery': [
       {
         'question': 'How long does delivery take?',
-        'answer': 'Standard delivery takes 30-45 minutes from the time of order.',
+        'answer':
+            'Standard delivery takes 30-45 minutes from the time of order.',
       },
       {
         'question': 'Can I track my order?',
@@ -65,11 +67,13 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
     'Account': [
       {
         'question': 'How do I reset my password?',
-        'answer': 'Go to login, click "Forgot Password", and follow the instructions.',
+        'answer':
+            'Go to login, click "Forgot Password", and follow the instructions.',
       },
       {
         'question': 'How do I update my profile?',
-        'answer': 'Go to Profile > Account Settings and update your information.',
+        'answer':
+            'Go to Profile > Account Settings and update your information.',
       },
     ],
   };
@@ -98,9 +102,7 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
                   decoration: BoxDecoration(
                     color: Colors.teal.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.teal.withOpacity(0.3),
-                    ),
+                    border: Border.all(color: Colors.teal.withOpacity(0.3)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,11 +116,7 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildContactRow(
-                        Icons.phone,
-                        'Phone',
-                        '+91 9876543210',
-                      ),
+                      _buildContactRow(Icons.phone, 'Phone', '+91 9876543210'),
                       const SizedBox(height: 10),
                       _buildContactRow(
                         Icons.email_outlined,
@@ -151,45 +149,41 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: _categories.map((category) {
-                      final isSelected = _selectedCategory == category;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategory = category;
-                          });
-                        },
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color:
-                                isSelected
-                                    ? Colors.teal
-                                    : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.teal,
-                              width: isSelected ? 0 : 1,
+                    children:
+                        _categories.map((category) {
+                          final isSelected = _selectedCategory == category;
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedCategory = category;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.teal : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.teal,
+                                  width: isSelected ? 0 : 1,
+                                ),
+                              ),
+                              child: Text(
+                                category,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      isSelected ? Colors.white : Colors.teal,
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  isSelected
-                                      ? Colors.white
-                                      : Colors.teal,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                          );
+                        }).toList(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -197,10 +191,7 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
                 // FAQ Items
                 if (_selectedCategory != null)
                   ..._supportData[_selectedCategory]!.map(
-                    (faq) => _buildFAQItem(
-                      faq['question']!,
-                      faq['answer']!,
-                    ),
+                    (faq) => _buildFAQItem(faq['question']!, faq['answer']!),
                   ),
 
                 const SizedBox(height: 24),
@@ -288,9 +279,7 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.2),
-        ),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -387,9 +376,7 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
                 );
                 Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
               child: const Text('Send'),
             ),
           ],
@@ -407,11 +394,7 @@ class _CustomerSupportPageState extends State<CustomerSupportPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.chat_outlined,
-                size: 48,
-                color: Colors.teal,
-              ),
+              const Icon(Icons.chat_outlined, size: 48, color: Colors.teal),
               const SizedBox(height: 16),
               const Text(
                 'A support agent will be with you shortly.',

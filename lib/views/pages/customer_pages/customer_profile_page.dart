@@ -10,6 +10,10 @@ import 'package:Tiffinity/models/app_strings.dart';
 import 'my_subscriptions_page.dart';
 import 'app_language_page.dart';
 import 'customer_support_page.dart';
+import 'faq_page.dart';
+import 'customer_orders_page.dart';
+import 'customer_my_addresses_page.dart';
+import 'customer_wallet_page.dart';
 
 class CustomerProfilePage extends StatefulWidget {
   const CustomerProfilePage({super.key});
@@ -213,6 +217,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                             _menuItem(
                               Icons.shopping_bag_outlined,
                               AppStrings.getString('my_orders', languageCode),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CustomerOrdersPage(),
+                                  ),
+                                );
+                              },
                             ),
                             _menuItem(
                               Icons.location_on_outlined,
@@ -220,6 +232,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                                 'my_addresses',
                                 languageCode,
                               ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CustomerMyAddressesPage(),
+                                  ),
+                                );
+                              },
                             ),
                             _menuItem(
                               Icons.account_balance_wallet_outlined,
@@ -227,6 +247,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                                 'wallet_balance',
                                 languageCode,
                               ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const CustomerWalletPage(),
+                                  ),
+                                );
+                              },
                             ),
                             _menuItem(
                               Icons.favorite_border_rounded,
@@ -285,6 +313,14 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                             _menuItem(
                               Icons.quiz_outlined,
                               AppStrings.getString('faqs', languageCode),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const FAQPage(),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

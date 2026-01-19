@@ -97,6 +97,16 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage> {
 
     if (_orders.isEmpty) {
       return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_rounded),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('My Orders'),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -127,6 +137,16 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_rounded),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text('My Orders'),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
       body: RefreshIndicator(
         onRefresh: _loadOrders,
         child: ListView.builder(
