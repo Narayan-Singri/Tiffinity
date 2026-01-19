@@ -548,8 +548,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                           color: Color.fromARGB(255, 27, 84, 78),
                         ),
                         maxLines: 1, // ✅ LIMIT TO 1 LINE
-                        overflow:
-                            TextOverflow.ellipsis, // ✅ TRUNCATE WITH ...
+                        overflow: TextOverflow.ellipsis, // ✅ TRUNCATE WITH ...
                       ),
                       const SizedBox(height: 4),
                       Text(

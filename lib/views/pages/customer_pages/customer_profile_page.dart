@@ -238,15 +238,18 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => CustomerLocationPage(
-                                        userId: userId,
-                                      ),
+                                      builder:
+                                          (_) => CustomerLocationPage(
+                                            userId: userId,
+                                          ),
                                     ),
                                   );
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Please login to view addresses'),
+                                      content: Text(
+                                        'Please login to view addresses',
+                                      ),
                                     ),
                                   );
                                 }
