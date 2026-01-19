@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:slide_to_act/slide_to_act.dart';
@@ -319,9 +319,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   }
 
   String _formatCurrency(dynamic amount) {
-    if (amount == null) return 'Ã¢â€šÂ¹0';
+    if (amount == null) return '₹0';
     final value = double.tryParse(amount.toString()) ?? 0.0;
-    return 'Ã¢â€šÂ¹${value.toStringAsFixed(0)}';
+    return '₹${value.toStringAsFixed(0)}';
   }
 
   String _getRelativeTime(String? dateString) {
@@ -533,10 +533,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start, // Ã¢Å“â€¦ ADDED
+              crossAxisAlignment: CrossAxisAlignment.start, // ✅ ADDED
               children: [
                 Expanded(
-                  // Ã¢Å“â€¦ WRAP IN EXPANDED
+                  // ✅ WRAP IN EXPANDED
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -547,9 +547,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                           fontWeight: FontWeight.bold,
                           color: Color.fromARGB(255, 27, 84, 78),
                         ),
-                        maxLines: 1, // Ã¢Å“â€¦ LIMIT TO 1 LINE
+                        maxLines: 1, // ✅ LIMIT TO 1 LINE
                         overflow:
-                            TextOverflow.ellipsis, // Ã¢Å“â€¦ TRUNCATE WITH ...
+                            TextOverflow.ellipsis, // ✅ TRUNCATE WITH ...
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -561,7 +561,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                     ],
                   ),
                 ),
-                const SizedBox(width: 8), // Ã¢Å“â€¦ SMALL SPACING
+                const SizedBox(width: 8), // ✅ SMALL SPACING
                 _buildPulsingStatusBadge(statusColor),
               ],
             ),
@@ -846,7 +846,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Qty: $quantity Ãƒâ€” ${_formatCurrency(price)}',
+                  'Qty: $quantity × ${_formatCurrency(price)}',
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ],

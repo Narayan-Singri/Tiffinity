@@ -12,7 +12,7 @@ import 'app_language_page.dart';
 import 'customer_support_page.dart';
 import 'faq_page.dart';
 import 'customer_orders_page.dart';
-import 'customer_my_addresses_page.dart';
+import 'customer_location_page.dart';
 import 'customer_wallet_page.dart';
 
 class CustomerProfilePage extends StatefulWidget {
@@ -232,13 +232,24 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                                 'my_addresses',
                                 languageCode,
                               ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const CustomerMyAddressesPage(),
-                                  ),
-                                );
+                              onTap: () async {
+                                final userId = _userData?['uid']?.toString();
+                                if (userId != null) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CustomerLocationPage(
+                                        userId: userId,
+                                      ),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Please login to view addresses'),
+                                    ),
+                                  );
+                                }
                               },
                             ),
                             _menuItem(

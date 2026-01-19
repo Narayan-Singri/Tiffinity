@@ -282,39 +282,40 @@ class _FAQPageState extends State<FAQPage> {
 
               // FAQ List
               Expanded(
-                child: _filteredFAQs.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.search_off,
-                              size: 64,
-                              color: Colors.grey.shade400,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No FAQs found',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey.shade600,
+                child:
+                    _filteredFAQs.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 64,
+                                color: Colors.grey.shade400,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              Text(
+                                'No FAQs found',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _filteredFAQs.length,
+                          itemBuilder: (context, index) {
+                            final faq = _filteredFAQs[index];
+                            return _buildFAQCard(
+                              faq['category'],
+                              faq['question'],
+                              faq['answer'],
+                            );
+                          },
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _filteredFAQs.length,
-                        itemBuilder: (context, index) {
-                          final faq = _filteredFAQs[index];
-                          return _buildFAQCard(
-                            faq['category'],
-                            faq['question'],
-                            faq['answer'],
-                          );
-                        },
-                      ),
               ),
 
               // Still have questions?
@@ -411,9 +412,7 @@ class _FAQPageState extends State<FAQPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.2),
-        ),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),

@@ -13,8 +13,7 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
   double _walletBalance = 0.0;
   bool _isLoading = true;
   String? _userId;
-  final TextEditingController _customAmountController =
-      TextEditingController();
+  final TextEditingController _customAmountController = TextEditingController();
 
   final List<int> _quickAmounts = [100, 500, 1000, 2000];
 
@@ -36,16 +35,16 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
       final currentUser = await AuthService.currentUser;
       if (currentUser != null) {
         _userId = currentUser['uid'].toString();
-        final response = await ApiService.getRequest(
-          'users/get_wallet_balance.php?user_id=$_userId',
-        ) as Map<String, dynamic>;
+        final response =
+            await ApiService.getRequest(
+                  'users/get_wallet_balance.php?user_id=$_userId',
+                )
+                as Map<String, dynamic>;
 
         if (response['success'] == true) {
           setState(() {
-            _walletBalance = double.tryParse(
-                  response['balance']?.toString() ?? '0',
-                ) ??
-                0.0;
+            _walletBalance =
+                double.tryParse(response['balance']?.toString() ?? '0') ?? 0.0;
             _isLoading = false;
           });
         } else {
@@ -82,35 +81,33 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(
-                'Adding ₹${amount.toStringAsFixed(2)} to wallet...',
-                style: const TextStyle(fontSize: 16),
+      builder:
+          (context) => Center(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
               ),
-            ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Adding ₹${amount.toStringAsFixed(2)} to wallet...',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
     );
 
     try {
       final response = await ApiService.postRequest(
         'users/add_wallet_money.php',
-        {
-          'user_id': _userId,
-          'amount': amount.toString(),
-        },
+        {'user_id': _userId, 'amount': amount.toString()},
       );
 
       if (mounted) {
@@ -137,9 +134,7 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  response['message'] ?? 'Failed to add money',
-                ),
+                content: Text(response['message'] ?? 'Failed to add money'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -150,10 +145,7 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -162,42 +154,44 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
   void _showCustomAmountDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Custom Amount'),
-        content: TextField(
-          controller: _customAmountController,
-          keyboardType:
-              const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            hintText: 'Enter amount in ₹',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Add Custom Amount'),
+            content: TextField(
+              controller: _customAmountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Enter amount in ₹',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.currency_rupee),
+              ),
             ),
-            prefixIcon: const Icon(Icons.currency_rupee),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _customAmountController.clear();
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final amount =
+                      double.tryParse(_customAmountController.text) ?? 0;
+                  Navigator.pop(context);
+                  _addMoneyToWallet(amount);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00695C),
+                ),
+                child: const Text('Add'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _customAmountController.clear();
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount =
-                  double.tryParse(_customAmountController.text) ?? 0;
-              Navigator.pop(context);
-              _addMoneyToWallet(amount);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00695C),
-            ),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -214,180 +208,180 @@ class _CustomerWalletPageState extends State<CustomerWalletPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 40),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 40),
 
-                    // Balance Card
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF00695C),
-                            Color(0xFF00897B),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF00695C).withOpacity(0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 8),
+                      // Balance Card
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00695C), Color(0xFF00897B)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                        ],
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00695C).withOpacity(0.3),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Wallet Balance',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              '₹${_walletBalance.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Available Balance',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      padding: const EdgeInsets.all(32),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Wallet Balance',
+
+                      const SizedBox(height: 50),
+
+                      // Add Money Section
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Add Money',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Quick Amount Buttons
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 1.5,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                        itemCount: _quickAmounts.length,
+                        itemBuilder: (context, index) {
+                          final amount = _quickAmounts[index];
+                          return _buildAmountButton(amount);
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Custom Amount Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _showCustomAmountDialog,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF00695C),
+                            side: const BorderSide(
+                              color: Color(0xFF00695C),
+                              width: 2,
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Add Custom Amount',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.white.withOpacity(0.8),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '₹${_walletBalance.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 48,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+
+                      // Info Section
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00695C).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF00695C).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: const Color(0xFF00695C),
+                              size: 24,
                             ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Available Balance',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Wallet balance can be used for quick checkout and faster transactions',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[700],
+                                  height: 1.5,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 50),
-
-                    // Add Money Section
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Add Money',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
+                          ],
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
-
-                    // Quick Amount Buttons
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 1.5,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
-                      itemCount: _quickAmounts.length,
-                      itemBuilder: (context, index) {
-                        final amount = _quickAmounts[index];
-                        return _buildAmountButton(amount);
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Custom Amount Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _showCustomAmountDialog,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF00695C),
-                          side: const BorderSide(
-                            color: Color(0xFF00695C),
-                            width: 2,
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Add Custom Amount',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Info Section
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00695C).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF00695C).withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: const Color(0xFF00695C),
-                            size: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Wallet balance can be used for quick checkout and faster transactions',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[700],
-                                height: 1.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-                  ],
+                      const SizedBox(height: 30),
+                    ],
+                  ),
                 ),
               ),
-            ),
     );
   }
 
