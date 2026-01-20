@@ -573,17 +573,20 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildBillDetails(bool isDark) {
-    // Get values from root level, not from 'bill' object
+    // Calculate item total from actual items
+    final items = _orderData!['items'] as List? ?? [];
+    double itemTotal = 0.0;
+    for (var item in items) {
+      if (item != null && item is Map) {
+        final quantity = int.tryParse(item['quantity'].toString()) ?? 0;
+        final price = double.tryParse(item['price_at_time'].toString()) ?? 0.0;
+        itemTotal += quantity * price;
+      }
+    }
+    
     final totalAmount = _orderData!['total_amount'];
-    final deliveryFee = _orderData!['delivery_fee'];
-
-    // Calculate item total and taxes
-    final itemTotal =
-        totalAmount != null && deliveryFee != null
-            ? (double.tryParse(totalAmount.toString()) ?? 0) -
-                (double.tryParse(deliveryFee.toString()) ?? 0)
-            : 0;
-    final taxes = itemTotal * 0.05; // 5% tax
+    final totalAmountValue = double.tryParse(totalAmount?.toString() ?? '0') ?? 0.0;
+    final deliveryFee = totalAmountValue - itemTotal;
 
     if (totalAmount == null) return const SizedBox.shrink();
 
@@ -610,8 +613,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             "₹${itemTotal.toStringAsFixed(2)}",
             isDark,
           ),
-          _buildBillRow("Delivery Fee", "₹${deliveryFee ?? 0}", isDark),
-          _buildBillRow("Taxes (5%)", "₹${taxes.toStringAsFixed(2)}", isDark),
+          _buildBillRow("Delivery Fee", "₹${deliveryFee.toStringAsFixed(2)}", isDark),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Divider(color: isDark ? Colors.grey[700] : Colors.grey[300]),

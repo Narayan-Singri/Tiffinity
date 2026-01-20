@@ -865,12 +865,18 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   }
 
   Widget _buildBillBreakdownCard() {
-    final subtotal =
+    // Calculate item total from actual items
+    final items = _orderDetails!['items'] as List? ?? [];
+    double itemTotal = 0.0;
+    for (var item in items) {
+      final quantity = int.tryParse(item['quantity'].toString()) ?? 0;
+      final price = double.tryParse(item['price_at_time'].toString()) ?? 0.0;
+      itemTotal += quantity * price;
+    }
+    
+    final totalAmount =
         double.tryParse(_orderDetails!['total_amount'].toString()) ?? 0.0;
-    final deliveryFee =
-        double.tryParse(_orderDetails!['delivery_fee']?.toString() ?? '0') ??
-        0.0;
-    final itemTotal = subtotal - deliveryFee;
+    final deliveryFee = totalAmount - itemTotal;
 
     return Card(
       elevation: 2,
@@ -918,7 +924,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  _formatCurrency(subtotal),
+                  _formatCurrency(totalAmount),
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
