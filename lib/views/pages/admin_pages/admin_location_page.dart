@@ -66,47 +66,79 @@ class _AdminLocationPageState extends State<AdminLocationPage> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      List<Placemark> placemarks = await placemarkFromCoordinates(
+      await _updateLocationFromCoordinates(
         position.latitude,
         position.longitude,
       );
-
-      if (placemarks.isNotEmpty) {
-        Placemark place = placemarks[0];
-        String address =
-            '${place.street}, ${place.subLocality}, ${place.locality}, ${place.postalCode}';
-
-        setState(() {
-          _currentPosition = position;
-          _currentAddress = address;
-          _isLoading = false;
-
-          // Auto-fill fields from detected location
-          _areaController.text = place.subLocality ?? '';
-          _landmarkController.text = place.street ?? '';
-          _pincodeController.text = place.postalCode ?? '';
-
-          _markers.add(
-            Marker(
-              markerId: const MarkerId('mess_location'),
-              position: LatLng(position.latitude, position.longitude),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueOrange,
-              ),
-            ),
-          );
-        });
-
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(
-            LatLng(position.latitude, position.longitude),
-            17.0,
-          ),
-        );
-      }
     } catch (e) {
       setState(() => _isLoading = false);
       _showError('Error getting location: $e');
+    }
+  }
+
+  Future<void> _updateLocationFromCoordinates(
+      double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+
+      String address = 'Selected location';
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        address =
+            '${place.street}, ${place.subLocality}, ${place.locality}, ${place.postalCode}';
+
+        // Auto-fill fields from detected location
+        _areaController.text = place.subLocality ?? '';
+        _landmarkController.text = place.street ?? '';
+        _pincodeController.text = place.postalCode ?? '';
+      }
+
+      setState(() {
+        _currentPosition = Position(
+          latitude: latitude,
+          longitude: longitude,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
+        );
+        _currentAddress = address;
+        _isLoading = false;
+
+        _markers.clear();
+        _markers.add(
+          Marker(
+            markerId: const MarkerId('mess_location'),
+            position: LatLng(latitude, longitude),
+            draggable: true,
+            onDragEnd: (newPosition) {
+              _updateLocationFromCoordinates(
+                newPosition.latitude,
+                newPosition.longitude,
+              );
+            },
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueOrange,
+            ),
+          ),
+        );
+      });
+
+      _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(latitude, longitude),
+          17.0,
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error updating location: $e');
     }
   }
 
@@ -181,6 +213,12 @@ class _AdminLocationPageState extends State<AdminLocationPage> {
                       ),
                       markers: _markers,
                       onMapCreated: (controller) => _mapController = controller,
+                      onTap: (LatLng position) {
+                        _updateLocationFromCoordinates(
+                          position.latitude,
+                          position.longitude,
+                        );
+                      },
                       myLocationEnabled: true,
                       myLocationButtonEnabled: false,
                       zoomControlsEnabled: false,
