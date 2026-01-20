@@ -873,7 +873,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       final price = double.tryParse(item['price_at_time'].toString()) ?? 0.0;
       itemTotal += quantity * price;
     }
-    
+
     final totalAmount =
         double.tryParse(_orderDetails!['total_amount'].toString()) ?? 0.0;
     final deliveryFee = totalAmount - itemTotal;

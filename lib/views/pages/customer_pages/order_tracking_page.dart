@@ -583,9 +583,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         itemTotal += quantity * price;
       }
     }
-    
+
     final totalAmount = _orderData!['total_amount'];
-    final totalAmountValue = double.tryParse(totalAmount?.toString() ?? '0') ?? 0.0;
+    final totalAmountValue =
+        double.tryParse(totalAmount?.toString() ?? '0') ?? 0.0;
     final deliveryFee = totalAmountValue - itemTotal;
 
     if (totalAmount == null) return const SizedBox.shrink();
@@ -613,7 +614,11 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             "₹${itemTotal.toStringAsFixed(2)}",
             isDark,
           ),
-          _buildBillRow("Delivery Fee", "₹${deliveryFee.toStringAsFixed(2)}", isDark),
+          _buildBillRow(
+            "Delivery Fee",
+            "₹${deliveryFee.toStringAsFixed(2)}",
+            isDark,
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Divider(color: isDark ? Colors.grey[700] : Colors.grey[300]),
