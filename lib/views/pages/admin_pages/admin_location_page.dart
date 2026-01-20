@@ -77,7 +77,9 @@ class _AdminLocationPageState extends State<AdminLocationPage> {
   }
 
   Future<void> _updateLocationFromCoordinates(
-      double latitude, double longitude) async {
+    double latitude,
+    double longitude,
+  ) async {
     try {
       List<Placemark> placemarks = await placemarkFromCoordinates(
         latitude,
@@ -132,10 +134,7 @@ class _AdminLocationPageState extends State<AdminLocationPage> {
       });
 
       _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(latitude, longitude),
-          17.0,
-        ),
+        CameraUpdate.newLatLngZoom(LatLng(latitude, longitude), 17.0),
       );
     } catch (e) {
       debugPrint('Error updating location: $e');
