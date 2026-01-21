@@ -15,14 +15,17 @@ class SubscriptionService {
     required double price,
     String? description,
   }) async {
-    return await ApiService.postForm('create_subscription_plan.php', {
-      'mess_id': messId,
-      'name': name,
-      'duration_days': durationDays,
-      'price': price,
-      'description': description ?? '',
-      'is_active': 1,
-    });
+    return await ApiService.postForm(
+      'subscriptions/create_subscription_plan.php',
+      {
+        'mess_id': messId,
+        'name': name,
+        'duration_days': durationDays,
+        'price': price,
+        'description': description ?? '',
+        'is_active': 1,
+      },
+    );
   }
 
   /// Update existing subscription plan
@@ -33,13 +36,16 @@ class SubscriptionService {
     required double price,
     String? description,
   }) async {
-    return await ApiService.postForm('update_subscription_plan.php', {
-      'plan_id': planId,
-      'name': name,
-      'duration_days': durationDays,
-      'price': price,
-      'description': description ?? '',
-    });
+    return await ApiService.postForm(
+      'subscriptions/update_subscription_plan.php',
+      {
+        'plan_id': planId,
+        'name': name,
+        'duration_days': durationDays,
+        'price': price,
+        'description': description ?? '',
+      },
+    );
   }
 
   /// Get all plans for a mess
