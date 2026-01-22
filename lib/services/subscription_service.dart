@@ -111,7 +111,7 @@ class SubscriptionService {
     required String date,
     required String mealTime,
     required List<Map<String, dynamic>> items,
-    bool append = false,  // Flag to append instead of replace
+    bool append = false, // Flag to append instead of replace
   }) async {
     return await ApiService.postForm(
       'subscriptions/add_subscription_menu.php',
@@ -120,7 +120,7 @@ class SubscriptionService {
         'date': date,
         'meal_time': mealTime,
         'items': jsonEncode(items),
-        'append': append ? '1' : '0',  // Send append flag to backend
+        'append': append ? '1' : '0', // Send append flag to backend
       },
     );
   }

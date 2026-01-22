@@ -53,7 +53,8 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     try {
       // Get tomorrow's date
       final tomorrow = DateTime.now().add(Duration(days: 1));
-      final tomorrowDateString = '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+      final tomorrowDateString =
+          '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
 
       final menus = await SubscriptionService.getMenus(
         messId: widget.messId ?? 1,
@@ -62,16 +63,21 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
       );
 
       List<Map<String, dynamic>> allItems = [];
-      
+
       // Find items for lunch meal time
       for (var menu in menus) {
-        if (menu['meal_time'] == 'lunch' && menu['date'] == tomorrowDateString) {
+        if (menu['meal_time'] == 'lunch' &&
+            menu['date'] == tomorrowDateString) {
           final items = menu['items'];
           if (items is String) {
             final decoded = jsonDecode(items);
-            allItems = (decoded as List).map((item) => Map<String, dynamic>.from(item)).toList();
+            allItems =
+                (decoded as List)
+                    .map((item) => Map<String, dynamic>.from(item))
+                    .toList();
           } else if (items is List) {
-            allItems = items.map((item) => Map<String, dynamic>.from(item)).toList();
+            allItems =
+                items.map((item) => Map<String, dynamic>.from(item)).toList();
           }
           break;
         }
@@ -91,32 +97,37 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     // Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Remove Item'),
-        content: Text('Are you sure you want to remove "$itemName" from tomorrow\'s menu?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Remove Item'),
+            content: Text(
+              'Are you sure you want to remove "$itemName" from tomorrow\'s menu?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Remove'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Remove'),
-          ),
-        ],
-      ),
     );
 
     if (confirm != true) return;
 
     try {
       // Remove item from the list
-      final updatedItems = _subscriptionMenuItems.where((item) => item['id'] != itemId).toList();
+      final updatedItems =
+          _subscriptionMenuItems.where((item) => item['id'] != itemId).toList();
 
       // Get tomorrow's date
       final tomorrow = DateTime.now().add(Duration(days: 1));
-      final tomorrowDateString = '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+      final tomorrowDateString =
+          '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
 
       print('🗑️ Removing item: $itemName (ID: $itemId)');
       print('📋 Updated items count: ${updatedItems.length}');
@@ -144,9 +155,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     } catch (e) {
       print('❌ Error removing item: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error removing item: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error removing item: $e')));
       }
     }
   }
@@ -439,9 +450,10 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: item['type'] == 'non-veg'
-                                          ? Colors.red.withOpacity(0.1)
-                                          : Colors.green.withOpacity(0.1),
+                                      color:
+                                          item['type'] == 'non-veg'
+                                              ? Colors.red.withOpacity(0.1)
+                                              : Colors.green.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
@@ -451,14 +463,21 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                                   ),
                                   SizedBox(width: 8),
                                   IconButton(
-                                    icon: Icon(Icons.delete_outline, color: Colors.red),
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
                                     iconSize: 22,
                                     padding: EdgeInsets.zero,
-                                    constraints: BoxConstraints(minWidth: 40, minHeight: 40),
-                                    onPressed: () => _removeMenuItem(
-                                      item['id'] ?? 0,
-                                      item['name'] ?? 'Item',
+                                    constraints: BoxConstraints(
+                                      minWidth: 40,
+                                      minHeight: 40,
                                     ),
+                                    onPressed:
+                                        () => _removeMenuItem(
+                                          item['id'] ?? 0,
+                                          item['name'] ?? 'Item',
+                                        ),
                                   ),
                                 ],
                               ),
@@ -644,23 +663,25 @@ class _AddSubscriptionItemsModalState
 
     try {
       // Format new items for database
-      final newItems = _selectedItems.map((id) {
-        final menuItem = _allMenuItems.firstWhere(
-          (item) => int.parse(item['id'].toString()) == id,
-          orElse: () => {},
-        );
-        return {
-          'id': id,
-          'name': menuItem['name'] ?? 'Item',
-          'price': menuItem['price'] ?? 0,
-          'type': menuItem['type'] ?? 'veg',
-          'quantity': '1',
-        };
-      }).toList();
+      final newItems =
+          _selectedItems.map((id) {
+            final menuItem = _allMenuItems.firstWhere(
+              (item) => int.parse(item['id'].toString()) == id,
+              orElse: () => {},
+            );
+            return {
+              'id': id,
+              'name': menuItem['name'] ?? 'Item',
+              'price': menuItem['price'] ?? 0,
+              'type': menuItem['type'] ?? 'veg',
+              'quantity': '1',
+            };
+          }).toList();
 
       // Get tomorrow's date
       final tomorrow = DateTime.now().add(Duration(days: 1));
-      final tomorrowDateString = '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
+      final tomorrowDateString =
+          '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
 
       print('💾 PREPARING TO SAVE ITEMS');
       print('📋 New items count: ${newItems.length}');
@@ -676,18 +697,23 @@ class _AddSubscriptionItemsModalState
       );
 
       List<Map<String, dynamic>> existingItems = [];
-      
+
       // Find existing items for lunch meal time
       for (var menu in existingMenus) {
-        if (menu['meal_time'] == 'lunch' && menu['date'] == tomorrowDateString) {
+        if (menu['meal_time'] == 'lunch' &&
+            menu['date'] == tomorrowDateString) {
           final items = menu['items'];
           if (items is String) {
             // Parse JSON string
             final decoded = jsonDecode(items);
-            existingItems = (decoded as List).map((item) => Map<String, dynamic>.from(item)).toList();
+            existingItems =
+                (decoded as List)
+                    .map((item) => Map<String, dynamic>.from(item))
+                    .toList();
           } else if (items is List) {
             // Already a list
-            existingItems = items.map((item) => Map<String, dynamic>.from(item)).toList();
+            existingItems =
+                items.map((item) => Map<String, dynamic>.from(item)).toList();
           }
           break;
         }
@@ -698,7 +724,7 @@ class _AddSubscriptionItemsModalState
       // Merge existing items with new items (avoid duplicates by item id)
       final existingItemIds = existingItems.map((item) => item['id']).toSet();
       final mergedItems = <Map<String, dynamic>>[...existingItems];
-      
+
       for (var newItem in newItems) {
         if (!existingItemIds.contains(newItem['id'])) {
           mergedItems.add(newItem);
@@ -715,15 +741,17 @@ class _AddSubscriptionItemsModalState
         date: tomorrowDateString,
         mealTime: 'lunch',
         items: mergedItems,
-        append: false,  // We're sending the complete list, not appending
+        append: false, // We're sending the complete list, not appending
       );
-      
+
       if (mounted) {
         Navigator.pop(context);
         widget.onItemsAdded();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${newItems.length} item(s) added successfully for tomorrow'),
+            content: Text(
+              '${newItems.length} item(s) added successfully for tomorrow',
+            ),
             backgroundColor: Colors.green,
           ),
         );
