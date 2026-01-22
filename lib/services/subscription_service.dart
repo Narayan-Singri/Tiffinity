@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:Tiffinity/services/api_service.dart';
 
 class SubscriptionService {
@@ -49,24 +48,49 @@ class SubscriptionService {
   }
 
   /// Get all plans for a mess
-  static Future<List<dynamic>> getMessPlans(int messId) async {
+  static Future<List<Map<String, dynamic>>> getMessPlans(int messId) async {
     final response = await ApiService.getRequest(
       'subscriptions/get_mess_plans.php?mess_id=$messId',
     );
-    if (response is Map && response['data'] is List) {
-      return response['data'];
+
+    // ✅ FIX: getRequest already extracts 'data', so response is directly the List
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((item) => Map<String, dynamic>.from(item)),
+      );
     }
+
+    // ✅ Fallback: In case response is still wrapped (shouldn't happen)
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        response['data'].map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
     return [];
   }
 
   /// Get subscribers for a specific plan
-  static Future<List<dynamic>> getPlanSubscribers(int planId) async {
+  static Future<List<Map<String, dynamic>>> getPlanSubscribers(
+    int planId,
+  ) async {
     final response = await ApiService.getRequest(
       'subscriptions/get_plan_subscribers.php?plan_id=$planId',
     );
-    if (response is Map && response['data'] is List) {
-      return response['data'];
+
+    // ✅ FIX: Check if response is List first
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((item) => Map<String, dynamic>.from(item)),
+      );
     }
+
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        response['data'].map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
     return [];
   }
 
@@ -86,7 +110,7 @@ class SubscriptionService {
     required int messId,
     required String date,
     required String mealTime,
-    required List<Map<String, String>> items,
+    required List<Map<String, dynamic>> items,
   }) async {
     return await ApiService.postForm(
       'subscriptions/add_subscription_menu.php',
@@ -100,7 +124,7 @@ class SubscriptionService {
   }
 
   /// Get menus for date range
-  static Future<List<dynamic>> getMenus({
+  static Future<List<Map<String, dynamic>>> getMenus({
     required int messId,
     required String startDate,
     required String endDate,
@@ -108,9 +132,20 @@ class SubscriptionService {
     final response = await ApiService.getRequest(
       'subscriptions/get_subscription_menu.php?mess_id=$messId&start_date=$startDate&end_date=$endDate',
     );
-    if (response is Map && response['data'] is List) {
-      return response['data'];
+
+    // ✅ FIX: Check if response is List first
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((item) => Map<String, dynamic>.from(item)),
+      );
     }
+
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        response['data'].map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
     return [];
   }
 
@@ -119,13 +154,26 @@ class SubscriptionService {
   // ============================================
 
   /// Get available plans for a mess
-  static Future<List<dynamic>> getAvailablePlans(int messId) async {
+  static Future<List<Map<String, dynamic>>> getAvailablePlans(
+    int messId,
+  ) async {
     final response = await ApiService.getRequest(
       'subscriptions/get_available_plans.php?mess_id=$messId',
     );
-    if (response is Map && response['data'] is List) {
-      return response['data'];
+
+    // ✅ FIX: Check if response is List first
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((item) => Map<String, dynamic>.from(item)),
+      );
     }
+
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        response['data'].map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
     return [];
   }
 
@@ -143,13 +191,26 @@ class SubscriptionService {
   }
 
   /// Get user's subscriptions
-  static Future<List<dynamic>> getMySubscriptions(int userId) async {
+  static Future<List<Map<String, dynamic>>> getMySubscriptions(
+    int userId,
+  ) async {
     final response = await ApiService.getRequest(
       'subscriptions/get_my_subscriptions.php?user_id=$userId',
     );
-    if (response is Map && response['data'] is List) {
-      return response['data'];
+
+    // ✅ FIX: Check if response is List first
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((item) => Map<String, dynamic>.from(item)),
+      );
     }
+
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        response['data'].map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
     return [];
   }
 

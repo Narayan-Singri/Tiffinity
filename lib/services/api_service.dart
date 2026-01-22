@@ -134,6 +134,9 @@ class ApiService {
       );
 
       debugPrint('📥 Response Status: ${response.statusCode}');
+      debugPrint(
+        '📥 Response Body: ${response.body}',
+      ); // ✅ Added for consistency
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = json.decode(response.body);
@@ -156,19 +159,31 @@ class ApiService {
       final response = await http.get(Uri.parse('$baseUrl/$endpoint'));
 
       debugPrint('📥 Response Status: ${response.statusCode}');
+      debugPrint('📥 Response Body: ${response.body}'); // ✅ ADDED THIS LINE
 
       if (response.statusCode == 200) {
-        final dynamic responseData = json.decode(response.body);
-
-        // Handle "data" wrapper if present
-        dynamic data;
-        if (responseData is Map && responseData.containsKey('data')) {
-          data = responseData['data'];
-        } else {
-          data = responseData;
+        // ✅ Handle empty response
+        if (response.body.isEmpty || response.body.trim().isEmpty) {
+          debugPrint('⚠️ Empty GET response body');
+          return [];
         }
 
-        return _convertDeep(data);
+        try {
+          final dynamic responseData = json.decode(response.body);
+
+          // Handle "data" wrapper if present
+          dynamic data;
+          if (responseData is Map && responseData.containsKey('data')) {
+            data = responseData['data'];
+          } else {
+            data = responseData;
+          }
+
+          return _convertDeep(data);
+        } catch (e) {
+          debugPrint('⚠️ GET JSON parse error: $e');
+          return [];
+        }
       } else {
         throw Exception('Request failed with status ${response.statusCode}');
       }
@@ -256,6 +271,9 @@ class ApiService {
       final response = await http.delete(Uri.parse('$baseUrl/$endpoint'));
 
       debugPrint('📥 Response Status: ${response.statusCode}');
+      debugPrint(
+        '📥 Response Body: ${response.body}',
+      ); // ✅ Added for consistency
 
       if (response.statusCode != 200 && response.statusCode != 204) {
         throw Exception('Delete request failed');
