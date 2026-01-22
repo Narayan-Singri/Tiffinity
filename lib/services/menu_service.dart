@@ -9,9 +9,13 @@ class MenuService {
 
   static Future<List<Map<String, dynamic>>> getMenuItems(int messId) async {
     try {
+      print('📡 FETCHING ITEMS - mess_id: $messId');
       final response = await ApiService.getRequest(
         'menu/get_menu.php?mess_id=$messId&for_customer=false',
       );
+
+      print('📦 RAW RESPONSE: $response');
+      print('📦 Response Type: ${response.runtimeType}');
 
       // Helper to safely parse a single item
       Map<String, dynamic> safeParse(dynamic item) {
@@ -24,27 +28,38 @@ class MenuService {
           'price': double.tryParse(item['price']?.toString() ?? '0') ?? 0.0,
           'image_url': item['image_url']?.toString(),
           'type': item['type']?.toString() ?? 'veg',
-          'category':
-              item['category']?.toString() ??
-              'Daily Menu Items', // ✅ ADD THIS LINE
+          'category': item['category']?.toString() ?? 'Daily Menu Items',
           'is_available':
               int.tryParse(item['is_available']?.toString() ?? '1') ?? 1,
         };
       }
 
       if (response is List) {
-        return response.map((e) => safeParse(e)).toList();
+        print('✅ Response is a List with ${response.length} items');
+        final items = response.map((e) => safeParse(e)).toList();
+        print('✅ Parsed items: $items');
+        return items;
       } else if (response is Map) {
+        print('📋 Response is a Map');
         // Handle single object response or wrapped response
         if (response.containsKey('data') && response['data'] is List) {
-          return (response['data'] as List).map((e) => safeParse(e)).toList();
+          print(
+            '✅ Found "data" key with ${(response['data'] as List).length} items',
+          );
+          final items =
+              (response['data'] as List).map((e) => safeParse(e)).toList();
+          print('✅ Parsed items: $items');
+          return items;
         }
+        print('⚠️ Map response, treating as single item');
         return [safeParse(response)];
       }
 
+      print('❌ Unexpected response type, returning empty list');
       return [];
-    } catch (e) {
-      print('❌ Error fetching menu: $e');
+    } catch (e, stackTrace) {
+      print('❌ ERROR fetching menu: $e');
+      print('❌ Stack trace: $stackTrace');
       return [];
     }
   }
@@ -203,20 +218,20 @@ class MenuService {
   /// Fetch all categories (both default and custom)
   static Future<List<Category>> getCategories(int messId) async {
     try {
-      print('🔍 Fetching categories for mess_id: $messId');
+      print('🔍 FETCHING CATEGORIES - mess_id: $messId');
 
       final response = await ApiService.getRequest(
         'menu/get_categories.php?mess_id=$messId',
       );
 
-      print('📦 Raw response: $response');
+      print('📦 RAW CATEGORIES RESPONSE: $response');
       print('📦 Response type: ${response.runtimeType}');
 
       List categoriesList;
 
       // ✅ HANDLE DIRECT LIST (your current API response)
       if (response is List) {
-        print('✅ Response is a direct List - using it');
+        print('✅ Response is a direct List with ${response.length} categories');
         categoriesList = response;
       }
       // ✅ ALSO HANDLE WRAPPED FORMAT (for future)
@@ -224,7 +239,7 @@ class MenuService {
         print('✅ Response is wrapped - extracting data');
         categoriesList = response['data'] as List;
       } else {
-        print('❌ Unexpected response structure');
+        print('❌ Unexpected response structure: ${response.runtimeType}');
         return [];
       }
 
@@ -241,7 +256,7 @@ class MenuService {
         try {
           final category = Category.fromJson(json);
           categories.add(category);
-          print('   ✓ Parsed: ${category.name}');
+          print('   ✓ Parsed category: ${category.name} (id: ${category.id})');
         } catch (e) {
           print('   ✗ Failed to parse category: $json');
           print('     Error: $e');
@@ -252,7 +267,7 @@ class MenuService {
 
       return categories;
     } catch (e, stackTrace) {
-      print('❌ Error fetching categories: $e');
+      print('❌ ERROR fetching categories: $e');
       print('❌ Stack trace: $stackTrace');
       return [];
     }

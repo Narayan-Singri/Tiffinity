@@ -140,8 +140,10 @@ class _AdminSubscriptionsPageState extends State<AdminSubscriptionsPage> {
                           context,
                           MaterialPageRoute(
                             builder:
-                                (context) =>
-                                    PlanDetailsPage(planId: plan['id']),
+                                (context) => PlanDetailsPage(
+                                  planId: plan['id'],
+                                  messId: plan['mess_id'],
+                                ),
                           ),
                         );
                       },
