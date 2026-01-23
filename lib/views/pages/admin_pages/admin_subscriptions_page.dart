@@ -109,23 +109,24 @@ class _AdminSubscriptionsPageState extends State<AdminSubscriptionsPage> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete Plans'),
-        content: Text(
-          'Are you sure you want to delete ${_selectedPlanIds.length} plan(s)? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: Text('Delete Plans'),
+            content: Text(
+              'Are you sure you want to delete ${_selectedPlanIds.length} plan(s)? This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Delete'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirm != true) return;
@@ -134,21 +135,22 @@ class _AdminSubscriptionsPageState extends State<AdminSubscriptionsPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Deleting plans...'),
-              ],
+      builder:
+          (context) => Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Deleting plans...'),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
     );
 
     try {
@@ -200,7 +202,9 @@ class _AdminSubscriptionsPageState extends State<AdminSubscriptionsPage> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete plans: ${lastError ?? "Unknown error"}'),
+              content: Text(
+                'Failed to delete plans: ${lastError ?? "Unknown error"}',
+              ),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 5),
             ),
@@ -210,7 +214,7 @@ class _AdminSubscriptionsPageState extends State<AdminSubscriptionsPage> {
     } catch (e) {
       // Close loading dialog
       if (mounted) Navigator.pop(context);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -307,202 +311,232 @@ class _AdminSubscriptionsPageState extends State<AdminSubscriptionsPage> {
                 ),
               ),
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _plans.isEmpty
-                  ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.subscriptions_outlined,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'No subscription plans yet',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Create your first plan to get started',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-            : RefreshIndicator(
-              onRefresh: _loadPlans,
-              child: ListView.builder(
-                padding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: 100, // Space for FAB and bottom nav
-                ),
-                itemCount: _plans.length,
-                itemBuilder: (context, index) {
-                  final plan = _plans[index];
-                  final isActive = plan['is_active'] == 1;
-                  final subscriberCount = plan['subscriber_count'] ?? 0;
-                  final isSelected = _selectedPlanIds.contains(plan['id']);
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: isSelected
-                          ? BorderSide(color: Colors.orange, width: 2)
-                          : BorderSide.none,
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        if (_isSelectionMode) {
-                          _togglePlanSelection(plan['id']);
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => PlanDetailsPage(
-                                    planId: plan['id'],
-                                    messId: plan['mess_id'],
-                                  ),
-                            ),
-                          );
-                        }
-                      },
-                      onLongPress: () {
-                        if (!_isSelectionMode) {
-                          setState(() {
-                            _isSelectionMode = true;
-                            _selectedPlanIds.add(plan['id']);
-                          });
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(12),
-                          gradient: LinearGradient(
-                            colors:
-                                isActive
-                                    ? [Colors.orange.shade50, Colors.white]
-                                    : [Colors.grey.shade200, Colors.white],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _plans.isEmpty
+                      ? Center(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                if (_isSelectionMode)
-                                  Checkbox(
-                                    value: isSelected,
-                                    onChanged: (value) => _togglePlanSelection(plan['id']),
-                                    activeColor: Colors.orange,
-                                  ),
-                                Expanded(
-                                  child: Text(
-                                    plan['name'],
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                                if (!_isSelectionMode)
-                                  Switch(
-                                    value: isActive,
-                                    onChanged:
-                                        (value) => _togglePlanStatus(
-                                          plan['id'],
-                                          isActive,
-                                        ),
-                                    activeColor: Colors.orange,
-                                  ),
-                              ],
+                            const Icon(
+                              Icons.subscriptions_outlined,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No subscription plans yet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
+                              ),
                             ),
                             const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.access_time,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${plan['duration_days']} days',
-                                  style: TextStyle(color: Colors.grey[700]),
-                                ),
-                                const SizedBox(width: 16),
-                                const Icon(
-                                  Icons.currency_rupee,
-                                  size: 16,
-                                  color: Colors.green,
-                                ),
-                                Text(
-                                  '${plan['price']}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (plan['description'] != null &&
-                                plan['description'].toString().isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                plan['description'],
-                                style: TextStyle(color: Colors.grey[600]),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.people,
-                                      size: 18,
-                                      color: Colors.orange,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '$subscriberCount subscribers',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: 16,
-                                  color: Colors.grey,
-                                ),
-                              ],
+                            const Text(
+                              'Create your first plan to get started',
+                              style: TextStyle(color: Colors.grey),
                             ),
                           ],
                         ),
+                      )
+                      : RefreshIndicator(
+                        onRefresh: _loadPlans,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.only(
+                            left: 16,
+                            right: 16,
+                            top: 16,
+                            bottom: 100, // Space for FAB and bottom nav
+                          ),
+                          itemCount: _plans.length,
+                          itemBuilder: (context, index) {
+                            final plan = _plans[index];
+                            final isActive = plan['is_active'] == 1;
+                            final subscriberCount =
+                                plan['subscriber_count'] ?? 0;
+                            final isSelected = _selectedPlanIds.contains(
+                              plan['id'],
+                            );
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 16),
+                              elevation: 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side:
+                                    isSelected
+                                        ? BorderSide(
+                                          color: Colors.orange,
+                                          width: 2,
+                                        )
+                                        : BorderSide.none,
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  if (_isSelectionMode) {
+                                    _togglePlanSelection(plan['id']);
+                                  } else {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => PlanDetailsPage(
+                                              planId: plan['id'],
+                                              messId: plan['mess_id'],
+                                            ),
+                                      ),
+                                    );
+                                  }
+                                },
+                                onLongPress: () {
+                                  if (!_isSelectionMode) {
+                                    setState(() {
+                                      _isSelectionMode = true;
+                                      _selectedPlanIds.add(plan['id']);
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    gradient: LinearGradient(
+                                      colors:
+                                          isActive
+                                              ? [
+                                                Colors.orange.shade50,
+                                                Colors.white,
+                                              ]
+                                              : [
+                                                Colors.grey.shade200,
+                                                Colors.white,
+                                              ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          if (_isSelectionMode)
+                                            Checkbox(
+                                              value: isSelected,
+                                              onChanged:
+                                                  (value) =>
+                                                      _togglePlanSelection(
+                                                        plan['id'],
+                                                      ),
+                                              activeColor: Colors.orange,
+                                            ),
+                                          Expanded(
+                                            child: Text(
+                                              plan['name'],
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          if (!_isSelectionMode)
+                                            Switch(
+                                              value: isActive,
+                                              onChanged:
+                                                  (value) => _togglePlanStatus(
+                                                    plan['id'],
+                                                    isActive,
+                                                  ),
+                                              activeColor: Colors.orange,
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.access_time,
+                                            size: 16,
+                                            color: Colors.grey,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            '${plan['duration_days']} days',
+                                            style: TextStyle(
+                                              color: Colors.grey[700],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          const Icon(
+                                            Icons.currency_rupee,
+                                            size: 16,
+                                            color: Colors.green,
+                                          ),
+                                          Text(
+                                            '${plan['price']}',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (plan['description'] != null &&
+                                          plan['description']
+                                              .toString()
+                                              .isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          plan['description'],
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.people,
+                                                size: 18,
+                                                color: Colors.orange,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '$subscriberCount subscribers',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const Icon(
+                                            Icons.arrow_forward_ios,
+                                            size: 16,
+                                            color: Colors.grey,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
             ),
           ],
         ),

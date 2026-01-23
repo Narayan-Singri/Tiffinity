@@ -114,8 +114,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
 
       // Find items for lunch meal time
       for (var menu in menus) {
-        if (menu['meal_time'] == 'lunch' &&
-            menu['date'] == todayDateString) {
+        if (menu['meal_time'] == 'lunch' && menu['date'] == todayDateString) {
           final items = menu['items'];
           if (items is String) {
             final decoded = jsonDecode(items);
@@ -470,27 +469,43 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                             child: ListTile(
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: item['image_url'] != null && item['image_url'].toString().isNotEmpty
-                                    ? Image.network(
-                                        item['image_url'],
-                                        width: 50,
-                                        height: 50,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            width: 50,
-                                            height: 50,
-                                            color: Colors.orange.withOpacity(0.1),
-                                            child: Icon(Icons.restaurant, color: Colors.orange),
-                                          );
-                                        },
-                                      )
-                                    : Container(
-                                        width: 50,
-                                        height: 50,
-                                        color: Colors.orange.withOpacity(0.1),
-                                        child: Icon(Icons.restaurant, color: Colors.orange),
-                                      ),
+                                child:
+                                    item['image_url'] != null &&
+                                            item['image_url']
+                                                .toString()
+                                                .isNotEmpty
+                                        ? Image.network(
+                                          item['image_url'],
+                                          width: 50,
+                                          height: 50,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) {
+                                            return Container(
+                                              width: 50,
+                                              height: 50,
+                                              color: Colors.orange.withOpacity(
+                                                0.1,
+                                              ),
+                                              child: Icon(
+                                                Icons.restaurant,
+                                                color: Colors.orange,
+                                              ),
+                                            );
+                                          },
+                                        )
+                                        : Container(
+                                          width: 50,
+                                          height: 50,
+                                          color: Colors.orange.withOpacity(0.1),
+                                          child: Icon(
+                                            Icons.restaurant,
+                                            color: Colors.orange,
+                                          ),
+                                        ),
                               ),
                               title: Text(
                                 item['name'] ?? 'Item',
@@ -619,27 +634,43 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                             child: ListTile(
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: item['image_url'] != null && item['image_url'].toString().isNotEmpty
-                                    ? Image.network(
-                                        item['image_url'],
-                                        width: 50,
-                                        height: 50,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            width: 50,
-                                            height: 50,
-                                            color: Colors.blue.withOpacity(0.1),
-                                            child: Icon(Icons.restaurant, color: Colors.blue),
-                                          );
-                                        },
-                                      )
-                                    : Container(
-                                        width: 50,
-                                        height: 50,
-                                        color: Colors.blue.withOpacity(0.1),
-                                        child: Icon(Icons.restaurant, color: Colors.blue),
-                                      ),
+                                child:
+                                    item['image_url'] != null &&
+                                            item['image_url']
+                                                .toString()
+                                                .isNotEmpty
+                                        ? Image.network(
+                                          item['image_url'],
+                                          width: 50,
+                                          height: 50,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (
+                                            context,
+                                            error,
+                                            stackTrace,
+                                          ) {
+                                            return Container(
+                                              width: 50,
+                                              height: 50,
+                                              color: Colors.blue.withOpacity(
+                                                0.1,
+                                              ),
+                                              child: Icon(
+                                                Icons.restaurant,
+                                                color: Colors.blue,
+                                              ),
+                                            );
+                                          },
+                                        )
+                                        : Container(
+                                          width: 50,
+                                          height: 50,
+                                          color: Colors.blue.withOpacity(0.1),
+                                          child: Icon(
+                                            Icons.restaurant,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
                               ),
                               title: Text(
                                 item['name'] ?? 'Item',
