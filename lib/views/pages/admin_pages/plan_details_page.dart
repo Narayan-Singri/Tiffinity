@@ -18,14 +18,17 @@ class PlanDetailsPage extends StatefulWidget {
 class _PlanDetailsPageState extends State<PlanDetailsPage> {
   List<dynamic> _subscribers = [];
   List<Map<String, dynamic>> _subscriptionMenuItems = [];
+  List<Map<String, dynamic>> _todayMenuItems = [];
   bool _isLoading = true;
   bool _isLoadingMenuItems = false;
+  bool _isLoadingTodayMenuItems = false;
 
   @override
   void initState() {
     super.initState();
     _loadSubscribers();
     _loadSubscriptionMenuItems();
+    _loadTodayMenuItems();
   }
 
   Future<void> _loadSubscribers() async {
@@ -90,6 +93,51 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     } catch (e) {
       print('Error loading subscription menu items: $e');
       setState(() => _isLoadingMenuItems = false);
+    }
+  }
+
+  Future<void> _loadTodayMenuItems() async {
+    setState(() => _isLoadingTodayMenuItems = true);
+    try {
+      // Get today's date
+      final today = DateTime.now();
+      final todayDateString =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      final menus = await SubscriptionService.getMenus(
+        messId: widget.messId ?? 1,
+        startDate: todayDateString,
+        endDate: todayDateString,
+      );
+
+      List<Map<String, dynamic>> allItems = [];
+
+      // Find items for lunch meal time
+      for (var menu in menus) {
+        if (menu['meal_time'] == 'lunch' &&
+            menu['date'] == todayDateString) {
+          final items = menu['items'];
+          if (items is String) {
+            final decoded = jsonDecode(items);
+            allItems =
+                (decoded as List)
+                    .map((item) => Map<String, dynamic>.from(item))
+                    .toList();
+          } else if (items is List) {
+            allItems =
+                items.map((item) => Map<String, dynamic>.from(item)).toList();
+          }
+          break;
+        }
+      }
+
+      setState(() {
+        _todayMenuItems = allItems;
+        _isLoadingTodayMenuItems = false;
+      });
+    } catch (e) {
+      print('Error loading today menu items: $e');
+      setState(() => _isLoadingTodayMenuItems = false);
     }
   }
 
@@ -252,6 +300,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
               onRefresh: () async {
                 await _loadSubscribers();
                 await _loadSubscriptionMenuItems();
+                await _loadTodayMenuItems();
               },
               child: SingleChildScrollView(
                 physics: AlwaysScrollableScrollPhysics(),
@@ -419,22 +468,29 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                           return Card(
                             margin: EdgeInsets.only(bottom: 8),
                             child: ListTile(
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${index + 1}',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.orange,
-                                    ),
-                                  ),
-                                ),
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: item['image_url'] != null && item['image_url'].toString().isNotEmpty
+                                    ? Image.network(
+                                        item['image_url'],
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 50,
+                                            height: 50,
+                                            color: Colors.orange.withOpacity(0.1),
+                                            child: Icon(Icons.restaurant, color: Colors.orange),
+                                          );
+                                        },
+                                      )
+                                    : Container(
+                                        width: 50,
+                                        height: 50,
+                                        color: Colors.orange.withOpacity(0.1),
+                                        child: Icon(Icons.restaurant, color: Colors.orange),
+                                      ),
                               ),
                               title: Text(
                                 item['name'] ?? 'Item',
@@ -522,6 +578,101 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                               ),
                             ],
                           ),
+                        ),
+                      ),
+
+                    // Today's Menu Items Section
+                    if (_todayMenuItems.isNotEmpty) ...[
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Row(
+                          children: [
+                            Icon(Icons.today, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text(
+                              'Today\'s Menu Items',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Spacer(),
+                            Text(
+                              '${_todayMenuItems.length} items',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _todayMenuItems.length,
+                        itemBuilder: (context, index) {
+                          final item = _todayMenuItems[index];
+                          return Card(
+                            margin: EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: item['image_url'] != null && item['image_url'].toString().isNotEmpty
+                                    ? Image.network(
+                                        item['image_url'],
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 50,
+                                            height: 50,
+                                            color: Colors.blue.withOpacity(0.1),
+                                            child: Icon(Icons.restaurant, color: Colors.blue),
+                                          );
+                                        },
+                                      )
+                                    : Container(
+                                        width: 50,
+                                        height: 50,
+                                        color: Colors.blue.withOpacity(0.1),
+                                        child: Icon(Icons.restaurant, color: Colors.blue),
+                                      ),
+                              ),
+                              title: Text(
+                                item['name'] ?? 'Item',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Text('₹${item['price'] ?? 0}'),
+                              trailing: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      item['type'] == 'non-veg'
+                                          ? Colors.red.withOpacity(0.1)
+                                          : Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  item['type'] == 'non-veg' ? '🔴' : '🟢',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      SizedBox(height: 16),
+                    ] else if (_isLoadingTodayMenuItems)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(),
                         ),
                       ),
                   ],

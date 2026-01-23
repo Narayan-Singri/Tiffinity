@@ -241,4 +241,11 @@ class SubscriptionService {
       'user_id': userId,
     });
   }
+
+  /// Delete subscription plan
+  static Future<Map<String, dynamic>> deletePlan(int planId) async {
+    return await ApiService.postForm('subscriptions/delete_plan.php', {
+      'plan_id': planId,
+    });
+  }
 }
