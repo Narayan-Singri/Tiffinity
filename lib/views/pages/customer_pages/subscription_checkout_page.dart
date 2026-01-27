@@ -69,16 +69,17 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
       return;
     }
 
-    final payloadItems = widget.selectedItems.map((item) {
-      return {
-        'id': item['id'],
-        'name': item['name'] ?? 'Item',
-        'price': item['price'] ?? 0,
-        'type': item['type'] ?? 'veg',
-        'date': item['menu_date'] ?? '',
-        'meal_time': item['meal_time'] ?? 'lunch',
-      };
-    }).toList();
+    final payloadItems =
+        widget.selectedItems.map((item) {
+          return {
+            'id': item['id'],
+            'name': item['name'] ?? 'Item',
+            'price': item['price'] ?? 0,
+            'type': item['type'] ?? 'veg',
+            'date': item['menu_date'] ?? '',
+            'meal_time': item['meal_time'] ?? 'lunch',
+          };
+        }).toList();
 
     setState(() => _isPlacingOrder = true);
 
@@ -101,18 +102,18 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           response['message']?.toString() ?? 'Order placed successfully';
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
         if (success) {
           Navigator.pop(context, true);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to place order: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to place order: $e')));
       }
     } finally {
       if (mounted) setState(() => _isPlacingOrder = false);
@@ -199,7 +200,10 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.green[100],
                   borderRadius: BorderRadius.circular(20),
@@ -256,7 +260,9 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
           CircleAvatar(
             backgroundColor: Colors.green[100],
             child: Text(
-              name.toString().isNotEmpty ? name.toString()[0].toUpperCase() : '?',
+              name.toString().isNotEmpty
+                  ? name.toString()[0].toUpperCase()
+                  : '?',
               style: TextStyle(color: Colors.green[800]),
             ),
           ),
@@ -339,9 +345,9 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  DateFormat('dd MMM yyyy').format(
-                    DateTime.tryParse(entry.key) ?? DateTime.now(),
-                  ),
+                  DateFormat(
+                    'dd MMM yyyy',
+                  ).format(DateTime.tryParse(entry.key) ?? DateTime.now()),
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.grey[800],
@@ -387,9 +393,7 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
               children: [
                 Text(
                   item['name']?.toString() ?? 'Item',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -429,22 +433,23 @@ class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: _isPlacingOrder
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
+            child:
+                _isPlacingOrder
+                    ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                    : const Text(
+                      'Place Order',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  )
-                : const Text(
-                    'Place Order',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
           ),
         ),
       ),

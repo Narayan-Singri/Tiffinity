@@ -270,9 +270,8 @@ class _SubscriptionDateSelectionPageState
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color:
-                        (_isManualDateSelection ? Colors.blue : Colors.black)
-                            .withOpacity(0.08),
+                    color: (_isManualDateSelection ? Colors.blue : Colors.black)
+                        .withOpacity(0.08),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -332,12 +331,16 @@ class _SubscriptionDateSelectionPageState
                           gradient:
                               _isManualDateSelection
                                   ? LinearGradient(
-                                    colors: [Colors.blue[50]!, Colors.blue[100]!],
+                                    colors: [
+                                      Colors.blue[50]!,
+                                      Colors.blue[100]!,
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   )
                                   : null,
-                          color: _isManualDateSelection ? null : Colors.grey[100],
+                          color:
+                              _isManualDateSelection ? null : Colors.grey[100],
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color:

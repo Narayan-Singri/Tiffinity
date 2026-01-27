@@ -17,7 +17,8 @@ class PlanDetailsPage extends StatefulWidget {
   State<PlanDetailsPage> createState() => _PlanDetailsPageState();
 }
 
-class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingObserver {
+class _PlanDetailsPageState extends State<PlanDetailsPage>
+    with WidgetsBindingObserver {
   List<dynamic> _subscribers = [];
   List<Map<String, dynamic>> _subscriptionMenuItems = [];
   List<Map<String, dynamic>> _todayMenuItems = [];
@@ -179,9 +180,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
     } catch (e) {
       setState(() => _isLoadingOrders = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading orders: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading orders: $e')));
       }
     }
   }
@@ -289,9 +290,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
   Widget build(BuildContext context) {
     // Count all subscribers who have active or pending subscriptions
     final activeSubscribers =
-        _subscribers.where((s) => 
-          s['status'] == 'active' || s['status'] == 'pending'
-        ).length;
+        _subscribers
+            .where((s) => s['status'] == 'active' || s['status'] == 'pending')
+            .length;
 
     return Scaffold(
       appBar: AppBar(
@@ -398,19 +399,25 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
                           final status = subscriber['status'] ?? 'active';
                           final daysRemaining =
                               subscriber['days_remaining'] ?? 0;
-                          
+
                           // Try multiple fields for customer name
-                          final customerName = subscriber['customer_name']?.toString() ?? 
-                                                subscriber['user_name']?.toString() ?? 
-                                                subscriber['name']?.toString() ?? '';
-                          final userName = customerName.isNotEmpty 
-                              ? customerName 
-                              : 'User ${subscriber['user_id'] ?? ''}';
-                          final userEmail = subscriber['email']?.toString() ?? 
-                                            subscriber['customer_email']?.toString() ?? '';
-                          final userInitial = userName.isNotEmpty && userName != 'User ' 
-                              ? userName[0].toUpperCase() 
-                              : 'U';
+                          final customerName =
+                              subscriber['customer_name']?.toString() ??
+                              subscriber['user_name']?.toString() ??
+                              subscriber['name']?.toString() ??
+                              '';
+                          final userName =
+                              customerName.isNotEmpty
+                                  ? customerName
+                                  : 'User ${subscriber['user_id'] ?? ''}';
+                          final userEmail =
+                              subscriber['email']?.toString() ??
+                              subscriber['customer_email']?.toString() ??
+                              '';
+                          final userInitial =
+                              userName.isNotEmpty && userName != 'User '
+                                  ? userName[0].toUpperCase()
+                                  : 'U';
 
                           return Card(
                             margin: EdgeInsets.only(bottom: 12),
@@ -567,15 +574,16 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
                               [];
                           final amount =
                               double.tryParse(
-                                    order['total_amount']?.toString() ?? '',
-                                  ) ??
+                                order['total_amount']?.toString() ?? '',
+                              ) ??
                               0;
                           final customerName =
                               (order['customer_name']?.toString() ?? '')
-                                  .isNotEmpty
+                                      .isNotEmpty
                                   ? order['customer_name'].toString()
                                   : 'User ${order['user_id']}';
-                          final status = order['status']?.toString() ?? 'pending';
+                          final status =
+                              order['status']?.toString() ?? 'pending';
 
                           return Card(
                             margin: EdgeInsets.only(bottom: 10),
@@ -587,8 +595,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
                                   Row(
                                     children: [
                                       CircleAvatar(
-                                        backgroundColor:
-                                            _getStatusColor(status).withOpacity(0.15),
+                                        backgroundColor: _getStatusColor(
+                                          status,
+                                        ).withOpacity(0.15),
                                         child: Text(
                                           customerName.isNotEmpty
                                               ? customerName[0].toUpperCase()
@@ -602,7 +611,8 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
                                       SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               customerName,
@@ -627,9 +637,12 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: _getStatusColor(status)
-                                              .withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: _getStatusColor(
+                                            status,
+                                          ).withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           status.toUpperCase(),
@@ -645,7 +658,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
                                   const SizedBox(height: 10),
                                   Row(
                                     children: [
-                                      Icon(Icons.currency_rupee, size: 16, color: Colors.green[700]),
+                                      Icon(
+                                        Icons.currency_rupee,
+                                        size: 16,
+                                        color: Colors.green[700],
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         amount.toStringAsFixed(0),
@@ -661,17 +678,21 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingOb
                                     Wrap(
                                       spacing: 8,
                                       runSpacing: 6,
-                                      children: items.map((item) {
-                                        return Chip(
-                                          label: Text(item['name']?.toString() ?? 'Item'),
-                                          backgroundColor: Colors.green[50],
-                                          avatar: Icon(
-                                            Icons.restaurant_menu,
-                                            size: 16,
-                                            color: Colors.green[700],
-                                          ),
-                                        );
-                                      }).toList(),
+                                      children:
+                                          items.map((item) {
+                                            return Chip(
+                                              label: Text(
+                                                item['name']?.toString() ??
+                                                    'Item',
+                                              ),
+                                              backgroundColor: Colors.green[50],
+                                              avatar: Icon(
+                                                Icons.restaurant_menu,
+                                                size: 16,
+                                                color: Colors.green[700],
+                                              ),
+                                            );
+                                          }).toList(),
                                     )
                                   else
                                     Text(

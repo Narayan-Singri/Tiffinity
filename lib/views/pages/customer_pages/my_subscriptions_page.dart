@@ -21,7 +21,9 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Remove subscription'),
-          content: const Text('Are you sure you want to remove this subscription from your list?'),
+          content: const Text(
+            'Are you sure you want to remove this subscription from your list?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -55,9 +57,9 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
         userId: _userId!,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Subscription removed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Subscription removed.')));
       }
     } catch (e) {
       // Revert on failure
@@ -65,9 +67,9 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
         _orders = previous;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to remove: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to remove: $e')));
       }
     }
   }
@@ -84,12 +86,13 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
     try {
       final userData = await ApiService.getUserData();
       print('🔑 Retrieved userData: $userData');
-      
-      final userIdValue = userData?['uid'] ?? userData?['id'] ?? userData?['user_id'];
+
+      final userIdValue =
+          userData?['uid'] ?? userData?['id'] ?? userData?['user_id'];
       _userId = userIdValue?.toString();
-      
+
       print('✅ Using user_id: $_userId');
-      
+
       if (_userId != null) {
         print('📲 Calling _loadOrders()...');
         await _loadOrders();
@@ -101,20 +104,22 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
       print('❌ Error in _loadUserIdAndOrders: $e');
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load user data: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load user data: $e')));
       }
     }
   }
 
   Future<void> _loadOrders() async {
     if (_userId == null) return;
-    
+
     setState(() => _isLoading = true);
     try {
       print('📤 Fetching orders for user: $_userId');
-      final orders = await SubscriptionService.getUserSubscriptionOrders(_userId!);
+      final orders = await SubscriptionService.getUserSubscriptionOrders(
+        _userId!,
+      );
       print('📥 Received ${orders.length} orders');
       print('📦 Orders data: $orders');
       setState(() {
@@ -183,18 +188,29 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
                           itemBuilder: (context, index) {
                             final order = _orders[index];
                             final orderIdRaw = order['id'];
-                            final orderId = orderIdRaw is int
-                                ? orderIdRaw
-                                : int.tryParse(orderIdRaw?.toString() ?? '');
-                            final messName = order['mess_name']?.toString() ?? 'Mess';
-                            final planName = order['plan_name']?.toString() ?? 'Plan';
-                            final status = order['status']?.toString() ?? 'pending';
-                            final startDate = order['start_date']?.toString() ?? '';
+                            final orderId =
+                                orderIdRaw is int
+                                    ? orderIdRaw
+                                    : int.tryParse(
+                                      orderIdRaw?.toString() ?? '',
+                                    );
+                            final messName =
+                                order['mess_name']?.toString() ?? 'Mess';
+                            final planName =
+                                order['plan_name']?.toString() ?? 'Plan';
+                            final status =
+                                order['status']?.toString() ?? 'pending';
+                            final startDate =
+                                order['start_date']?.toString() ?? '';
                             final endDate = order['end_date']?.toString() ?? '';
-                            final items = (order['selected_items'] as List?)
-                                ?.map((item) => item['name']?.toString() ?? '')
-                                .where((name) => name.isNotEmpty)
-                                .toList() ?? [];
+                            final items =
+                                (order['selected_items'] as List?)
+                                    ?.map(
+                                      (item) => item['name']?.toString() ?? '',
+                                    )
+                                    .where((name) => name.isNotEmpty)
+                                    .toList() ??
+                                [];
 
                             return _SubscriptionCard(
                               title: messName,
@@ -203,7 +219,8 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
                               nextRenewal: endDate,
                               status: status,
                               items: items,
-                              totalAmount: order['total_amount']?.toString() ?? '0',
+                              totalAmount:
+                                  order['total_amount']?.toString() ?? '0',
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -215,9 +232,10 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
                                   ),
                                 );
                               },
-                              onRemove: orderId == null
-                                  ? null
-                                  : () => _confirmRemove(orderId),
+                              onRemove:
+                                  orderId == null
+                                      ? null
+                                      : () => _confirmRemove(orderId),
                             );
                           },
                           separatorBuilder:
@@ -294,7 +312,12 @@ class _SubscriptionCard extends StatelessWidget {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.12),
+                    color: const Color.fromARGB(
+                      255,
+                      27,
+                      84,
+                      78,
+                    ).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -328,7 +351,10 @@ class _SubscriptionCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusColor().withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -370,22 +396,26 @@ class _SubscriptionCard extends StatelessWidget {
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: items.take(3).map((item) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      item,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  );
-                }).toList(),
+                children:
+                    items.take(3).map((item) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          item,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      );
+                    }).toList(),
               ),
               if (items.length > 3)
                 Padding(
@@ -409,10 +439,16 @@ class _SubscriptionCard extends StatelessWidget {
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   label: const Text(
                     'Remove',
-                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
                   ),
                 ),
               ),

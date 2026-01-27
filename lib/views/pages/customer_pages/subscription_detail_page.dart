@@ -5,10 +5,7 @@ import 'package:Tiffinity/services/subscription_service.dart';
 class SubscriptionDetailPage extends StatefulWidget {
   final Map<String, dynamic> order;
 
-  const SubscriptionDetailPage({
-    super.key,
-    required this.order,
-  });
+  const SubscriptionDetailPage({super.key, required this.order});
 
   @override
   State<SubscriptionDetailPage> createState() => _SubscriptionDetailPageState();
@@ -19,7 +16,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
   Map<String, Map<int, bool>> _selectedItems = {};
   String? _tomorrowDate;
   bool _isSaving = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -29,9 +26,12 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
   }
 
   void _organizeItemsByDate() {
-    final items = (widget.order['selected_items'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final items =
+        (widget.order['selected_items'] as List?)
+            ?.cast<Map<String, dynamic>>() ??
+        [];
     final grouped = <String, List<Map<String, dynamic>>>{};
-    
+
     for (final item in items) {
       final date = item['date']?.toString() ?? '';
       if (date.isNotEmpty) {
@@ -39,7 +39,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
         grouped[date]!.add(item);
       }
     }
-    
+
     // Sort dates
     final sortedKeys = grouped.keys.toList()..sort();
     _itemsByDate = {for (var key in sortedKeys) key: grouped[key]!};
@@ -47,9 +47,13 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
 
   void _identifyTomorrow() {
     final now = DateTime.now();
-    final tomorrow = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final tomorrow = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).add(const Duration(days: 1));
     final tomorrowStr = DateFormat('yyyy-MM-dd').format(tomorrow);
-    
+
     // Check if tomorrow's date exists in our items
     if (_itemsByDate.containsKey(tomorrowStr)) {
       _tomorrowDate = tomorrowStr;
@@ -58,10 +62,10 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
 
   void _initializeSelections() {
     if (_tomorrowDate == null) return;
-    
+
     final tomorrowItems = _itemsByDate[_tomorrowDate] ?? [];
     _selectedItems[_tomorrowDate!] = {};
-    
+
     for (final item in tomorrowItems) {
       final itemId = item['id'];
       if (itemId != null) {
@@ -79,13 +83,13 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
 
   Future<void> _saveSelection() async {
     if (_tomorrowDate == null) return;
-    
-    final selectedIds = _selectedItems[_tomorrowDate]!
-        .entries
-        .where((e) => e.value)
-        .map((e) => e.key)
-        .toList();
-    
+
+    final selectedIds =
+        _selectedItems[_tomorrowDate]!.entries
+            .where((e) => e.value)
+            .map((e) => e.key)
+            .toList();
+
     if (selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select at least one item')),
@@ -94,16 +98,16 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
     }
 
     setState(() => _isSaving = true);
-    
+
     try {
       final orderId = widget.order['id']?.toString() ?? '';
-      
+
       await SubscriptionService.updateOrderItems(
         orderId: orderId,
         date: _tomorrowDate!,
         selectedItemIds: selectedIds,
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -114,9 +118,9 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update items: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to update items: $e')));
       }
     } finally {
       setState(() => _isSaving = false);
@@ -130,7 +134,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
       final today = DateTime(now.year, now.month, now.day);
       final tomorrow = today.add(const Duration(days: 1));
       final dateOnly = DateTime(date.year, date.month, date.day);
-      
+
       if (dateOnly == today) {
         return 'Today (${DateFormat('MMM d').format(date)})';
       } else if (dateOnly == tomorrow) {
@@ -148,7 +152,7 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
     final messName = widget.order['mess_name']?.toString() ?? 'Mess';
     final planName = widget.order['plan_name']?.toString() ?? 'Plan';
     final status = widget.order['status']?.toString() ?? 'pending';
-    
+
     return Scaffold(
       appBar: AppBar(
         title: Text(messName),
@@ -188,7 +192,10 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: _statusColor(status).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(20),
@@ -207,7 +214,11 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 16, color: Colors.grey[600]),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         '${widget.order['start_date']} to ${widget.order['end_date']}',
@@ -218,7 +229,11 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+                      Icon(
+                        Icons.attach_money,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         '₹${widget.order['total_amount']}',
@@ -234,29 +249,34 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
               ),
             ),
             const SizedBox(height: 24),
-            
+
             // Items by Date
             const Text(
               'Order Items',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
-            
+
             ..._itemsByDate.entries.map((entry) {
               final date = entry.key;
               final items = entry.value;
               final isTomorrow = date == _tomorrowDate;
-              
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.1),
+                      color: const Color.fromARGB(
+                        255,
+                        27,
+                        84,
+                        78,
+                      ).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -277,7 +297,8 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                         ),
                         const Spacer(),
                         Text(
-                          items.first['meal_time']?.toString().toUpperCase() ?? 'LUNCH',
+                          items.first['meal_time']?.toString().toUpperCase() ??
+                              'LUNCH',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -287,7 +308,10 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                         if (isTomorrow) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.orange,
                               borderRadius: BorderRadius.circular(12),
@@ -311,7 +335,8 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                       return _EditableItemCard(
                         item: item,
                         selected: _selectedItems[date]?[item['id']] ?? true,
-                        onToggle: (value) => _toggleItem(date, item['id'], value),
+                        onToggle:
+                            (value) => _toggleItem(date, item['id'], value),
                       );
                     } else {
                       return _ItemCard(item: item);
@@ -324,26 +349,37 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _saveSelection,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+                          backgroundColor: const Color.fromARGB(
+                            255,
+                            27,
+                            84,
+                            78,
+                          ),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        child:
+                            _isSaving
+                                ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                                : const Text(
+                                  'Confirm Selection for Tomorrow',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                              )
-                            : const Text(
-                                'Confirm Selection for Tomorrow',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                              ),
                       ),
                     ),
                   ],
@@ -375,9 +411,9 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
 
 class _ItemCard extends StatelessWidget {
   final Map<String, dynamic> item;
-  
+
   const _ItemCard({required this.item});
-  
+
   @override
   Widget build(BuildContext context) {
     final name = item['name']?.toString() ?? 'Item';
@@ -385,7 +421,7 @@ class _ItemCard extends StatelessWidget {
     final type = item['type']?.toString() ?? 'veg';
     final imageUrl = item['image_url']?.toString();
     final isJain = type.toLowerCase() == 'jain';
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -405,18 +441,19 @@ class _ItemCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             clipBehavior: Clip.antiAlias,
-            child: (imageUrl != null && imageUrl.isNotEmpty)
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(Icons.restaurant, color: Colors.grey[400]);
-                    },
-                  )
-                : Icon(Icons.restaurant, color: Colors.grey[400]),
+            child:
+                (imageUrl != null && imageUrl.isNotEmpty)
+                    ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(Icons.restaurant, color: Colors.grey[400]);
+                      },
+                    )
+                    : Icon(Icons.restaurant, color: Colors.grey[400]),
           ),
           const SizedBox(width: 12),
-          
+
           // Veg/Non-veg indicator
           Container(
             width: 10,
@@ -431,7 +468,7 @@ class _ItemCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Item name and Jain label
           Expanded(
             child: Column(
@@ -447,7 +484,10 @@ class _ItemCard extends StatelessWidget {
                 if (isJain) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green[50],
                       borderRadius: BorderRadius.circular(5),
@@ -465,7 +505,7 @@ class _ItemCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Price
           Text(
             '₹$price',
@@ -485,13 +525,13 @@ class _EditableItemCard extends StatelessWidget {
   final Map<String, dynamic> item;
   final bool selected;
   final Function(bool) onToggle;
-  
+
   const _EditableItemCard({
     required this.item,
     required this.selected,
     required this.onToggle,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final name = item['name']?.toString() ?? 'Item';
@@ -499,7 +539,7 @@ class _EditableItemCard extends StatelessWidget {
     final type = item['type']?.toString() ?? 'veg';
     final imageUrl = item['image_url']?.toString();
     final isJain = type.toLowerCase() == 'jain';
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -507,9 +547,10 @@ class _EditableItemCard extends StatelessWidget {
         color: selected ? Colors.white : Colors.grey[100],
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: selected 
-              ? const Color.fromARGB(255, 27, 84, 78)
-              : Colors.grey[300]!,
+          color:
+              selected
+                  ? const Color.fromARGB(255, 27, 84, 78)
+                  : Colors.grey[300]!,
           width: selected ? 2 : 1,
         ),
       ),
@@ -521,7 +562,7 @@ class _EditableItemCard extends StatelessWidget {
             activeColor: const Color.fromARGB(255, 27, 84, 78),
           ),
           const SizedBox(width: 8),
-          
+
           // Item Image (shows placeholder when missing)
           Container(
             width: 60,
@@ -531,18 +572,19 @@ class _EditableItemCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             clipBehavior: Clip.antiAlias,
-            child: (imageUrl != null && imageUrl.isNotEmpty)
-                ? Image.network(
-                    imageUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(Icons.restaurant, color: Colors.grey[400]);
-                    },
-                  )
-                : Icon(Icons.restaurant, color: Colors.grey[400]),
+            child:
+                (imageUrl != null && imageUrl.isNotEmpty)
+                    ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(Icons.restaurant, color: Colors.grey[400]);
+                      },
+                    )
+                    : Icon(Icons.restaurant, color: Colors.grey[400]),
           ),
           const SizedBox(width: 12),
-          
+
           // Veg/Non-veg indicator
           Container(
             width: 10,
@@ -557,7 +599,7 @@ class _EditableItemCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Item name and Jain label
           Expanded(
             child: Column(
@@ -574,7 +616,10 @@ class _EditableItemCard extends StatelessWidget {
                 if (isJain) ...[
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green[50],
                       borderRadius: BorderRadius.circular(5),
@@ -592,7 +637,7 @@ class _EditableItemCard extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Price
           Text(
             '₹$price',
