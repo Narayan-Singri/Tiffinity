@@ -7,7 +7,12 @@ class VegNonVegLogo extends StatelessWidget {
   const VegNonVegLogo({super.key, required this.type, this.size = 18});
 
   String _normalize(dynamic t) {
-    return (t?.toString().toLowerCase().replaceAll(' ', '').replaceAll('-', '') ?? 'veg');
+    return (t
+            ?.toString()
+            .toLowerCase()
+            .replaceAll(' ', '')
+            .replaceAll('-', '') ??
+        'veg');
   }
 
   @override
@@ -15,7 +20,8 @@ class VegNonVegLogo extends StatelessWidget {
     final norm = _normalize(type);
     final bool isNonVeg = norm == 'nonveg';
     // FSSAI-style colors: green for veg/jain, brown for non-veg.
-    final Color color = isNonVeg ? Colors.brown.shade700 : Colors.green.shade700;
+    final Color color =
+        isNonVeg ? Colors.brown.shade700 : Colors.green.shade700;
 
     return SizedBox(
       width: size,
@@ -42,19 +48,21 @@ class _VegNonVegPainter extends CustomPainter {
       Radius.circular(radius),
     );
 
-    final borderPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth.clamp(1.0, 2.0);
+    final borderPaint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth.clamp(1.0, 2.0);
 
     canvas.drawRRect(rect, borderPaint);
 
     final double dotSize = size.shortestSide * 0.45;
     final Offset center = Offset(size.width / 2, size.height / 2);
 
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
+    final dotPaint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.fill;
 
     canvas.drawCircle(center, dotSize / 2, dotPaint);
   }
