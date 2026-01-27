@@ -35,8 +35,9 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
         int.parse(widget.messId),
       );
       // Filter only active plans
-      final activePlans = plans.where((plan) => plan['is_active'] == 1).toList();
-      
+      final activePlans =
+          plans.where((plan) => plan['is_active'] == 1).toList();
+
       setState(() {
         _plans = activePlans;
         _isLoading = false;
@@ -49,9 +50,9 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading plans: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading plans: $e')));
       }
     }
   }
@@ -62,12 +63,13 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SubscriptionDateSelectionPage(
-          messId: widget.messId,
-          messName: widget.messName.isNotEmpty ? widget.messName : 'Mess',
-          selectedDays: _selectedPlan!['duration_days'],
-          selectedPrice: double.parse(_selectedPlan!['price'].toString()),
-        ),
+        builder:
+            (_) => SubscriptionDateSelectionPage(
+              messId: widget.messId,
+              messName: widget.messName.isNotEmpty ? widget.messName : 'Mess',
+              selectedDays: _selectedPlan!['duration_days'],
+              selectedPrice: double.parse(_selectedPlan!['price'].toString()),
+            ),
       ),
     );
   }
@@ -80,10 +82,11 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
     final description = plan['description'];
 
     return GestureDetector(
-      onTap: () => setState(() {
-        _selectedPlanId = plan['id'];
-        _selectedPlan = plan;
-      }),
+      onTap:
+          () => setState(() {
+            _selectedPlanId = plan['id'];
+            _selectedPlan = plan;
+          }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -97,9 +100,10 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
           ),
           boxShadow: [
             BoxShadow(
-              color: selected
-                  ? Colors.green.withOpacity(0.12)
-                  : Colors.black.withOpacity(0.06),
+              color:
+                  selected
+                      ? Colors.green.withOpacity(0.12)
+                      : Colors.black.withOpacity(0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -132,7 +136,8 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: selected ? Colors.green[800] : Colors.black87,
+                            color:
+                                selected ? Colors.green[800] : Colors.black87,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -166,7 +171,8 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                     '$days days plan',
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
-                  if (description != null && description.toString().isNotEmpty) ...[
+                  if (description != null &&
+                      description.toString().isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       description,
@@ -183,9 +189,10 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: selected
-                      ? [Colors.green[400]!, Colors.green[500]!]
-                      : [Colors.grey[200]!, Colors.grey[300]!],
+                  colors:
+                      selected
+                          ? [Colors.green[400]!, Colors.green[500]!]
+                          : [Colors.grey[200]!, Colors.grey[300]!],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
@@ -275,47 +282,48 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _plans.isEmpty
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _plans.isEmpty
                       ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.subscriptions_outlined,
-                                size: 80,
-                                color: Colors.grey[400],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.subscriptions_outlined,
+                              size: 80,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No subscription plans available',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w600,
                               ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No subscription plans available',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Please contact the mess admin',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 14,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Please contact the mess admin',
-                                style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _loadPlans,
-                          child: ListView.builder(
-                            itemCount: _plans.length,
-                            itemBuilder: (context, index) {
-                              return _durationTile(_plans[index]);
-                            },
-                          ),
+                            ),
+                          ],
                         ),
+                      )
+                      : RefreshIndicator(
+                        onRefresh: _loadPlans,
+                        child: ListView.builder(
+                          itemCount: _plans.length,
+                          itemBuilder: (context, index) {
+                            return _durationTile(_plans[index]);
+                          },
+                        ),
+                      ),
             ),
             const SizedBox(height: 16),
             // Summary card
@@ -415,7 +423,11 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       _selectedPlan != null

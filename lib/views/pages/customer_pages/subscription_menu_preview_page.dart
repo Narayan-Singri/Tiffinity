@@ -46,12 +46,12 @@ class _SubscriptionMenuPreviewPageState
 
   Future<void> _fetchMenuData() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Get today and tomorrow dates
       final today = DateTime.now();
       final tomorrow = today.add(const Duration(days: 1));
-      
+
       final todayDateString =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
       final tomorrowDateString =
@@ -103,7 +103,7 @@ class _SubscriptionMenuPreviewPageState
       setState(() {
         _todayMenuItems = todayItems;
         _tomorrowMenuItems = tomorrowItems;
-        
+
         // Initialize selections - all items selected by default
         for (var item in todayItems) {
           _todaySelections[item['id']] = true;
@@ -111,7 +111,7 @@ class _SubscriptionMenuPreviewPageState
         for (var item in tomorrowItems) {
           _tomorrowSelections[item['id']] = true;
         }
-        
+
         _isLoading = false;
       });
 
@@ -119,11 +119,11 @@ class _SubscriptionMenuPreviewPageState
     } catch (e) {
       print('❌ Error loading menu data: $e');
       setState(() => _isLoading = false);
-      
+
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading menu: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading menu: $e')));
       }
     }
   }
@@ -160,240 +160,251 @@ class _SubscriptionMenuPreviewPageState
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: Colors.green,
-              ),
-            )
-          : Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Daily Menu Preview',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Review and customize your meal selections',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  Expanded(
-                    child: (_todayMenuItems.isEmpty && _tomorrowMenuItems.isEmpty)
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.restaurant_menu,
-                                  size: 80,
-                                  color: Colors.grey[400],
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No menu items available',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Please contact the mess admin',
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _fetchMenuData,
-                            child: ListView(
-                              children: [
-                                if (_todayMenuItems.isNotEmpty)
-                                  _buildDayMenu(
-                                    context,
-                                    'Today',
-                                    dateFormat.format(today),
-                                    true,
-                                    _todayMenuItems,
-                                    _todaySelections,
-                                  ),
-                                if (_todayMenuItems.isNotEmpty &&
-                                    _tomorrowMenuItems.isNotEmpty)
-                                  const SizedBox(height: 16),
-                                if (_tomorrowMenuItems.isNotEmpty)
-                                  _buildDayMenu(
-                                    context,
-                                    'Tomorrow',
-                                    dateFormat.format(tomorrow),
-                                    false,
-                                    _tomorrowMenuItems,
-                                    _tomorrowSelections,
-                                  ),
-                              ],
-                            ),
-                          ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Summary Info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.green[50]!, Colors.green[100]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: Colors.green),
+              )
+              : Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Daily Menu Preview',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.shade300, width: 1.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.calendar_month,
-                            color: Colors.green[500],
-                            size: 24,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${widget.selectedDays} Days Subscription',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
+                    const SizedBox(height: 8),
+                    Text(
+                      'Review and customize your meal selections',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 15),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Expanded(
+                      child:
+                          (_todayMenuItems.isEmpty &&
+                                  _tomorrowMenuItems.isEmpty)
+                              ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.restaurant_menu,
+                                      size: 80,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'No menu items available',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Please contact the mess admin',
+                                      style: TextStyle(
+                                        color: Colors.grey[500],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                              : RefreshIndicator(
+                                onRefresh: _fetchMenuData,
+                                child: ListView(
+                                  children: [
+                                    if (_todayMenuItems.isNotEmpty)
+                                      _buildDayMenu(
+                                        context,
+                                        'Today',
+                                        dateFormat.format(today),
+                                        true,
+                                        _todayMenuItems,
+                                        _todaySelections,
+                                      ),
+                                    if (_todayMenuItems.isNotEmpty &&
+                                        _tomorrowMenuItems.isNotEmpty)
+                                      const SizedBox(height: 16),
+                                    if (_tomorrowMenuItems.isNotEmpty)
+                                      _buildDayMenu(
+                                        context,
+                                        'Tomorrow',
+                                        dateFormat.format(tomorrow),
+                                        false,
+                                        _tomorrowMenuItems,
+                                        _tomorrowSelections,
+                                      ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '₹${widget.selectedPrice.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green[600],
-                                ),
-                              ),
-                            ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Summary Info
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.green[50]!, Colors.green[100]!],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.green.shade300,
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Confirm Button
-                  Container(
-                    width: double.infinity,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.green[400]!, Colors.green[500]!],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                        ],
                       ),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.green.withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      onPressed: _handleProceed,
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      child: Row(
                         children: [
-                          Text(
-                            'Proceed to Checkout',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
                               color: Colors.white,
-                              letterSpacing: 0.5,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.calendar_month,
+                              color: Colors.green[500],
+                              size: 24,
                             ),
                           ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, color: Colors.white, size: 20),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${widget.selectedDays} Days Subscription',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '₹${widget.selectedPrice.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 16),
+
+                    // Confirm Button
+                    Container(
+                      width: double.infinity,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.green[400]!, Colors.green[500]!],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.green.withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: _handleProceed,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Proceed to Checkout',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
     );
   }
 
   Future<void> _handleProceed() async {
     // Count unselected items
     final todayUnselected = _todaySelections.values.where((v) => !v).length;
-    final tomorrowUnselected = _tomorrowSelections.values.where((v) => !v).length;
+    final tomorrowUnselected =
+        _tomorrowSelections.values.where((v) => !v).length;
 
     if (todayUnselected > 0 || tomorrowUnselected > 0) {
-      final confirmed = await _showSkipConfirmation(todayUnselected, tomorrowUnselected);
+      final confirmed = await _showSkipConfirmation(
+        todayUnselected,
+        tomorrowUnselected,
+      );
       if (confirmed != true) return;
     }
 
     // Get selected items
-    final selectedTodayItems = _todayMenuItems
-        .where((item) => _todaySelections[item['id']] == true)
-        .toList();
-    final selectedTomorrowItems = _tomorrowMenuItems
-        .where((item) => _tomorrowSelections[item['id']] == true)
-        .toList();
+    final selectedTodayItems =
+        _todayMenuItems
+            .where((item) => _todaySelections[item['id']] == true)
+            .toList();
+    final selectedTomorrowItems =
+        _tomorrowMenuItems
+            .where((item) => _tomorrowSelections[item['id']] == true)
+            .toList();
 
     print('✅ Selected today items: ${selectedTodayItems.length}');
     print('✅ Selected tomorrow items: ${selectedTomorrowItems.length}');
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Proceeding to checkout')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Proceeding to checkout')));
     }
 
     // TODO: Navigate to payment/checkout page
@@ -426,10 +437,7 @@ class _SubscriptionMenuPreviewPageState
               const Expanded(
                 child: Text(
                   'Skip Items?',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -440,10 +448,7 @@ class _SubscriptionMenuPreviewPageState
             children: [
               Text(
                 'You have unselected items:',
-                style: TextStyle(
-                  fontSize: 15,
-                  color: Colors.grey[700],
-                ),
+                style: TextStyle(fontSize: 15, color: Colors.grey[700]),
               ),
               const SizedBox(height: 12),
               if (todayCount > 0)
@@ -512,7 +517,10 @@ class _SubscriptionMenuPreviewPageState
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
               child: Text(
                 'Go Back',
@@ -527,7 +535,10 @@ class _SubscriptionMenuPreviewPageState
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange[600],
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -591,9 +602,10 @@ class _SubscriptionMenuPreviewPageState
         ),
         boxShadow: [
           BoxShadow(
-            color: isToday
-                ? Colors.green.withOpacity(0.15)
-                : Colors.black.withOpacity(0.06),
+            color:
+                isToday
+                    ? Colors.green.withOpacity(0.15)
+                    : Colors.black.withOpacity(0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -605,12 +617,16 @@ class _SubscriptionMenuPreviewPageState
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: isToday
-                        ? [Colors.green[300]!, Colors.green[500]!]
-                        : [Colors.grey[300]!, Colors.grey[400]!],
+                    colors:
+                        isToday
+                            ? [Colors.green[300]!, Colors.green[500]!]
+                            : [Colors.grey[300]!, Colors.grey[400]!],
                   ),
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
@@ -666,25 +682,30 @@ class _SubscriptionMenuPreviewPageState
             return Padding(
               padding: const EdgeInsets.only(bottom: 12.0),
               child: GestureDetector(
-                onTap: isToday ? null : () {
-                  setState(() {
-                    selections[itemId] = !isSelected;
-                  });
-                },
+                onTap:
+                    isToday
+                        ? null
+                        : () {
+                          setState(() {
+                            selections[itemId] = !isSelected;
+                          });
+                        },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isToday 
-                        ? Colors.grey[100]
-                        : (isSelected ? Colors.green[50] : Colors.grey[50]),
+                    color:
+                        isToday
+                            ? Colors.grey[100]
+                            : (isSelected ? Colors.green[50] : Colors.grey[50]),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isToday
-                          ? Colors.grey.shade400
-                          : (isSelected
-                              ? Colors.green.shade400
-                              : Colors.grey.shade300),
+                      color:
+                          isToday
+                              ? Colors.grey.shade400
+                              : (isSelected
+                                  ? Colors.green.shade400
+                                  : Colors.grey.shade300),
                       width: isSelected ? 2 : 1,
                     ),
                   ),
@@ -722,7 +743,7 @@ class _SubscriptionMenuPreviewPageState
                           ),
                         ),
                       if (imageUrl.isNotEmpty) const SizedBox(width: 14),
-                      
+
                       // Item details
                       Expanded(
                         child: Column(
@@ -736,9 +757,11 @@ class _SubscriptionMenuPreviewPageState
                                   height: 16,
                                   decoration: BoxDecoration(
                                     border: Border.all(
-                                      color: itemType == 'nonveg' || itemType == 'non-veg'
-                                          ? Colors.red
-                                          : Colors.green,
+                                      color:
+                                          itemType == 'nonveg' ||
+                                                  itemType == 'non-veg'
+                                              ? Colors.red
+                                              : Colors.green,
                                       width: 2,
                                     ),
                                   ),
@@ -747,9 +770,11 @@ class _SubscriptionMenuPreviewPageState
                                       width: 8,
                                       height: 8,
                                       decoration: BoxDecoration(
-                                        color: itemType == 'nonveg' || itemType == 'non-veg'
-                                            ? Colors.red
-                                            : Colors.green,
+                                        color:
+                                            itemType == 'nonveg' ||
+                                                    itemType == 'non-veg'
+                                                ? Colors.red
+                                                : Colors.green,
                                         shape: BoxShape.circle,
                                       ),
                                     ),
@@ -762,11 +787,12 @@ class _SubscriptionMenuPreviewPageState
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
-                                      color: isToday
-                                          ? Colors.grey[700]
-                                          : (isSelected
-                                              ? Colors.green[900]
-                                              : Colors.black87),
+                                      color:
+                                          isToday
+                                              ? Colors.grey[700]
+                                              : (isSelected
+                                                  ? Colors.green[900]
+                                                  : Colors.black87),
                                     ),
                                   ),
                                 ),
@@ -809,7 +835,7 @@ class _SubscriptionMenuPreviewPageState
                           ],
                         ),
                       ),
-                      
+
                       // Checkbox - only show for tomorrow's items
                       if (!isToday)
                         Container(
@@ -818,18 +844,23 @@ class _SubscriptionMenuPreviewPageState
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isSelected ? Colors.green : Colors.grey.shade400,
+                              color:
+                                  isSelected
+                                      ? Colors.green
+                                      : Colors.grey.shade400,
                               width: 2,
                             ),
-                            color: isSelected ? Colors.green : Colors.transparent,
+                            color:
+                                isSelected ? Colors.green : Colors.transparent,
                           ),
-                          child: isSelected
-                              ? const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 16,
-                                )
-                              : null,
+                          child:
+                              isSelected
+                                  ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 16,
+                                  )
+                                  : null,
                         ),
                       if (isToday)
                         Icon(
