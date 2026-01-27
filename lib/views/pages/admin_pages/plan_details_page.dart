@@ -4,6 +4,7 @@ import 'package:Tiffinity/services/subscription_service.dart';
 import 'package:Tiffinity/services/menu_service.dart';
 import 'package:Tiffinity/models/category_model.dart';
 import 'package:Tiffinity/views/widgets/filter_chips.dart' as CustomChips;
+import 'package:Tiffinity/views/widgets/veg_nonveg_logo.dart';
 
 class PlanDetailsPage extends StatefulWidget {
   final int planId;
@@ -511,27 +512,34 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                                 item['name'] ?? 'Item',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              subtitle: Text('₹${item['price'] ?? 0}'),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (((item['type']
+                                              ?.toString()
+                                              .toLowerCase()
+                                              .replaceAll(' ', '')
+                                              .replaceAll('-', '') ??
+                                          '')) ==
+                                      'jain')
+                                    Padding(
+                                      padding: EdgeInsets.only(bottom: 2),
+                                      child: Text(
+                                        'JAIN',
+                                        style: TextStyle(
+                                          color: Colors.green.shade700,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  Text('₹${item['price'] ?? 0}'),
+                                ],
+                              ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          item['type'] == 'non-veg'
-                                              ? Colors.red.withOpacity(0.1)
-                                              : Colors.green.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      item['type'] == 'non-veg' ? '🔴' : '🟢',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                  ),
+                                  VegNonVegLogo(type: item['type'], size: 12),
                                   SizedBox(width: 8),
                                   IconButton(
                                     icon: Icon(
@@ -676,23 +684,35 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                                 item['name'] ?? 'Item',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              subtitle: Text('₹${item['price'] ?? 0}'),
-                              trailing: Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color:
-                                      item['type'] == 'non-veg'
-                                          ? Colors.red.withOpacity(0.1)
-                                          : Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  item['type'] == 'non-veg' ? '🔴' : '🟢',
-                                  style: TextStyle(fontSize: 12),
-                                ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (((item['type']
+                                              ?.toString()
+                                              .toLowerCase()
+                                              .replaceAll(' ', '')
+                                              .replaceAll('-', '') ??
+                                          '')) ==
+                                      'jain')
+                                    Padding(
+                                      padding: EdgeInsets.only(bottom: 2),
+                                      child: Text(
+                                        'JAIN',
+                                        style: TextStyle(
+                                          color: Colors.green.shade700,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  Text('₹${item['price'] ?? 0}'),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  VegNonVegLogo(type: item['type'], size: 12),
+                                ],
                               ),
                             ),
                           );
@@ -857,6 +877,7 @@ class _AddSubscriptionItemsModalState
               'price': menuItem['price'] ?? 0,
               'type': menuItem['type'] ?? 'veg',
               'quantity': '1',
+              'image_url': menuItem['image_url'] ?? '',
             };
           }).toList();
 
@@ -1342,25 +1363,8 @@ class _AddSubscriptionItemsModalState
                             ),
                           ),
                           SizedBox(width: 8),
-                          // Type badge (Veg/Non-Veg) - small square
-                          Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              color: _getTypeColor(item['type']),
-                              borderRadius: BorderRadius.circular(3),
-                              border: Border.all(
-                                color: _getTypeBorderColor(item['type']),
-                                width: 1,
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                _getTypeEmoji(item['type']),
-                                style: TextStyle(fontSize: 9),
-                              ),
-                            ),
-                          ),
+                          // Type badge (Veg/Non-Veg) - FSSAI logo
+                          VegNonVegLogo(type: item['type'], size: 12),
                         ],
                       ),
                       // Jain label (if applicable)

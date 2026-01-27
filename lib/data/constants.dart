@@ -33,4 +33,13 @@ class Symbols {
       Icon(Icons.circle, color: Colors.red, size: 14),
     ],
   );
+
+  // Distinct Jain symbol: green square with a yellow dot
+  static Widget get jainSymbol => const Stack(
+    alignment: Alignment.center,
+    children: [
+      Icon(Icons.crop_square_sharp, color: Colors.green, size: 36),
+      Icon(Icons.circle, color: Colors.amber, size: 14),
+    ],
+  );
 }

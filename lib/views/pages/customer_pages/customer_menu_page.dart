@@ -759,11 +759,12 @@ class _MenuPageState extends State<MenuPage> {
               // Veg/Non-veg symbol
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child:
-                    (data['type']?.toString().toLowerCase() == 'veg' ||
-                            data['type']?.toString().toLowerCase() == 'jain')
-                        ? Symbols.vegSymbol
-                        : Symbols.nonVegSymbol,
+                child: () {
+                  final t = data['type']?.toString().toLowerCase();
+                  if (t == 'jain') return Symbols.jainSymbol;
+                  if (t == 'veg') return Symbols.vegSymbol;
+                  return Symbols.nonVegSymbol;
+                }(),
               ),
               const SizedBox(width: 12),
               // Item Details
