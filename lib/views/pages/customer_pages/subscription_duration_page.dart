@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:Tiffinity/services/subscription_service.dart';
 import 'subscription_date_selection_page.dart';
 
 class SubscriptionDurationPage extends StatefulWidget {
@@ -16,11 +17,47 @@ class SubscriptionDurationPage extends StatefulWidget {
 }
 
 class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
-  int _selectedDays = 14;
-  final Map<int, double> _priceMap = {7: 2500.0, 14: 4000.0, 30: 8000.0};
+  List _plans = [];
+  bool _isLoading = true;
+  int? _selectedPlanId;
+  Map<String, dynamic>? _selectedPlan;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlans();
+  }
+
+  Future<void> _loadPlans() async {
+    setState(() => _isLoading = true);
+    try {
+      final plans = await SubscriptionService.getMessPlans(
+        int.parse(widget.messId),
+      );
+      // Filter only active plans
+      final activePlans = plans.where((plan) => plan['is_active'] == 1).toList();
+      
+      setState(() {
+        _plans = activePlans;
+        _isLoading = false;
+        // Auto-select first plan if available
+        if (_plans.isNotEmpty) {
+          _selectedPlanId = _plans[0]['id'];
+          _selectedPlan = _plans[0];
+        }
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading plans: $e')),
+        );
+      }
+    }
+  }
 
   void _confirm() {
-    final selectedPrice = _priceMap[_selectedDays] ?? 0.0;
+    if (_selectedPlan == null) return;
 
     Navigator.push(
       context,
@@ -28,19 +65,25 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
         builder: (_) => SubscriptionDateSelectionPage(
           messId: widget.messId,
           messName: widget.messName.isNotEmpty ? widget.messName : 'Mess',
-          selectedDays: _selectedDays,
-          selectedPrice: selectedPrice,
+          selectedDays: _selectedPlan!['duration_days'],
+          selectedPrice: double.parse(_selectedPlan!['price'].toString()),
         ),
       ),
     );
   }
 
-  Widget _durationTile(int days, String label) {
-    final selected = _selectedDays == days;
-    final price = _priceMap[days] ?? 0.0;
+  Widget _durationTile(Map<String, dynamic> plan) {
+    final selected = _selectedPlanId == plan['id'];
+    final days = plan['duration_days'];
+    final price = double.parse(plan['price'].toString());
+    final name = plan['name'];
+    final description = plan['description'];
 
     return GestureDetector(
-      onTap: () => setState(() => _selectedDays = days),
+      onTap: () => setState(() {
+        _selectedPlanId = plan['id'];
+        _selectedPlan = plan;
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -83,12 +126,16 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: selected ? Colors.green[800] : Colors.black87,
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: selected ? Colors.green[800] : Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -119,6 +166,15 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                     '$days days plan',
                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
+                  if (description != null && description.toString().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -219,13 +275,47 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView(
-                children: [
-                  _durationTile(7, '7 Days'),
-                  _durationTile(14, '14 Days'),
-                  _durationTile(30, '30 Days'),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _plans.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.subscriptions_outlined,
+                                size: 80,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No subscription plans available',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Please contact the mess admin',
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadPlans,
+                          child: ListView.builder(
+                            itemCount: _plans.length,
+                            itemBuilder: (context, index) {
+                              return _durationTile(_plans[index]);
+                            },
+                          ),
+                        ),
             ),
             const SizedBox(height: 16),
             // Summary card
@@ -267,7 +357,9 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Selected: $_selectedDays Days',
+                          _selectedPlan != null
+                              ? 'Selected: ${_selectedPlan!['name']}'
+                              : 'No plan selected',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -276,7 +368,9 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '₹${(_priceMap[_selectedDays] ?? 0).toStringAsFixed(0)}',
+                          _selectedPlan != null
+                              ? '₹${double.parse(_selectedPlan!['price'].toString()).toStringAsFixed(0)}'
+                              : '₹0',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -317,14 +411,16 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: _confirm,
+                onPressed: _selectedPlan != null ? _confirm : null,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Icon(Icons.check_circle, color: Colors.white, size: 20),
                     const SizedBox(width: 8),
                     Text(
-                      'Confirm ($_selectedDays days) • ₹${_priceMap[_selectedDays]?.toStringAsFixed(0) ?? 0}',
+                      _selectedPlan != null
+                          ? 'Confirm (${_selectedPlan!['duration_days']} days) • ₹${double.parse(_selectedPlan!['price'].toString()).toStringAsFixed(0)}'
+                          : 'Select a plan',
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
