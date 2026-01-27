@@ -5,6 +5,7 @@ import 'subscription_menu_preview_page.dart';
 class SubscriptionDateSelectionPage extends StatefulWidget {
   final String messId;
   final String messName;
+  final int planId;
   final int selectedDays;
   final double selectedPrice;
 
@@ -12,6 +13,7 @@ class SubscriptionDateSelectionPage extends StatefulWidget {
     super.key,
     required this.messId,
     required this.messName,
+    required this.planId,
     required this.selectedDays,
     required this.selectedPrice,
   });
@@ -504,6 +506,7 @@ class _SubscriptionDateSelectionPageState
                           (context) => SubscriptionMenuPreviewPage(
                             messId: widget.messId,
                             messName: widget.messName,
+                            planId: widget.planId,
                             startDate: _startDate,
                             endDate: _endDate,
                             selectedDays: widget.selectedDays,

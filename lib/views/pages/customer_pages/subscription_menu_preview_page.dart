@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:Tiffinity/services/subscription_service.dart';
+import 'subscription_checkout_page.dart';
 
 class SubscriptionMenuPreviewPage extends StatefulWidget {
   final String messId;
   final String messName;
+  final int planId;
   final DateTime startDate;
   final DateTime endDate;
   final int selectedDays;
@@ -15,6 +17,7 @@ class SubscriptionMenuPreviewPage extends StatefulWidget {
     super.key,
     required this.messId,
     required this.messName,
+    required this.planId,
     required this.startDate,
     required this.endDate,
     required this.selectedDays,
@@ -82,12 +85,24 @@ class _SubscriptionMenuPreviewPageState
           if (items is String) {
             final decoded = jsonDecode(items);
             parsedItems =
-                (decoded as List)
-                    .map((item) => Map<String, dynamic>.from(item))
-                    .toList();
+                (decoded as List).map((item) {
+                  final mapped = Map<String, dynamic>.from(item);
+                  mapped['menu_date'] = menu['date'];
+                  mapped['meal_time'] = menu['meal_time'] ?? 'lunch';
+                  mapped['id'] =
+                      int.tryParse(mapped['id'].toString()) ?? mapped['id'];
+                  return mapped;
+                }).toList();
           } else if (items is List) {
             parsedItems =
-                items.map((item) => Map<String, dynamic>.from(item)).toList();
+                items.map((item) {
+                  final mapped = Map<String, dynamic>.from(item);
+                  mapped['menu_date'] = menu['date'];
+                  mapped['meal_time'] = menu['meal_time'] ?? 'lunch';
+                  mapped['id'] =
+                      int.tryParse(mapped['id'].toString()) ?? mapped['id'];
+                  return mapped;
+                }).toList();
           }
 
           if (menu['date'] == todayDateString) {
@@ -106,10 +121,16 @@ class _SubscriptionMenuPreviewPageState
 
         // Initialize selections - all items selected by default
         for (var item in todayItems) {
-          _todaySelections[item['id']] = true;
+          final itemId = int.tryParse(item['id'].toString()) ?? 0;
+          if (itemId != 0) {
+            _todaySelections[itemId] = true;
+          }
         }
         for (var item in tomorrowItems) {
-          _tomorrowSelections[item['id']] = true;
+          final itemId = int.tryParse(item['id'].toString()) ?? 0;
+          if (itemId != 0) {
+            _tomorrowSelections[itemId] = true;
+          }
         }
 
         _isLoading = false;
@@ -390,25 +411,40 @@ class _SubscriptionMenuPreviewPageState
 
     // Get selected items
     final selectedTodayItems =
-        _todayMenuItems
-            .where((item) => _todaySelections[item['id']] == true)
-            .toList();
+        _todayMenuItems.where((item) {
+          final itemId = int.tryParse(item['id'].toString()) ?? 0;
+          return _todaySelections[itemId] == true;
+        }).toList();
     final selectedTomorrowItems =
-        _tomorrowMenuItems
-            .where((item) => _tomorrowSelections[item['id']] == true)
-            .toList();
+        _tomorrowMenuItems.where((item) {
+          final itemId = int.tryParse(item['id'].toString()) ?? 0;
+          return _tomorrowSelections[itemId] == true;
+        }).toList();
+
+    final combinedItems = [...selectedTodayItems, ...selectedTomorrowItems];
 
     print('✅ Selected today items: ${selectedTodayItems.length}');
     print('✅ Selected tomorrow items: ${selectedTomorrowItems.length}');
+    print('📦 Total items to checkout: ${combinedItems.length}');
 
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Proceeding to checkout')));
-    }
+    final messIdInt = int.tryParse(widget.messId) ?? 0;
 
-    // TODO: Navigate to payment/checkout page
-    // Pass selected items to next page
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => SubscriptionCheckoutPage(
+              messId: messIdInt,
+              messName: widget.messName,
+              planId: widget.planId,
+              startDate: widget.startDate,
+              endDate: widget.endDate,
+              selectedDays: widget.selectedDays,
+              totalAmount: widget.selectedPrice,
+              selectedItems: combinedItems,
+            ),
+      ),
+    );
   }
 
   Future<bool?> _showSkipConfirmation(int todayCount, int tomorrowCount) {
@@ -672,7 +708,7 @@ class _SubscriptionMenuPreviewPageState
           ),
           const SizedBox(height: 16),
           ...items.map((item) {
-            final itemId = item['id'] as int;
+            final itemId = int.tryParse(item['id'].toString()) ?? 0;
             final isSelected = selections[itemId] ?? true;
             final itemName = item['name']?.toString() ?? 'Item';
             final itemPrice = item['price']?.toString() ?? '0';

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/subscription_service.dart';
 import 'package:Tiffinity/services/menu_service.dart';
@@ -16,20 +17,46 @@ class PlanDetailsPage extends StatefulWidget {
   State<PlanDetailsPage> createState() => _PlanDetailsPageState();
 }
 
-class _PlanDetailsPageState extends State<PlanDetailsPage> {
+class _PlanDetailsPageState extends State<PlanDetailsPage> with WidgetsBindingObserver {
   List<dynamic> _subscribers = [];
   List<Map<String, dynamic>> _subscriptionMenuItems = [];
   List<Map<String, dynamic>> _todayMenuItems = [];
+  List<Map<String, dynamic>> _orders = [];
   bool _isLoading = true;
   bool _isLoadingMenuItems = false;
   bool _isLoadingTodayMenuItems = false;
+  bool _isLoadingOrders = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSubscribers();
     _loadSubscriptionMenuItems();
     _loadTodayMenuItems();
+    _loadOrders();
+    // Auto-refresh every 30 seconds
+    _refreshTimer = Timer.periodic(Duration(seconds: 30), (_) {
+      if (mounted) {
+        _loadSubscribers();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      // Refresh data when app comes back into focus
+      _loadSubscribers();
+    }
   }
 
   Future<void> _loadSubscribers() async {
@@ -141,6 +168,24 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     }
   }
 
+  Future<void> _loadOrders() async {
+    setState(() => _isLoadingOrders = true);
+    try {
+      final orders = await SubscriptionService.getPlanOrders(widget.planId);
+      setState(() {
+        _orders = orders;
+        _isLoadingOrders = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingOrders = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading orders: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _removeMenuItem(int itemId, String itemName) async {
     // Show confirmation dialog
     final confirm = await showDialog<bool>(
@@ -242,8 +287,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Count all subscribers who have active or pending subscriptions
     final activeSubscribers =
-        _subscribers.where((s) => s['status'] == 'active').length;
+        _subscribers.where((s) => 
+          s['status'] == 'active' || s['status'] == 'pending'
+        ).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -289,7 +337,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                   ),
                 ),
                 Text(
-                  'Active Subscribers',
+                  'Total Subscribers',
                   style: TextStyle(fontSize: 18, color: Colors.white70),
                 ),
               ],
@@ -301,6 +349,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                 await _loadSubscribers();
                 await _loadSubscriptionMenuItems();
                 await _loadTodayMenuItems();
+                await _loadOrders();
               },
               child: SingleChildScrollView(
                 physics: AlwaysScrollableScrollPhysics(),
@@ -346,9 +395,22 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                         itemCount: _subscribers.length,
                         itemBuilder: (context, index) {
                           final subscriber = _subscribers[index];
-                          final status = subscriber['status'];
+                          final status = subscriber['status'] ?? 'active';
                           final daysRemaining =
                               subscriber['days_remaining'] ?? 0;
+                          
+                          // Try multiple fields for customer name
+                          final customerName = subscriber['customer_name']?.toString() ?? 
+                                                subscriber['user_name']?.toString() ?? 
+                                                subscriber['name']?.toString() ?? '';
+                          final userName = customerName.isNotEmpty 
+                              ? customerName 
+                              : 'User ${subscriber['user_id'] ?? ''}';
+                          final userEmail = subscriber['email']?.toString() ?? 
+                                            subscriber['customer_email']?.toString() ?? '';
+                          final userInitial = userName.isNotEmpty && userName != 'User ' 
+                              ? userName[0].toUpperCase() 
+                              : 'U';
 
                           return Card(
                             margin: EdgeInsets.only(bottom: 12),
@@ -356,7 +418,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                               leading: CircleAvatar(
                                 backgroundColor: _getStatusColor(status),
                                 child: Text(
-                                  subscriber['user_name'][0].toUpperCase(),
+                                  userInitial,
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -364,13 +426,13 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                                 ),
                               ),
                               title: Text(
-                                subscriber['user_name'],
+                                userName,
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(subscriber['email']),
+                                  Text(userEmail),
                                   SizedBox(height: 4),
                                   Row(
                                     children: [
@@ -381,7 +443,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                                       ),
                                       SizedBox(width: 4),
                                       Text(
-                                        '${subscriber['start_date']} to ${subscriber['end_date']}',
+                                        '${subscriber['start_date'] ?? 'N/A'} to ${subscriber['end_date'] ?? 'N/A'}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.grey[600],
@@ -425,6 +487,197 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                                       ),
                                     ),
                                   ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                    // Orders Section
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.receipt_long, color: Colors.green[700]),
+                          SizedBox(width: 8),
+                          Text(
+                            'Recent Orders',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Spacer(),
+                          if (!_isLoadingOrders)
+                            Text(
+                              '${_orders.length}',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 14,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (_isLoadingOrders)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(),
+                        ),
+                      )
+                    else if (_orders.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.inbox_outlined, color: Colors.grey),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'No orders received yet for this plan.',
+                                  style: TextStyle(color: Colors.grey[700]),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _orders.length,
+                        itemBuilder: (context, index) {
+                          final order = _orders[index];
+                          final items =
+                              (order['selected_items'] as List?)
+                                  ?.map((e) => Map<String, dynamic>.from(e))
+                                  .toList() ??
+                              [];
+                          final amount =
+                              double.tryParse(
+                                    order['total_amount']?.toString() ?? '',
+                                  ) ??
+                              0;
+                          final customerName =
+                              (order['customer_name']?.toString() ?? '')
+                                  .isNotEmpty
+                                  ? order['customer_name'].toString()
+                                  : 'User ${order['user_id']}';
+                          final status = order['status']?.toString() ?? 'pending';
+
+                          return Card(
+                            margin: EdgeInsets.only(bottom: 10),
+                            child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor:
+                                            _getStatusColor(status).withOpacity(0.15),
+                                        child: Text(
+                                          customerName.isNotEmpty
+                                              ? customerName[0].toUpperCase()
+                                              : '?',
+                                          style: TextStyle(
+                                            color: _getStatusColor(status),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              customerName,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${order['start_date']} → ${order['end_date']}',
+                                              style: TextStyle(
+                                                color: Colors.grey[700],
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _getStatusColor(status)
+                                              .withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          status.toUpperCase(),
+                                          style: TextStyle(
+                                            color: _getStatusColor(status),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.currency_rupee, size: 16, color: Colors.green[700]),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        amount.toStringAsFixed(0),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green[800],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (items.isNotEmpty)
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      children: items.map((item) {
+                                        return Chip(
+                                          label: Text(item['name']?.toString() ?? 'Item'),
+                                          backgroundColor: Colors.green[50],
+                                          avatar: Icon(
+                                            Icons.restaurant_menu,
+                                            size: 16,
+                                            color: Colors.green[700],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    )
+                                  else
+                                    Text(
+                                      'No item details provided',
+                                      style: TextStyle(color: Colors.grey[700]),
+                                    ),
                                 ],
                               ),
                             ),

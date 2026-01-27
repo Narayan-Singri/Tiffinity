@@ -242,10 +242,108 @@ class SubscriptionService {
     });
   }
 
+  /// Create an order for selected subscription items
+  static Future<Map<String, dynamic>> createSubscriptionOrder({
+    required String userId,
+    required int planId,
+    required int messId,
+    required String startDate,
+    required String endDate,
+    required double totalAmount,
+    required List<Map<String, dynamic>> selectedItems,
+    String? customerName,
+    String? customerEmail,
+    String? customerPhone,
+  }) async {
+    return await ApiService.postForm(
+      'subscriptions/create_subscription_order.php',
+      {
+        'user_id': userId,
+        'plan_id': planId,
+        'mess_id': messId,
+        'start_date': startDate,
+        'end_date': endDate,
+        'total_amount': totalAmount,
+        'selected_items': jsonEncode(selectedItems),
+        'customer_name': customerName ?? '',
+        'customer_email': customerEmail ?? '',
+        'customer_phone': customerPhone ?? '',
+      },
+    );
+  }
+
+  /// Get orders placed for a plan (for admin view)
+  static Future<List<Map<String, dynamic>>> getPlanOrders(int planId) async {
+    final response = await ApiService.getRequest(
+      'subscriptions/get_plan_orders.php?plan_id=$planId',
+    );
+
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        response['data'].map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
+    return [];
+  }
+
   /// Delete subscription plan
   static Future<Map<String, dynamic>> deletePlan(int planId) async {
     return await ApiService.postForm('subscriptions/delete_plan.php', {
       'plan_id': planId,
     });
+  }
+
+  /// Get user's subscription orders (customer view)
+  static Future<List<Map<String, dynamic>>> getUserSubscriptionOrders(
+    String userId,
+  ) async {
+    final response = await ApiService.getRequest(
+      'subscriptions/get_user_subscription_orders.php?user_id=$userId',
+    );
+
+    if (response is List) {
+      return List<Map<String, dynamic>>.from(
+        response.map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
+    if (response is Map && response['data'] is List) {
+      return List<Map<String, dynamic>>.from(
+        response['data'].map((item) => Map<String, dynamic>.from(item)),
+      );
+    }
+
+    return [];
+  }
+
+  /// Update selected items for a specific order date
+  static Future<Map<String, dynamic>> updateOrderItems({
+    required String orderId,
+    required String date,
+    required List<int> selectedItemIds,
+  }) async {
+    return await ApiService.postForm('subscriptions/update_order_items.php', {
+      'order_id': orderId,
+      'date': date,
+      'selected_item_ids': jsonEncode(selectedItemIds),
+    });
+  }
+
+  /// Delete a user's subscription order
+  static Future<Map<String, dynamic>> deleteSubscriptionOrder({
+    required String orderId,
+    required String userId,
+  }) async {
+    return await ApiService.postForm(
+      'subscriptions/delete_subscription_order.php',
+      {'order_id': orderId, 'user_id': userId},
+    );
   }
 }

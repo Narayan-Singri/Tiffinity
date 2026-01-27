@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/subscription_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'subscription_date_selection_page.dart';
 
 class SubscriptionDurationPage extends StatefulWidget {
@@ -18,14 +19,52 @@ class SubscriptionDurationPage extends StatefulWidget {
 
 class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
   List _plans = [];
+  List<Map<String, dynamic>> _userOrders = [];
   bool _isLoading = true;
+  bool _isLoadingOrders = true;
   int? _selectedPlanId;
   Map<String, dynamic>? _selectedPlan;
+  String? _userId;
 
   @override
   void initState() {
     super.initState();
+    _loadUserId();
     _loadPlans();
+  }
+
+  Future<void> _loadUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final uid = prefs.getString('uid');
+    final id = prefs.getString('id');
+    final userId = prefs.getString('user_id');
+    setState(() {
+      _userId = uid ?? id ?? userId;
+    });
+    if (_userId != null) {
+      _loadUserOrders();
+    }
+  }
+
+  Future<void> _loadUserOrders() async {
+    if (_userId == null) return;
+    setState(() => _isLoadingOrders = true);
+    try {
+      final orders = await SubscriptionService.getUserSubscriptionOrders(
+        _userId!,
+      );
+      // Filter orders for this mess
+      final messOrders = orders
+          .where((order) => order['mess_id'].toString() == widget.messId)
+          .toList();
+      setState(() {
+        _userOrders = messOrders;
+        _isLoadingOrders = false;
+      });
+    } catch (e) {
+      print('Error loading user orders: $e');
+      setState(() => _isLoadingOrders = false);
+    }
   }
 
   Future<void> _loadPlans() async {
@@ -67,6 +106,7 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
             (_) => SubscriptionDateSelectionPage(
               messId: widget.messId,
               messName: widget.messName.isNotEmpty ? widget.messName : 'Mess',
+              planId: _selectedPlanId!,
               selectedDays: _selectedPlan!['duration_days'],
               selectedPrice: double.parse(_selectedPlan!['price'].toString()),
             ),
@@ -281,6 +321,173 @@ class _SubscriptionDurationPageState extends State<SubscriptionDurationPage> {
               ),
             ),
             const SizedBox(height: 20),
+            // User's Active Subscriptions
+            if (!_isLoadingOrders && _userOrders.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.bookmark, color: Colors.blue[700], size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Your Active Subscriptions',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[900],
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[700],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${_userOrders.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ...List.generate(_userOrders.length, (index) {
+                      final order = _userOrders[index];
+                      final items = order['selected_items'] as List? ?? [];
+                      final status = order['status'] ?? 'pending';
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.blue.shade100),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    order['plan_name'] ?? 'Subscription Plan',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: status == 'pending'
+                                        ? Colors.orange.shade50
+                                        : Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(
+                                      color: status == 'pending'
+                                          ? Colors.orange.shade700
+                                          : Colors.green.shade700,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${order['start_date']} to ${order['end_date']}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.restaurant,
+                                  size: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${items.length} items selected',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '₹${order['total_amount']}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.add_circle, color: Colors.green[700], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Add New Subscription',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[900],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             Expanded(
               child:
                   _isLoading

@@ -1,375 +1,453 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:Tiffinity/services/api_service.dart';
+import 'package:Tiffinity/services/subscription_service.dart';
 
-class SubscriptionCheckoutPage extends StatelessWidget {
-  final String messId;
+class SubscriptionCheckoutPage extends StatefulWidget {
+  final int messId;
   final String messName;
+  final int planId;
   final DateTime startDate;
   final DateTime endDate;
-  final Map<String, String> perDayCuisine;
-  final double? subscriptionTotal; // if provided, use this as subtotal
+  final int selectedDays;
+  final double totalAmount;
+  final List<Map<String, dynamic>> selectedItems;
 
   const SubscriptionCheckoutPage({
     super.key,
     required this.messId,
     required this.messName,
+    required this.planId,
     required this.startDate,
     required this.endDate,
-    required this.perDayCuisine,
-    this.subscriptionTotal,
+    required this.selectedDays,
+    required this.totalAmount,
+    required this.selectedItems,
   });
 
-  static const double defaultPricePerDay = 120.0; // fallback per-day price
-  static const double platformFee = 5.0;
+  @override
+  State<SubscriptionCheckoutPage> createState() =>
+      _SubscriptionCheckoutPageState();
+}
 
-  List<DateTime> _generateDates() {
-    final days = <DateTime>[];
-    for (
-      var d = startDate;
-      !d.isAfter(endDate);
-      d = d.add(const Duration(days: 1))
-    ) {
-      days.add(d);
-    }
-    return days;
+class _SubscriptionCheckoutPageState extends State<SubscriptionCheckoutPage> {
+  Map<String, dynamic>? _userData;
+  bool _isPlacingOrder = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
   }
 
-  Map<String, int> _aggregateByCuisine() {
-    final counts = <String, int>{};
-    final dates = _generateDates();
-    for (final d in dates) {
-      final weekday = DateFormat('EEEE').format(d); // Monday..
-      final cuisine = perDayCuisine[weekday] ?? 'Default';
-      counts[cuisine] = (counts[cuisine] ?? 0) + 1;
+  Future<void> _loadUserData() async {
+    final data = await ApiService.getUserData();
+    setState(() => _userData = data);
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _placeOrder() async {
+    if (_isPlacingOrder) return;
+    if (widget.selectedItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one item.')),
+      );
+      return;
     }
-    return counts;
+
+    final userIdValue =
+        _userData?['uid'] ?? _userData?['id'] ?? _userData?['user_id'];
+    final userId = userIdValue?.toString();
+
+    if (userId == null || userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to find user information.')),
+      );
+      return;
+    }
+
+    final payloadItems = widget.selectedItems.map((item) {
+      return {
+        'id': item['id'],
+        'name': item['name'] ?? 'Item',
+        'price': item['price'] ?? 0,
+        'type': item['type'] ?? 'veg',
+        'date': item['menu_date'] ?? '',
+        'meal_time': item['meal_time'] ?? 'lunch',
+      };
+    }).toList();
+
+    setState(() => _isPlacingOrder = true);
+
+    try {
+      final response = await SubscriptionService.createSubscriptionOrder(
+        userId: userId,
+        planId: widget.planId,
+        messId: widget.messId,
+        startDate: _formatDate(widget.startDate),
+        endDate: _formatDate(widget.endDate),
+        totalAmount: widget.totalAmount,
+        selectedItems: payloadItems,
+        customerName: _userData?['name'] ?? _userData?['full_name'],
+        customerEmail: _userData?['email'],
+        customerPhone: _userData?['phone'],
+      );
+
+      final success = response['success'] == true;
+      final message =
+          response['message']?.toString() ?? 'Order placed successfully';
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+        if (success) {
+          Navigator.pop(context, true);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to place order: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPlacingOrder = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final counts = _aggregateByCuisine();
-
-    // total days in the range
-    final int totalDays = counts.values.fold<int>(0, (s, q) => s + q);
-
-    // If a subscription total is provided (user picked 7/15/30), use it as subtotal.
-    final double subtotal =
-        subscriptionTotal ??
-        counts.values.fold<double>(
-          0.0,
-          (sum, q) => sum + q * defaultPricePerDay,
-        );
-    final double gst = subtotal * 0.18;
-    final double grandTotal = subtotal + gst + platformFee;
-    final dateFmt = DateFormat('dd MMM yyyy');
+    final dateRange =
+        '${DateFormat('dd MMM yyyy').format(widget.startDate)} - ${DateFormat('dd MMM yyyy').format(widget.endDate)}';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Subscription Checkout'),
-        backgroundColor: Colors.green,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: Center(
-              child: Text(
-                messName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+        title: const Text('Checkout'),
+        backgroundColor: Colors.green[400],
+        foregroundColor: Colors.white,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildSummaryCard(dateRange),
+                const SizedBox(height: 12),
+                _buildCustomerCard(),
+                const SizedBox(height: 12),
+                _buildItemsList(),
+              ],
             ),
           ),
+          _buildFooterButton(),
         ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              const Text(
-                'Order Summary',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Review your subscription details before payment',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-
-              // Subscription Period Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Subscription Period',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'From',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                dateFmt.format(startDate),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.arrow_forward,
-                          color: Colors.green[600],
-                          size: 20,
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'To',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                dateFmt.format(endDate),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.green[50],
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Total: $totalDays days',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.green[800],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Cuisine Summary Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Meal Summary',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...counts.entries.map((e) {
-                      final cuisine = e.key;
-                      final qty = e.value;
-                      final double lineTotal =
-                          (subscriptionTotal != null && subscriptionTotal! > 0)
-                              ? (subscriptionTotal! *
-                                  (qty / (totalDays > 0 ? totalDays : 1)))
-                              : qty * defaultPricePerDay;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '$cuisine (${qty}x)',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.black,
-                              ),
-                            ),
-                            Text(
-                              '₹${lineTotal.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // Price Breakdown Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _priceRow('Subtotal', subtotal),
-                    const SizedBox(height: 10),
-                    _priceRow('GST (18%)', gst),
-                    const SizedBox(height: 10),
-                    _priceRow('Platform fee', platformFee),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: Divider(height: 1, color: Colors.grey[300]),
-                    ),
-                    _priceRow(
-                      'Total Amount',
-                      grandTotal,
-                      isBold: true,
-                      isGreen: true,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Pay Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Proceeding to payment')),
-                    );
-                  },
-                  child: Text(
-                    'Pay ₹${grandTotal.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _priceRow(
-    String label,
-    double amount, {
-    bool isBold = false,
-    bool isGreen = false,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.w500,
-            color: isGreen ? Colors.green[800] : Colors.grey[700],
+  Widget _buildSummaryCard(String dateRange) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.store, color: Colors.green[600]),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.messName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Plan ID: ${widget.planId}',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green[100],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${widget.selectedDays} days',
+                  style: TextStyle(color: Colors.green[800]),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.calendar_today, size: 18, color: Colors.grey[700]),
+              const SizedBox(width: 8),
+              Text(dateRange, style: TextStyle(color: Colors.grey[800])),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.currency_rupee, size: 20, color: Colors.green[700]),
+              const SizedBox(width: 6),
+              Text(
+                widget.totalAmount.toStringAsFixed(0),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green[700],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerCard() {
+    final name = _userData?['name'] ?? _userData?['full_name'] ?? 'Customer';
+    final email = _userData?['email'] ?? 'No email available';
+    final phone = _userData?['phone'] ?? 'No phone available';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: Colors.green[100],
+            child: Text(
+              name.toString().isNotEmpty ? name.toString()[0].toUpperCase() : '?',
+              style: TextStyle(color: Colors.green[800]),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.toString(),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(email, style: TextStyle(color: Colors.grey[700])),
+                const SizedBox(height: 2),
+                Text(phone, style: TextStyle(color: Colors.grey[700])),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemsList() {
+    if (widget.selectedItems.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          children: const [
+            Icon(Icons.restaurant_menu, size: 40, color: Colors.grey),
+            SizedBox(height: 8),
+            Text('No items selected'),
+          ],
+        ),
+      );
+    }
+
+    final Map<String, List<Map<String, dynamic>>> grouped = {};
+    for (final item in widget.selectedItems) {
+      final dateKey = item['menu_date']?.toString() ?? 'N/A';
+      grouped.putIfAbsent(dateKey, () => []);
+      grouped[dateKey]!.add(item);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.list_alt, color: Colors.green[700]),
+              const SizedBox(width: 8),
+              Text(
+                'Selected Items (${widget.selectedItems.length})',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...grouped.entries.map((entry) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  DateFormat('dd MMM yyyy').format(
+                    DateTime.tryParse(entry.key) ?? DateTime.now(),
+                  ),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ...entry.value.map(_buildItemTile).toList(),
+                const SizedBox(height: 8),
+              ],
+            );
+          }).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemTile(Map<String, dynamic> item) {
+    final itemType = item['type']?.toString().toLowerCase() ?? 'veg';
+    final isNonVeg = itemType.contains('non');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isNonVeg ? Colors.red : Colors.green,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item['name']?.toString() ?? 'Item',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item['meal_time'] ?? 'lunch'} • ₹${item['price'] ?? '0'}',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterButton() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: _isPlacingOrder ? null : _placeOrder,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[500],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: _isPlacingOrder
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Place Order',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
         ),
-        Text(
-          '₹${amount.toStringAsFixed(0)}',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
-            color: isGreen ? Colors.green[800] : Colors.black,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
