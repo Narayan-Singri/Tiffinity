@@ -53,14 +53,12 @@ class SubscriptionService {
       'subscriptions/get_mess_plans.php?mess_id=$messId',
     );
 
-    // ✅ FIX: getRequest already extracts 'data', so response is directly the List
     if (response is List) {
       return List<Map<String, dynamic>>.from(
         response.map((item) => Map<String, dynamic>.from(item)),
       );
     }
 
-    // ✅ Fallback: In case response is still wrapped (shouldn't happen)
     if (response is Map && response['data'] is List) {
       return List<Map<String, dynamic>>.from(
         response['data'].map((item) => Map<String, dynamic>.from(item)),
@@ -78,7 +76,6 @@ class SubscriptionService {
       'subscriptions/get_plan_subscribers.php?plan_id=$planId',
     );
 
-    // ✅ FIX: Check if response is List first
     if (response is List) {
       return List<Map<String, dynamic>>.from(
         response.map((item) => Map<String, dynamic>.from(item)),
@@ -111,7 +108,7 @@ class SubscriptionService {
     required String date,
     required String mealTime,
     required List<Map<String, dynamic>> items,
-    bool append = false, // Flag to append instead of replace
+    bool append = false,
   }) async {
     return await ApiService.postForm(
       'subscriptions/add_subscription_menu.php',
@@ -120,7 +117,7 @@ class SubscriptionService {
         'date': date,
         'meal_time': mealTime,
         'items': jsonEncode(items),
-        'append': append ? '1' : '0', // Send append flag to backend
+        'append': append ? '1' : '0',
       },
     );
   }
@@ -135,7 +132,6 @@ class SubscriptionService {
       'subscriptions/get_subscription_menu.php?mess_id=$messId&start_date=$startDate&end_date=$endDate',
     );
 
-    // ✅ FIX: Check if response is List first
     if (response is List) {
       return List<Map<String, dynamic>>.from(
         response.map((item) => Map<String, dynamic>.from(item)),
@@ -163,7 +159,6 @@ class SubscriptionService {
       'subscriptions/get_available_plans.php?mess_id=$messId',
     );
 
-    // ✅ FIX: Check if response is List first
     if (response is List) {
       return List<Map<String, dynamic>>.from(
         response.map((item) => Map<String, dynamic>.from(item)),
@@ -200,7 +195,6 @@ class SubscriptionService {
       'subscriptions/get_my_subscriptions.php?user_id=$userId',
     );
 
-    // ✅ FIX: Check if response is List first
     if (response is List) {
       return List<Map<String, dynamic>>.from(
         response.map((item) => Map<String, dynamic>.from(item)),
@@ -329,6 +323,7 @@ class SubscriptionService {
     required String date,
     required List<int> selectedItemIds,
   }) async {
+    // We jsonEncode the list so it travels as a single string field
     return await ApiService.postForm('subscriptions/update_order_items.php', {
       'order_id': orderId,
       'date': date,
@@ -336,14 +331,43 @@ class SubscriptionService {
     });
   }
 
+  // ============================================
+  // DELETE METHOD (Crucially Updated)
+  // ============================================
+
   /// Delete a user's subscription order
+  /// Updated to force string conversion and trim whitespace
   static Future<Map<String, dynamic>> deleteSubscriptionOrder({
     required String orderId,
     required String userId,
   }) async {
     return await ApiService.postForm(
       'subscriptions/delete_subscription_order.php',
-      {'order_id': orderId, 'user_id': userId},
+      {
+        // Force string type and trim whitespace to ensure database match
+        'order_id': orderId.toString().trim(),
+        'user_id': userId.toString().trim(),
+      },
     );
+  }
+
+  /// Get opt-outs from meal_opt_outs table for a specific plan
+  static Future<List<Map<String, dynamic>>> getPlanOptOuts(int planId) async {
+    try {
+      final response = await ApiService.getRequest(
+        'subscriptions/get_opt_outs.php?plan_id=$planId',
+      );
+
+      if (response is List) {
+        return response.cast<Map<String, dynamic>>();
+      } else if (response is Map && response['data'] is List) {
+        return (response['data'] as List).cast<Map<String, dynamic>>();
+      }
+
+      return [];
+    } catch (e) {
+      print('❌ Error fetching opt-outs: $e');
+      return [];
+    }
   }
 }

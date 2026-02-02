@@ -6,6 +6,7 @@ import 'package:Tiffinity/services/menu_service.dart';
 import 'package:Tiffinity/models/category_model.dart';
 import 'package:Tiffinity/views/widgets/filter_chips.dart' as CustomChips;
 import 'package:Tiffinity/views/widgets/veg_nonveg_logo.dart';
+import 'subscription_tmrw_admin.dart';
 
 class PlanDetailsPage extends StatefulWidget {
   final int planId;
@@ -23,6 +24,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
   List<Map<String, dynamic>> _subscriptionMenuItems = [];
   List<Map<String, dynamic>> _todayMenuItems = [];
   List<Map<String, dynamic>> _orders = [];
+  Map<String, List<int>> _customerOptOuts = {}; // Track opt-outs per order
   bool _isLoading = true;
   bool _isLoadingMenuItems = false;
   bool _isLoadingTodayMenuItems = false;
@@ -37,10 +39,12 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
     _loadSubscriptionMenuItems();
     _loadTodayMenuItems();
     _loadOrders();
+    _loadOptOuts();
     // Auto-refresh every 30 seconds
     _refreshTimer = Timer.periodic(Duration(seconds: 30), (_) {
       if (mounted) {
         _loadSubscribers();
+        _loadOptOuts();
       }
     });
   }
@@ -187,6 +191,35 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
     }
   }
 
+  Future<void> _loadOptOuts() async {
+    // Load opt-outs from meal_opt_outs table via API
+    try {
+      print('📋 Fetching opt-outs for plan ID: ${widget.planId}');
+      
+      // Fetch opt-outs from your backend API
+      // You may need to create an API endpoint: /api/subscriptions/get_opt_outs.php
+      final optOuts = await SubscriptionService.getPlanOptOuts(widget.planId);
+      
+      print('📋 Loaded ${optOuts.length} opt-out records');
+      setState(() {
+        _customerOptOuts = {};
+        // Store opt-outs for display
+      });
+    } catch (e) {
+      print('⚠️ Error loading opt-outs: $e');
+      // Don't fail - opt-outs are optional
+    }
+  }
+
+  void _recordOptOut(int orderId, List<int> optedOutItems, String date) {
+    // Record when customer opts out of items
+    final key = '$orderId-$date';
+    setState(() {
+      _customerOptOuts[key] = optedOutItems;
+    });
+    print('📋 Recorded opt-out for order $orderId on $date: $optedOutItems');
+  }
+
   Future<void> _removeMenuItem(int itemId, String itemName) async {
     // Show confirmation dialog
     final confirm = await showDialog<bool>(
@@ -299,6 +332,29 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
         title: Text('Plan Subscribers'),
         backgroundColor: Colors.orange,
         actions: [
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Center(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SubscriptionTmrwAdminPage(
+                        planId: widget.planId,
+                      ),
+                    ),
+                  );
+                },
+                icon: Icon(Icons.visibility, size: 18),
+                label: Text('Opted Out'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.orange,
+                ),
+              ),
+            ),
+          ),
           Padding(
             padding: EdgeInsets.all(8.0),
             child: Center(
@@ -567,9 +623,20 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                         itemCount: _orders.length,
                         itemBuilder: (context, index) {
                           final order = _orders[index];
+                          
+                          // Filter items to only show those for today or earlier
+                          final todayDate = DateTime.now();
+                          final todayDateString = 
+                              '${todayDate.year}-${todayDate.month.toString().padLeft(2, '0')}-${todayDate.day.toString().padLeft(2, '0')}';
+                          
                           final items =
                               (order['selected_items'] as List?)
                                   ?.map((e) => Map<String, dynamic>.from(e))
+                                  .where((item) {
+                                    final itemDate = item['date']?.toString() ?? '';
+                                    // Only show items where date <= today
+                                    return itemDate.compareTo(todayDateString) <= 0;
+                                  })
                                   .toList() ??
                               [];
                           final amount =

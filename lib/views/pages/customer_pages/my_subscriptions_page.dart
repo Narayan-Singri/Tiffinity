@@ -15,12 +15,73 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
   List<Map<String, dynamic>> _orders = [];
   String? _userId;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadUserIdAndOrders();
+  }
+
+  /// Loads User ID first, then fetches orders
+  Future<void> _loadUserIdAndOrders() async {
+    setState(() => _isLoading = true);
+    try {
+      final userData = await ApiService.getUserData();
+      print('🔑 User Data: $userData');
+
+      // robustly find the ID whether it's stored as 'uid', 'id', or 'user_id'
+      final userIdValue =
+          userData?['uid'] ?? userData?['id'] ?? userData?['user_id'];
+      _userId = userIdValue?.toString();
+
+      if (_userId != null) {
+        await _loadOrders();
+      } else {
+        print('❌ No user ID found');
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      print('❌ Error loading user: $e');
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load user data: $e')));
+      }
+    }
+  }
+
+  /// Fetches the list of subscriptions from the server
+  Future<void> _loadOrders() async {
+    if (_userId == null) return;
+
+    try {
+      final orders = await SubscriptionService.getUserSubscriptionOrders(
+        _userId!,
+      );
+      if (mounted) {
+        setState(() {
+          _orders = orders;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading orders: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load subscriptions: $e')),
+        );
+      }
+    }
+  }
+
+  /// Shows confirmation dialog before deleting
   void _confirmRemove(int orderId) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Remove subscription'),
+          title: const Text('Remove Subscription'),
           content: const Text(
             'Are you sure you want to remove this subscription from your list?',
           ),
@@ -42,97 +103,45 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
     );
   }
 
+  /// The actual delete logic
   Future<void> _removeOrder(int orderId) async {
     if (_userId == null) return;
 
-    // Optimistic UI update
+    // 1. Keep a copy of the list in case we need to undo
     final previous = List<Map<String, dynamic>>.from(_orders);
+
+    // 2. Remove it from the screen immediately (Optimistic UI)
     setState(() {
       _orders.removeWhere((o) => o['id'].toString() == orderId.toString());
     });
 
     try {
-      await SubscriptionService.deleteSubscriptionOrder(
+      // 3. Send the command to the server
+      final response = await SubscriptionService.deleteSubscriptionOrder(
         orderId: orderId.toString(),
         userId: _userId!,
       );
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Subscription removed.')));
+
+      // 4. CHECK THE SERVER ANSWER [Critical Fix]
+      if (response['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Subscription removed successfully.')),
+          );
+        }
+      } else {
+        // The server said "No": Undo the change
+        throw Exception(response['message'] ?? 'Server could not delete item');
       }
     } catch (e) {
-      // Revert on failure
+      // 5. If anything failed, put the item back on the screen
       setState(() {
         _orders = previous;
       });
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to remove: $e')));
-      }
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserIdAndOrders();
-  }
-
-  Future<void> _loadUserIdAndOrders() async {
-    print('🔍 Loading user ID and orders...');
-    setState(() => _isLoading = true);
-    try {
-      final userData = await ApiService.getUserData();
-      print('🔑 Retrieved userData: $userData');
-
-      final userIdValue =
-          userData?['uid'] ?? userData?['id'] ?? userData?['user_id'];
-      _userId = userIdValue?.toString();
-
-      print('✅ Using user_id: $_userId');
-
-      if (_userId != null) {
-        print('📲 Calling _loadOrders()...');
-        await _loadOrders();
-      } else {
-        print('❌ No user ID found in user data');
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      print('❌ Error in _loadUserIdAndOrders: $e');
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load user data: $e')));
-      }
-    }
-  }
-
-  Future<void> _loadOrders() async {
-    if (_userId == null) return;
-
-    setState(() => _isLoading = true);
-    try {
-      print('📤 Fetching orders for user: $_userId');
-      final orders = await SubscriptionService.getUserSubscriptionOrders(
-        _userId!,
-      );
-      print('📥 Received ${orders.length} orders');
-      print('📦 Orders data: $orders');
-      setState(() {
-        _orders = orders;
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('❌ Error loading orders: $e');
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load subscriptions: $e')),
-        );
+        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
       }
     }
   }
@@ -152,97 +161,88 @@ class _MySubscriptionsPageState extends State<MySubscriptionsPage> {
                 onRefresh: _loadOrders,
                 child:
                     _orders.isEmpty
-                        ? ListView(
-                          children: [
-                            const SizedBox(height: 80),
-                            Icon(
-                              Icons.calendar_month_outlined,
-                              size: 80,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Center(
-                              child: Text(
-                                'No subscriptions yet',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Center(
-                              child: Text(
-                                'Subscribe to a meal plan to see it here',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
+                        ? _buildEmptyState()
                         : ListView.separated(
                           padding: const EdgeInsets.all(16),
-                          itemBuilder: (context, index) {
-                            final order = _orders[index];
-                            final orderIdRaw = order['id'];
-                            final orderId =
-                                orderIdRaw is int
-                                    ? orderIdRaw
-                                    : int.tryParse(
-                                      orderIdRaw?.toString() ?? '',
-                                    );
-                            final messName =
-                                order['mess_name']?.toString() ?? 'Mess';
-                            final planName =
-                                order['plan_name']?.toString() ?? 'Plan';
-                            final status =
-                                order['status']?.toString() ?? 'pending';
-                            final startDate =
-                                order['start_date']?.toString() ?? '';
-                            final endDate = order['end_date']?.toString() ?? '';
-                            final items =
-                                (order['selected_items'] as List?)
-                                    ?.map(
-                                      (item) => item['name']?.toString() ?? '',
-                                    )
-                                    .where((name) => name.isNotEmpty)
-                                    .toList() ??
-                                [];
-
-                            return _SubscriptionCard(
-                              title: messName,
-                              planName: planName,
-                              period: '$startDate to $endDate',
-                              nextRenewal: endDate,
-                              status: status,
-                              items: items,
-                              totalAmount:
-                                  order['total_amount']?.toString() ?? '0',
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (_) => SubscriptionDetailPage(
-                                          order: order,
-                                        ),
-                                  ),
-                                );
-                              },
-                              onRemove:
-                                  orderId == null
-                                      ? null
-                                      : () => _confirmRemove(orderId),
-                            );
-                          },
+                          itemCount: _orders.length,
                           separatorBuilder:
                               (_, __) => const SizedBox(height: 12),
-                          itemCount: _orders.length,
+                          itemBuilder: (context, index) {
+                            return _buildSubscriptionItem(_orders[index]);
+                          },
                         ),
               ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return ListView(
+      children: [
+        const SizedBox(height: 80),
+        Icon(Icons.calendar_month_outlined, size: 80, color: Colors.grey[400]),
+        const SizedBox(height: 16),
+        Center(
+          child: Text(
+            'No subscriptions yet',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            'Subscribe to a meal plan to see it here',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubscriptionItem(Map<String, dynamic> order) {
+    // Safely parse ID
+    final orderIdRaw = order['id'];
+    final orderId =
+        orderIdRaw is int
+            ? orderIdRaw
+            : int.tryParse(orderIdRaw?.toString() ?? '');
+
+    // Safely parse other fields
+    final messName = order['mess_name']?.toString() ?? 'Mess';
+    final planName = order['plan_name']?.toString() ?? 'Plan';
+    final status = order['status']?.toString() ?? 'pending';
+    final startDate = order['start_date']?.toString() ?? '';
+    final endDate = order['end_date']?.toString() ?? '';
+    final totalAmount = order['total_amount']?.toString() ?? '0';
+
+    final items =
+        (order['selected_items'] as List?)
+            ?.map((item) => item['name']?.toString() ?? '')
+            .where((name) => name.isNotEmpty)
+            .toList() ??
+        [];
+
+    return _SubscriptionCard(
+      title: messName,
+      planName: planName,
+      period: '$startDate to $endDate',
+      nextRenewal: endDate,
+      status: status,
+      items: items,
+      totalAmount: totalAmount,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SubscriptionDetailPage(order: order),
+          ),
+        );
+      },
+      // Only show remove button if we successfully parsed the ID
+      onRemove: orderId == null ? null : () => _confirmRemove(orderId),
     );
   }
 }

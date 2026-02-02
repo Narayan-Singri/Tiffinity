@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:Tiffinity/services/order_service.dart';
@@ -21,6 +22,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   bool _hasError = false;
   Timer? _refreshTimer;
   late AnimationController _fadeController;
+  int _driverRating = 0;
+  final TextEditingController _feedbackController = TextEditingController();
 
   static const Color _primaryColor = Color.fromARGB(255, 27, 84, 78);
   static const Color _bgLight = Color(0xFFF5F7FA);
@@ -43,6 +46,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   void dispose() {
     _refreshTimer?.cancel();
     _fadeController.dispose();
+    _feedbackController.dispose();
     super.dispose();
   }
 
@@ -65,7 +69,22 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           _isLoading = false;
           _hasError = false;
         });
-        if (!silent) _fadeController.forward();
+        if (!silent) {
+          _fadeController.forward();
+          // Show rating dialog if order is delivered
+          final status = data?['status']?.toString().toLowerCase();
+          debugPrint("📊 Order status: $status");
+          debugPrint("🎯 Checking if delivered: ${status == 'delivered'}");
+          
+          if (status == 'delivered') {
+            debugPrint("✅ Status is delivered - showing rating dialog");
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _showDriverRatingDialog();
+            });
+          } else {
+            debugPrint("⏭️ Status is not delivered - skipping rating dialog");
+          }
+        }
       }
     } catch (e) {
       debugPrint("Error fetching order: $e");
@@ -81,6 +100,193 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     if (await canLaunchUrl(launchUri)) {
       await launchUrl(launchUri);
     }
+  }
+
+  void _showDriverRatingDialog() {
+    final partner = _orderData?['delivery_partner_details'];
+    debugPrint("🚗 Partner data: $partner");
+    
+    if (partner == null) {
+      debugPrint("❌ No partner data found - cannot show rating dialog");
+      return;
+    }
+    
+    debugPrint("✅ Partner found: ${partner['name']} - showing dialog now");
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            contentPadding: const EdgeInsets.all(24),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Driver Avatar
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: Colors.grey[200],
+                  backgroundImage: partner['photo'] != null
+                      ? NetworkImage(partner['photo'])
+                      : null,
+                  child: partner['photo'] == null
+                      ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                
+                // Title
+                Text(
+                  'Rate Your Delivery',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // Driver Name
+                Text(
+                  partner['name'] ?? 'Delivery Partner',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Star Rating
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          _driverRating = index + 1;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(
+                          index < _driverRating
+                              ? Icons.star
+                              : Icons.star_border,
+                          size: 40,
+                          color: index < _driverRating
+                              ? Colors.amber
+                              : Colors.grey[400],
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 24),
+                
+                // Feedback TextField
+                TextField(
+                  controller: _feedbackController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Share your experience (optional)',
+                    hintStyle: TextStyle(color: Colors.grey[400]),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _primaryColor),
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _driverRating = 0;
+                          _feedbackController.clear();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        child: const Text('Skip'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _driverRating > 0
+                            ? () async {
+                                // TODO: Submit rating to backend
+                                // await OrderService.rateDriver(
+                                //   orderId: widget.orderId,
+                                //   driverId: partner['id'],
+                                //   rating: _driverRating,
+                                //   feedback: _feedbackController.text,
+                                // );
+                                
+                                Navigator.of(context).pop();
+                                
+                                // Show thank you message
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Thank you for your feedback!',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                                
+                                _driverRating = 0;
+                                _feedbackController.clear();
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          disabledBackgroundColor: Colors.grey[300],
+                        ),
+                        child: const Text(
+                          'Submit',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -102,7 +308,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                   Positioned.fill(
                     child: OrderLiveMap(
                       status: _orderData!['status'] ?? 'pending',
-                      deliveryPartner: _orderData!['delivery']?['partner'],
+                      deliveryPartner: _orderData!['delivery_partner_details'],
                     ),
                   ),
 
@@ -169,7 +375,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                                 const SizedBox(height: 24),
 
                                 // Delivery Partner Card
-                                if (_orderData!['delivery']?['partner'] !=
+                                if (_orderData!['delivery_partner_details'] !=
                                     null) ...[
                                   _buildDeliveryPartnerCard(isDark),
                                   const SizedBox(height: 24),
@@ -402,7 +608,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildDeliveryPartnerCard(bool isDark) {
-    final partner = _orderData!['delivery']['partner'];
+    final partner = _orderData!['delivery_partner_details'];
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

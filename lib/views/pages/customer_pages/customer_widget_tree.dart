@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_home_page.dart';
 import 'package:Tiffinity/views/pages/customer_pages/customer_orders_page.dart';
-import 'package:Tiffinity/views/pages/customer_pages/customer_profile_page.dart'; // ✅ Ensure this is imported
+import 'package:Tiffinity/views/pages/customer_pages/my_subscriptions_page.dart';
+import 'package:Tiffinity/views/pages/customer_pages/customer_profile_page.dart';
 import 'package:Tiffinity/views/widgets/customer_navbar_widget.dart';
 import 'package:Tiffinity/data/notifiers.dart';
 
@@ -33,19 +34,11 @@ class _CustomerWidgetTreeState extends State<CustomerWidgetTree> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ FIX: List must have 4 items to match the 4 Navbar buttons
     final List<Widget> pages = [
       const CustomerHomePage(), // Index 0: Home
       const CustomerOrdersPage(), // Index 1: Orders
-      const Center(
-        // Index 2: Plans (Placeholder)
-        child: Text(
-          "My Meal Subscriptions\nComing Soon",
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, color: Colors.grey),
-        ),
-      ),
-      const CustomerProfilePage(), // Index 3: Profile (This was missing!)
+      const MySubscriptionsPage(), // Index 2: Plans/Subscriptions
+      const CustomerProfilePage(), // Index 3: Profile
     ];
 
     return Scaffold(
