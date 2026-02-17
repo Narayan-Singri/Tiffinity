@@ -4,6 +4,7 @@ import 'package:Tiffinity/data/notifiers.dart';
 import 'package:Tiffinity/data/constants.dart';
 import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/services/menu_service.dart';
+import 'package:Tiffinity/services/rating_service.dart';
 import 'cart_checkout_page.dart';
 import 'subscription_duration_page.dart';
 
@@ -21,6 +22,7 @@ class _MenuPageState extends State<MenuPage> {
   Map<String, dynamic>? _messData;
   List<Map<String, dynamic>> _menuItems = [];
   bool _isLoading = true;
+  double _messRating = 0.0;
 
   @override
   void initState() {
@@ -32,6 +34,11 @@ class _MenuPageState extends State<MenuPage> {
     setState(() => _isLoading = true);
     try {
       final mess = await MessService.getMessById(int.parse(widget.messId));
+      final ownerId = _resolveMessOwnerId(mess);
+      final movingAverage =
+          (ownerId != null && ownerId.isNotEmpty)
+              ? await RatingService.getMovingAverage(type: 'mess', id: ownerId)
+              : _extractMessRating(mess);
 
       // ✅ FETCH TODAY'S MENU ONLY (from weekly schedule)
       final todaysItems = await MenuService.getTodaysMenu(
@@ -58,6 +65,7 @@ class _MenuPageState extends State<MenuPage> {
 
       setState(() {
         _messData = mess;
+        _messRating = movingAverage;
         _menuItems = menu;
         _isLoading = false;
       });
@@ -65,6 +73,28 @@ class _MenuPageState extends State<MenuPage> {
       print('❌ Error loading today\'s menu: $e');
       setState(() => _isLoading = false);
     }
+  }
+
+  String? _resolveMessOwnerId(Map<String, dynamic>? mess) {
+    if (mess == null) return null;
+    const keys = ['owner_id', 'mess_owner_id', 'owner_uid', 'user_id', 'uid'];
+    for (final key in keys) {
+      final value = mess[key];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString();
+      }
+    }
+    return null;
+  }
+
+  double _extractMessRating(Map<String, dynamic>? mess) {
+    if (mess == null) return 0.0;
+    final dynamic value =
+        mess['rating'] ??
+        mess['avg_rating'] ??
+        mess['moving_avg'] ??
+        mess['average_rating'];
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 
   Map<String, CartItem> _getCurrentMessCart() {
@@ -337,14 +367,18 @@ class _MenuPageState extends State<MenuPage> {
                             color: Colors.green,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.star, color: Colors.white, size: 14),
-                              SizedBox(width: 2),
+                              const Icon(
+                                Icons.star,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 2),
                               Text(
-                                '4.2',
-                                style: TextStyle(
+                                _messRating.toStringAsFixed(1),
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -772,13 +806,50 @@ class _MenuPageState extends State<MenuPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      data['name']?.toString() ?? 'Unknown Item',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF2D3142),
-                      ),
+                    Builder(
+                      builder: (context) {
+                        final name =
+                            data['name']?.toString().trim() ?? 'Unknown Item';
+                        final type =
+                            data['type']?.toString().toLowerCase().trim();
+                        final isJain = type == 'jain';
+
+                        return Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF2D3142),
+                              ),
+                            ),
+                            if (isJain)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 27, 84, 78),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  'Jain',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                     const SizedBox(height: 4),
                     Text(

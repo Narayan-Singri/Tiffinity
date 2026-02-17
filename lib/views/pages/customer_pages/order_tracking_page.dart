@@ -3,6 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:Tiffinity/services/order_service.dart';
+import 'package:Tiffinity/services/auth_services.dart';
+import 'package:Tiffinity/services/rating_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Tiffinity/views/widgets/order_status_timeline.dart';
 import 'package:Tiffinity/views/widgets/order_live_map.dart';
 
@@ -22,8 +25,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   bool _hasError = false;
   Timer? _refreshTimer;
   late AnimationController _fadeController;
+  int _messRating = 0;
   int _driverRating = 0;
   final TextEditingController _feedbackController = TextEditingController();
+  bool _ratingDialogShownForSession = false;
+  bool _hasRatedMess = false;
+  bool _hasRatedDriver = false;
+  bool _isSubmittingRatings = false;
 
   static const Color _primaryColor = Color.fromARGB(255, 27, 84, 78);
   static const Color _bgLight = Color(0xFFF5F7FA);
@@ -35,6 +43,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+    _loadRatingState();
     _loadOrderDetails();
 
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -76,7 +85,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           debugPrint("📊 Order status: $status");
           debugPrint("🎯 Checking if delivered: ${status == 'delivered'}");
           
-          if (status == 'delivered') {
+          if (status == 'delivered' &&
+              !_ratingDialogShownForSession &&
+              !(_hasRatedMess && _hasRatedDriver)) {
             debugPrint("✅ Status is delivered - showing rating dialog");
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _showDriverRatingDialog();
@@ -94,6 +105,181 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     }
   }
 
+  String _ratingStateKey(String type) => 'rating_${type}_${widget.orderId}';
+
+  Future<void> _loadRatingState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _hasRatedMess = prefs.getBool(_ratingStateKey('mess')) ?? false;
+      _hasRatedDriver = prefs.getBool(_ratingStateKey('driver')) ?? false;
+    });
+  }
+
+  Future<void> _markRatingSubmitted({
+    required bool messRated,
+    required bool driverRated,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (messRated) {
+      await prefs.setBool(_ratingStateKey('mess'), true);
+    }
+    if (driverRated) {
+      await prefs.setBool(_ratingStateKey('driver'), true);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _hasRatedMess = _hasRatedMess || messRated;
+      _hasRatedDriver = _hasRatedDriver || driverRated;
+    });
+  }
+
+  String? _extractId(Map<String, dynamic>? map, List<String> candidates) {
+    if (map == null) return null;
+    for (final key in candidates) {
+      final value = map[key];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString();
+      }
+    }
+    return null;
+  }
+
+  bool _isRatingSuccess(Map<String, dynamic> response) {
+    final isSuccess = response['success'] == true ||
+        response['status']?.toString().toLowerCase() == 'success';
+    if (isSuccess) return true;
+
+    final message = response['message']?.toString().toLowerCase() ?? '';
+    return message.contains('already rated');
+  }
+
+  Future<void> _submitRatings({
+    required Map<String, dynamic>? partner,
+    required Map<String, dynamic>? messDetails,
+  }) async {
+    if (_isSubmittingRatings) return;
+
+    if (_messRating <= 0 && _driverRating <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select at least one rating')),
+      );
+      return;
+    }
+
+    final user = await AuthService.currentUser;
+    final customerId = user?['uid']?.toString();
+    if (customerId == null || customerId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login again to submit rating')),
+      );
+      return;
+    }
+
+    final review = _feedbackController.text.trim();
+    final messOwnerId =
+        _extractId(messDetails, [
+          'owner_id',
+          'mess_owner_id',
+          'owner_uid',
+          'uid',
+          'user_id',
+        ]) ??
+        _orderData?['mess_owner_id']?.toString();
+    final deliveryPartnerId =
+        _extractId(partner, [
+          'delivery_partner_id',
+          'uid',
+          'partner_id',
+          'id',
+        ]) ??
+        _orderData?['delivery_partner_id']?.toString();
+
+    bool messRatedNow = false;
+    bool driverRatedNow = false;
+    final errors = <String>[];
+
+    if (mounted) {
+      setState(() => _isSubmittingRatings = true);
+    }
+
+    try {
+      if (_messRating > 0 && !_hasRatedMess) {
+        if (messOwnerId == null || messOwnerId.isEmpty) {
+          errors.add('Mess ID missing');
+        } else {
+          final response = await RatingService.submitMessRating(
+            orderId: widget.orderId,
+            messOwnerId: messOwnerId,
+            customerId: customerId,
+            rating: _messRating,
+            review: review,
+          );
+          if (_isRatingSuccess(response)) {
+            messRatedNow = true;
+          } else {
+            errors.add(response['message']?.toString() ?? 'Mess rating failed');
+          }
+        }
+      }
+
+      if (_driverRating > 0 && !_hasRatedDriver) {
+        if (deliveryPartnerId == null || deliveryPartnerId.isEmpty) {
+          errors.add('Delivery partner ID missing');
+        } else {
+          final response = await RatingService.submitDeliveryRating(
+            orderId: widget.orderId,
+            deliveryPartnerId: deliveryPartnerId,
+            customerId: customerId,
+            rating: _driverRating,
+            review: review,
+          );
+          if (_isRatingSuccess(response)) {
+            driverRatedNow = true;
+          } else {
+            errors.add(
+              response['message']?.toString() ?? 'Delivery rating failed',
+            );
+          }
+        }
+      }
+
+      await _markRatingSubmitted(
+        messRated: messRatedNow,
+        driverRated: driverRatedNow,
+      );
+
+      if (messRatedNow || driverRatedNow) {
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Thank you for your feedback!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _ratingDialogShownForSession = true;
+        _messRating = 0;
+        _driverRating = 0;
+        _feedbackController.clear();
+      }
+
+      if (errors.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errors.join(', ')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmittingRatings = false);
+      }
+    }
+  }
+
   Future<void> _makePhoneCall(String? phoneNumber) async {
     if (phoneNumber == null) return;
     final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
@@ -103,15 +289,21 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   void _showDriverRatingDialog() {
-    final partner = _orderData?['delivery_partner_details'];
+    final partnerRaw = _orderData?['delivery_partner_details'];
+    final messRaw = _orderData?['mess_details'];
+    final Map<String, dynamic>? partner =
+        partnerRaw is Map ? Map<String, dynamic>.from(partnerRaw) : null;
+    final Map<String, dynamic>? messDetails =
+        messRaw is Map ? Map<String, dynamic>.from(messRaw) : null;
     debugPrint("🚗 Partner data: $partner");
-    
-    if (partner == null) {
-      debugPrint("❌ No partner data found - cannot show rating dialog");
+
+    if (partner == null && messDetails == null) {
+      debugPrint("❌ No partner/mess data found - cannot show rating dialog");
       return;
     }
-    
-    debugPrint("✅ Partner found: ${partner['name']} - showing dialog now");
+
+    _ratingDialogShownForSession = true;
+    debugPrint("✅ Rating entities found - showing dialog now");
 
     showDialog(
       context: context,
@@ -133,10 +325,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 CircleAvatar(
                   radius: 40,
                   backgroundColor: Colors.grey[200],
-                  backgroundImage: partner['photo'] != null
-                      ? NetworkImage(partner['photo'])
+                  backgroundImage: partner?['photo'] != null
+                      ? NetworkImage(partner?['photo'].toString() ?? '')
                       : null,
-                  child: partner['photo'] == null
+                  child: partner?['photo'] == null
                       ? const Icon(Icons.person, size: 40, color: Colors.grey)
                       : null,
                 ),
@@ -144,7 +336,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 
                 // Title
                 Text(
-                  'Rate Your Delivery',
+                  'Rate Your Order',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -155,39 +347,86 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 
                 // Driver Name
                 Text(
-                  partner['name'] ?? 'Delivery Partner',
+                  partner?['name'] ?? messDetails?['name'] ?? 'Tiffinity',
                   style: TextStyle(
                     fontSize: 16,
                     color: Colors.grey[600],
                   ),
                 ),
                 const SizedBox(height: 24),
-                
-                // Star Rating
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    return GestureDetector(
-                      onTap: () {
-                        setDialogState(() {
-                          _driverRating = index + 1;
-                        });
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(
-                          index < _driverRating
-                              ? Icons.star
-                              : Icons.star_border,
-                          size: 40,
-                          color: index < _driverRating
-                              ? Colors.amber
-                              : Colors.grey[400],
-                        ),
+
+                if (messDetails != null) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Rate food & mess',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
                       ),
-                    );
-                  }),
-                ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            _messRating = index + 1;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            index < _messRating ? Icons.star : Icons.star_border,
+                            size: 32,
+                            color:
+                                index < _messRating ? Colors.amber : Colors.grey[400],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                if (partner != null) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Rate delivery partner',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return GestureDetector(
+                        onTap: () {
+                          setDialogState(() {
+                            _driverRating = index + 1;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Icon(
+                            index < _driverRating ? Icons.star : Icons.star_border,
+                            size: 32,
+                            color:
+                                index < _driverRating ? Colors.amber : Colors.grey[400],
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 
                 // Feedback TextField
@@ -217,6 +456,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                       child: OutlinedButton(
                         onPressed: () {
                           Navigator.of(context).pop();
+                          _ratingDialogShownForSession = true;
+                          _messRating = 0;
                           _driverRating = 0;
                           _feedbackController.clear();
                         },
@@ -233,34 +474,12 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _driverRating > 0
+                        onPressed: (_driverRating > 0 || _messRating > 0)
                             ? () async {
-                                // TODO: Submit rating to backend
-                                // await OrderService.rateDriver(
-                                //   orderId: widget.orderId,
-                                //   driverId: partner['id'],
-                                //   rating: _driverRating,
-                                //   feedback: _feedbackController.text,
-                                // );
-                                
-                                Navigator.of(context).pop();
-                                
-                                // Show thank you message
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: const Text(
-                                      'Thank you for your feedback!',
-                                    ),
-                                    backgroundColor: Colors.green,
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
+                                await _submitRatings(
+                                  partner: partner,
+                                  messDetails: messDetails,
                                 );
-                                
-                                _driverRating = 0;
-                                _feedbackController.clear();
                               }
                             : null,
                         style: ElevatedButton.styleFrom(
@@ -272,9 +491,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                           ),
                           disabledBackgroundColor: Colors.grey[300],
                         ),
-                        child: const Text(
-                          'Submit',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        child: Text(
+                          _isSubmittingRatings ? 'Submitting...' : 'Submit',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
