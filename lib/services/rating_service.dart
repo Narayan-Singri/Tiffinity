@@ -21,7 +21,7 @@ class RatingService {
       debugPrint('submitMessRating ratings/ path error: $e');
       try {
         // Backward-compatible fallback if endpoint is still at API root
-        return await ApiService.postForm('mess_ratings.php', {
+        return await ApiService.postForm('ratings/mess_ratings.php', {
           'order_id': orderId,
           'mess_owner_id': messOwnerId,
           'customer_id': customerId,

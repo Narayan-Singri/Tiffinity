@@ -717,6 +717,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
       case 'accepted':
       case 'confirmed':
+      case 'assigned':
         title = "Order Accepted";
         subtitle = "Delivery partner assigned. Mess is preparing your order";
         icon = Icons.check_circle_outline;
@@ -736,6 +737,16 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         subtitle = "Waiting for delivery partner to pick up";
         icon = Icons.shopping_bag;
         color = Colors.purple;
+        break;
+
+      case 'assigned_to_delivery':
+      case 'at_pickup_location':
+      case 'reached_pickup':
+      case 'waiting_for_order':
+        title = "Partner At Pickup";
+        subtitle = "Delivery partner reached mess and is waiting for order";
+        icon = Icons.hourglass_top;
+        color = Colors.orange;
         break;
 
       case 'out_for_delivery':

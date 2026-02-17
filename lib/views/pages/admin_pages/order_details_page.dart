@@ -267,21 +267,24 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       case 'pending':
         return const Color(0xFFFF9800);
       case 'accepted':
+      case 'assigned':
         return const Color(0xFF2196F3);
       case 'confirmed': // ✅ Delivery boy confirmed
         return const Color(0xFF4CAF50);
       case 'preparing':
         return const Color(0xFF2196F3);
       case 'waiting_for_order': // ✅ Delivery boy waiting
+      case 'at_pickup_location':
+      case 'reached_pickup':
         return const Color(0xFFFFC107);
       case 'waiting_for_pickup': // ✅ Order ready, boy not there
         return const Color(0xFF673AB7);
       case 'ready':
       case 'ready_for_pickup':
+      case 'assigned_to_delivery':
         return const Color(0xFF9C27B0);
       case 'out_for_delivery':
       case 'picked_up':
-      case 'assigned_to_delivery':
         return const Color(0xFFFF5722);
       case 'delivered':
         return const Color(0xFF4CAF50);
@@ -299,12 +302,18 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         return Icons.schedule;
       case 'confirmed':
       case 'accepted':
+      case 'assigned':
         return Icons.check_circle_outline;
       case 'preparing':
         return Icons.restaurant;
       case 'ready':
       case 'ready_for_pickup':
+      case 'assigned_to_delivery':
         return Icons.shopping_bag;
+      case 'waiting_for_order':
+      case 'at_pickup_location':
+      case 'reached_pickup':
+        return Icons.hourglass_top;
       case 'out_for_delivery':
       case 'picked_up':
         return Icons.delivery_dining;
@@ -1262,6 +1271,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       // ACCEPTED: Delivery boy auto-assigned, preparing food
       // ======================================================================
       case 'accepted':
+      case 'assigned':
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1420,6 +1430,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       case 'reachedpickup':
       case 'waiting_for_order':
       case 'waitingfororder':
+      case 'assigned_to_delivery':
+      case 'assignedtodelivery':
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [

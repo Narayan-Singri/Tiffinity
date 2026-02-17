@@ -74,10 +74,20 @@ class OrderStatusTimeline extends StatelessWidget {
         return 0;
       case 'accepted':
       case 'confirmed':
+      case 'assigned':
         return 1;
+      case 'ready':
+      case 'ready_for_pickup':
+      case 'waiting_for_pickup':
       case 'preparing':
+      case 'waiting_for_order':
+      case 'at_pickup_location':
+      case 'reached_pickup':
+      case 'assigned_to_delivery':
         return 2;
       case 'out_for_delivery':
+      case 'picked_up':
+      case 'in_transit':
         return 3;
       case 'delivered':
         return 4;
