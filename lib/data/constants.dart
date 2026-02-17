@@ -34,12 +34,12 @@ class Symbols {
     ],
   );
 
-  // Distinct Jain symbol: green square with a yellow dot
+  // Keep Jain logo same as veg (green square + green dot)
   static Widget get jainSymbol => const Stack(
     alignment: Alignment.center,
     children: [
       Icon(Icons.crop_square_sharp, color: Colors.green, size: 36),
-      Icon(Icons.circle, color: Colors.amber, size: 14),
+      Icon(Icons.circle, color: Colors.green, size: 14),
     ],
   );
 }
