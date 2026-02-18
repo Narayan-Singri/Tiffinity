@@ -4,35 +4,18 @@ import 'package:Tiffinity/services/api_service.dart';
 class RatingService {
   static Future<Map<String, dynamic>> submitMessRating({
     required String orderId,
-    required String messOwnerId,
+    required String messId,
     required String customerId,
     required int rating,
     String? review,
   }) async {
-    try {
-      return await ApiService.postForm('ratings/mess_ratings.php', {
-        'order_id': orderId,
-        'mess_owner_id': messOwnerId,
-        'customer_id': customerId,
-        'rating': rating.toString(),
-        'review': (review ?? '').trim(),
-      });
-    } catch (e) {
-      debugPrint('submitMessRating ratings/ path error: $e');
-      try {
-        // Backward-compatible fallback if endpoint is still at API root
-        return await ApiService.postForm('ratings/mess_ratings.php', {
-          'order_id': orderId,
-          'mess_owner_id': messOwnerId,
-          'customer_id': customerId,
-          'rating': rating.toString(),
-          'review': (review ?? '').trim(),
-        });
-      } catch (fallbackError) {
-        debugPrint('submitMessRating fallback error: $fallbackError');
-        return {'status': 'error', 'message': 'Failed to submit mess rating'};
-      }
-    }
+    return await ApiService.postForm('ratings/mess_ratings.php', {
+      'order_id': orderId,
+      'mess_id': messId,
+      'customer_id': customerId,
+      'rating': rating.toString(),
+      'review': (review ?? '').trim(),
+    });
   }
 
   static Future<Map<String, dynamic>> submitDeliveryRating({
@@ -71,37 +54,36 @@ class RatingService {
     }
   }
 
-  static Future<double> getMovingAverage({
-    required String type,
-    required String id,
+  static Future<Map<String, dynamic>?> getLatestUnratedOrder({
+    required String customerId,
   }) async {
     try {
-      final response = await ApiService.getRequest(
-        'ratings/moving_average.php?type=$type&id=$id',
+      final response = await ApiService.postForm(
+        'ratings/get_latest_unrated_order.php',
+        {'customer_id': customerId},
       );
 
-      if (response is Map) {
-        final value = double.tryParse(response['moving_avg']?.toString() ?? '');
-        return value ?? 0.0;
+      if (response['success'] == true) {
+        return response;
       }
-      return 0.0;
+      return null;
     } catch (e) {
-      debugPrint('getMovingAverage ratings/ path error: $e');
+      debugPrint('getLatestUnratedOrder error: $e');
       try {
-        // Backward-compatible fallback if endpoint is still at API root
-        final response = await ApiService.getRequest(
-          'moving_average.php?type=$type&id=$id',
+        // fallback if endpoint not inside ratings folder
+        final response = await ApiService.postForm(
+          'get_latest_unrated_order.php',
+          {'customer_id': customerId},
         );
-        if (response is Map) {
-          final value = double.tryParse(
-            response['moving_avg']?.toString() ?? '',
-          );
-          return value ?? 0.0;
+
+        if (response['success'] == true) {
+          return response;
         }
-        return 0.0;
+
+        return null;
       } catch (fallbackError) {
-        debugPrint('getMovingAverage fallback error: $fallbackError');
-        return 0.0;
+        debugPrint('getLatestUnratedOrder fallback error: $fallbackError');
+        return null;
       }
     }
   }

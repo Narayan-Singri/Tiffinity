@@ -4,7 +4,6 @@ import 'package:Tiffinity/data/notifiers.dart';
 import 'package:Tiffinity/data/constants.dart';
 import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/services/menu_service.dart';
-import 'package:Tiffinity/services/rating_service.dart';
 import 'cart_checkout_page.dart';
 import 'subscription_duration_page.dart';
 
@@ -34,11 +33,7 @@ class _MenuPageState extends State<MenuPage> {
     setState(() => _isLoading = true);
     try {
       final mess = await MessService.getMessById(int.parse(widget.messId));
-      final ownerId = _resolveMessOwnerId(mess);
-      final movingAverage =
-          (ownerId != null && ownerId.isNotEmpty)
-              ? await RatingService.getMovingAverage(type: 'mess', id: ownerId)
-              : _extractMessRating(mess);
+      final rating = _extractMessRating(mess);
 
       // ✅ FETCH TODAY'S MENU ONLY (from weekly schedule)
       final todaysItems = await MenuService.getTodaysMenu(
@@ -65,7 +60,7 @@ class _MenuPageState extends State<MenuPage> {
 
       setState(() {
         _messData = mess;
-        _messRating = movingAverage;
+        _messRating = rating;
         _menuItems = menu;
         _isLoading = false;
       });
@@ -73,18 +68,6 @@ class _MenuPageState extends State<MenuPage> {
       print('❌ Error loading today\'s menu: $e');
       setState(() => _isLoading = false);
     }
-  }
-
-  String? _resolveMessOwnerId(Map<String, dynamic>? mess) {
-    if (mess == null) return null;
-    const keys = ['owner_id', 'mess_owner_id', 'owner_uid', 'user_id', 'uid'];
-    for (final key in keys) {
-      final value = mess[key];
-      if (value != null && value.toString().trim().isNotEmpty) {
-        return value.toString();
-      }
-    }
-    return null;
   }
 
   double _extractMessRating(Map<String, dynamic>? mess) {

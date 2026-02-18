@@ -60,7 +60,6 @@ class ApiService {
     try {
       debugPrint('📤 POST Form to: $baseUrl/$endpoint');
 
-      // Convert all values to strings for form encoding
       final formData = <String, String>{};
       data.forEach((key, value) {
         formData[key] = value?.toString() ?? '';
@@ -82,33 +81,19 @@ class ApiService {
       debugPrint('📥 Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // ✅ FIX: Handle empty response body
-        if (response.body.isEmpty || response.body.trim().isEmpty) {
-          debugPrint('⚠️ Empty response body, returning success');
-          return {
-            'success': true,
-            'message': 'Operation completed successfully',
-          };
+        if (response.body.trim().isEmpty) {
+          throw Exception("Empty response from server");
         }
 
-        try {
-          final responseData = json.decode(response.body);
-          return responseData as Map<String, dynamic>;
-        } catch (e) {
-          debugPrint('⚠️ JSON parse error: $e');
-          // If we got 200/201 but can't parse, assume success
-          return {
-            'success': true,
-            'message': 'Operation completed successfully',
-          };
+        final responseData = json.decode(response.body);
+
+        if (responseData is Map<String, dynamic>) {
+          return responseData;
+        } else {
+          throw Exception("Invalid response format");
         }
       } else {
-        try {
-          final responseData = json.decode(response.body);
-          throw Exception(responseData['message'] ?? 'Request failed');
-        } catch (e) {
-          throw Exception('Request failed with status ${response.statusCode}');
-        }
+        throw Exception("Request failed with status ${response.statusCode}");
       }
     } catch (e) {
       debugPrint('❌ POST Form Error: $e');

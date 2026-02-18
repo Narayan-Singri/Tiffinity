@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
-import 'package:Tiffinity/services/rating_service.dart';
 import 'package:Tiffinity/views/widgets/card_widget.dart';
 import 'package:Tiffinity/views/widgets/search_filter_bar.dart';
 import 'package:Tiffinity/data/address_notifier.dart';
@@ -68,11 +67,9 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           messesRaw
               .map((mess) => Map<String, dynamic>.from(mess as Map))
               .toList();
-      final messesWithRatings = await _attachDynamicRatings(messes);
-
       setState(() {
-        _messes = messesWithRatings;
-        _filteredMesses = messesWithRatings;
+        _messes = messes;
+        _filteredMesses = messes;
         _isLoading = false;
       });
     } catch (e) {
@@ -118,43 +115,6 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
       context,
       MaterialPageRoute(builder: (context) => const CustomerProfilePage()),
     );
-  }
-
-  Future<List<Map<String, dynamic>>> _attachDynamicRatings(
-    List<Map<String, dynamic>> messes,
-  ) async {
-    return Future.wait(
-      messes.map((mess) async {
-        final ownerId = _resolveMessOwnerId(mess);
-        if (ownerId == null || ownerId.isEmpty) return mess;
-
-        final movingAvg = await RatingService.getMovingAverage(
-          type: 'mess',
-          id: ownerId,
-        );
-
-        final updated = Map<String, dynamic>.from(mess);
-        updated['rating'] = movingAvg.toStringAsFixed(1);
-        return updated;
-      }),
-    );
-  }
-
-  String? _resolveMessOwnerId(Map<String, dynamic> mess) {
-    final candidates = [
-      'owner_id',
-      'mess_owner_id',
-      'owner_uid',
-      'user_id',
-      'uid',
-    ];
-    for (final key in candidates) {
-      final value = mess[key];
-      if (value != null && value.toString().trim().isNotEmpty) {
-        return value.toString();
-      }
-    }
-    return null;
   }
 
   String _resolveMessRating(Map<String, dynamic> mess) {

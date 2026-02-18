@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/order_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/pages/customer_pages/order_tracking_page.dart';
+import 'package:Tiffinity/services/rating_service.dart';
+import 'package:Tiffinity/views/widgets/delivery_rating_dialog.dart';
+import 'package:Tiffinity/views/widgets/mess_rating_dialog.dart';
 
 class CustomerOrdersPage extends StatefulWidget {
   const CustomerOrdersPage({super.key});
@@ -10,14 +13,35 @@ class CustomerOrdersPage extends StatefulWidget {
   State<CustomerOrdersPage> createState() => _CustomerOrdersPageState();
 }
 
-class _CustomerOrdersPageState extends State<CustomerOrdersPage> {
+class _CustomerOrdersPageState extends State<CustomerOrdersPage>
+    with WidgetsBindingObserver {
   List<Map<String, dynamic>> _orders = [];
   bool _isLoading = true;
+  bool _ratingDialogOpen = false;
 
   @override
   void initState() {
     super.initState();
-    _loadOrders();
+    WidgetsBinding.instance.addObserver(this);
+
+    _loadOrders(); // 🔴 IMPORTANT
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForRatings();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkForRatings();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadOrders() async {
@@ -37,6 +61,56 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage> {
     } catch (e) {
       debugPrint('Error loading orders: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _checkForRatings() async {
+    if (_ratingDialogOpen) return;
+
+    try {
+      final currentUser = await AuthService.currentUser;
+      if (currentUser == null) return;
+
+      final customerId = currentUser['uid'];
+
+      final data = await RatingService.getLatestUnratedOrder(
+        customerId: customerId,
+      );
+
+      if (!mounted || data == null) return;
+
+      final order = data['order'];
+      final needsDelivery = data['needs_delivery_rating'] == true;
+      final needsMess = data['needs_mess_rating'] == true;
+
+      if (needsDelivery) {
+        _ratingDialogOpen = true;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => DeliveryRatingDialog(order: order),
+        );
+
+        _ratingDialogOpen = false;
+
+        await _checkForRatings(); // check again for mess rating
+        return;
+      }
+
+      if (needsMess) {
+        _ratingDialogOpen = true;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => MessRatingDialog(order: order),
+        );
+
+        _ratingDialogOpen = false;
+      }
+    } catch (e) {
+      debugPrint("Rating check error: $e");
     }
   }
 

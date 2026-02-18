@@ -84,10 +84,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           final status = data?['status']?.toString().toLowerCase();
           debugPrint("📊 Order status: $status");
           debugPrint("🎯 Checking if delivered: ${status == 'delivered'}");
-          
+
           if (status == 'delivered' &&
               !_ratingDialogShownForSession &&
-              !(_hasRatedMess && _hasRatedDriver)) {
+              (!_hasRatedMess || !_hasRatedDriver)) {
             debugPrint("✅ Status is delivered - showing rating dialog");
             WidgetsBinding.instance.addPostFrameCallback((_) {
               _showDriverRatingDialog();
@@ -147,12 +147,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   bool _isRatingSuccess(Map<String, dynamic> response) {
-    final isSuccess = response['success'] == true ||
+    final isSuccess =
+        response['success'] == true ||
         response['status']?.toString().toLowerCase() == 'success';
     if (isSuccess) return true;
 
     final message = response['message']?.toString().toLowerCase() ?? '';
-    return message.contains('already rated');
+    return message.contains('already') && message.contains('rated');
   }
 
   Future<void> _submitRatings({
@@ -178,22 +179,12 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     }
 
     final review = _feedbackController.text.trim();
-    final messOwnerId =
-        _extractId(messDetails, [
-          'owner_id',
-          'mess_owner_id',
-          'owner_uid',
-          'uid',
-          'user_id',
-        ]) ??
-        _orderData?['mess_owner_id']?.toString();
+    final messId =
+        _extractId(messDetails, ['id', 'mess_id']) ??
+        _orderData?['mess_id']?.toString();
+
     final deliveryPartnerId =
-        _extractId(partner, [
-          'delivery_partner_id',
-          'uid',
-          'partner_id',
-          'id',
-        ]) ??
+        _extractId(partner, ['user_id', 'id', 'delivery_partner_id']) ??
         _orderData?['delivery_partner_id']?.toString();
 
     bool messRatedNow = false;
@@ -206,16 +197,17 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
     try {
       if (_messRating > 0 && !_hasRatedMess) {
-        if (messOwnerId == null || messOwnerId.isEmpty) {
+        if (messId == null || messId.isEmpty) {
           errors.add('Mess ID missing');
         } else {
           final response = await RatingService.submitMessRating(
             orderId: widget.orderId,
-            messOwnerId: messOwnerId,
+            messId: messId,
             customerId: customerId,
             rating: _messRating,
             review: review,
           );
+
           if (_isRatingSuccess(response)) {
             messRatedNow = true;
           } else {
@@ -309,202 +301,229 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            contentPadding: const EdgeInsets.all(24),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Driver Avatar
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Colors.grey[200],
-                  backgroundImage: partner?['photo'] != null
-                      ? NetworkImage(partner?['photo'].toString() ?? '')
-                      : null,
-                  child: partner?['photo'] == null
-                      ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                
-                // Title
-                Text(
-                  'Rate Your Order',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[800],
+      builder:
+          (context) => BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: StatefulBuilder(
+              builder: (context, setDialogState) {
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ),
-                const SizedBox(height: 8),
-                
-                // Driver Name
-                Text(
-                  partner?['name'] ?? messDetails?['name'] ?? 'Tiffinity',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 24),
+                  contentPadding: const EdgeInsets.all(24),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Driver Avatar
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage:
+                            partner?['photo'] != null
+                                ? NetworkImage(
+                                  partner?['photo'].toString() ?? '',
+                                )
+                                : null,
+                        child:
+                            partner?['photo'] == null
+                                ? const Icon(
+                                  Icons.person,
+                                  size: 40,
+                                  color: Colors.grey,
+                                )
+                                : null,
+                      ),
+                      const SizedBox(height: 16),
 
-                if (messDetails != null) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Rate food & mess',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return GestureDetector(
-                        onTap: () {
-                          setDialogState(() {
-                            _messRating = index + 1;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(
-                            index < _messRating ? Icons.star : Icons.star_border,
-                            size: 32,
-                            color:
-                                index < _messRating ? Colors.amber : Colors.grey[400],
-                          ),
+                      // Title
+                      Text(
+                        'Rate Your Order',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
                         ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                      ),
+                      const SizedBox(height: 8),
 
-                if (partner != null) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Rate delivery partner',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
+                      // Driver Name
+                      Text(
+                        partner?['name'] ?? messDetails?['name'] ?? 'Tiffinity',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return GestureDetector(
-                        onTap: () {
-                          setDialogState(() {
-                            _driverRating = index + 1;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Icon(
-                            index < _driverRating ? Icons.star : Icons.star_border,
-                            size: 32,
-                            color:
-                                index < _driverRating ? Colors.amber : Colors.grey[400],
+                      const SizedBox(height: 24),
+
+                      if (messDetails != null) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Rate food & mess',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
                           ),
                         ),
-                      );
-                    }),
-                  ),
-                ],
-                const SizedBox(height: 24),
-                
-                // Feedback TextField
-                TextField(
-                  controller: _feedbackController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Share your experience (optional)',
-                    hintStyle: TextStyle(color: Colors.grey[400]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _primaryColor),
-                    ),
-                    contentPadding: const EdgeInsets.all(12),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                
-                // Action Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                          _ratingDialogShownForSession = true;
-                          _messRating = 0;
-                          _driverRating = 0;
-                          _feedbackController.clear();
-                        },
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(5, (index) {
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  _messRating = index + 1;
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Icon(
+                                  index < _messRating
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 32,
+                                  color:
+                                      index < _messRating
+                                          ? Colors.amber
+                                          : Colors.grey[400],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      if (partner != null) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Rate delivery partner',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(5, (index) {
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  _driverRating = index + 1;
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Icon(
+                                  index < _driverRating
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 32,
+                                  color:
+                                      index < _driverRating
+                                          ? Colors.amber
+                                          : Colors.grey[400],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+
+                      // Feedback TextField
+                      TextField(
+                        controller: _feedbackController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'Share your experience (optional)',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
                           ),
-                          side: BorderSide(color: Colors.grey[300]!),
-                        ),
-                        child: const Text('Skip'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: (_driverRating > 0 || _messRating > 0)
-                            ? () async {
-                                await _submitRatings(
-                                  partner: partner,
-                                  messDetails: messDetails,
-                                );
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
+                          focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _primaryColor),
                           ),
-                          disabledBackgroundColor: Colors.grey[300],
-                        ),
-                        child: Text(
-                          _isSubmittingRatings ? 'Submitting...' : 'Submit',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          contentPadding: const EdgeInsets.all(12),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(height: 24),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _ratingDialogShownForSession = true;
+                                _messRating = 0;
+                                _driverRating = 0;
+                                _feedbackController.clear();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                side: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              child: const Text('Skip'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed:
+                                  (_driverRating > 0 || _messRating > 0)
+                                      ? () async {
+                                        await _submitRatings(
+                                          partner: partner,
+                                          messDetails: messDetails,
+                                        );
+                                      }
+                                      : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                disabledBackgroundColor: Colors.grey[300],
+                              ),
+                              child: Text(
+                                _isSubmittingRatings
+                                    ? 'Submitting...'
+                                    : 'Submit',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            );
-          },
-        ),
-      ),
+          ),
     );
   }
 
@@ -526,8 +545,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                   // 1. BACKGROUND MAP LAYER
                   Positioned.fill(
                     child: OrderLiveMap(
-                      status: _orderData!['status'] ?? 'pending',
-                      deliveryPartner: _orderData!['delivery_partner_details'],
+                      status: _orderData?['status'] ?? 'pending',
+                      deliveryPartner: _orderData?['delivery_partner_details'],
                     ),
                   ),
 
@@ -589,7 +608,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
                                 // Timeline
                                 OrderStatusTimeline(
-                                  currentStatus: _orderData!['status'],
+                                  currentStatus:
+                                      _orderData?['status'] ?? 'pending',
                                 ),
                                 const SizedBox(height: 24),
 
@@ -659,7 +679,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              "Order #${_orderData!['id']}",
+                              "Order #${_orderData?['id'] ?? ''}",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 15,
@@ -700,7 +720,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildStatusCard(bool isDark) {
-    final status = _orderData!['status'].toString().toLowerCase();
+    final status =
+        (_orderData?['status'] ?? 'pending').toString().toLowerCase();
     String title = "Order Placed";
     String subtitle = "Waiting for confirmation";
     IconData icon = Icons.receipt_long;
@@ -838,7 +859,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildDeliveryPartnerCard(bool isDark) {
-    final partner = _orderData!['delivery_partner_details'];
+    final partner = _orderData?['delivery_partner_details'];
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1112,7 +1133,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   }
 
   Widget _buildActionButtons(bool isDark) {
-    final status = _orderData!['status'].toString().toLowerCase();
+    final status =
+        (_orderData?['status'] ?? 'pending').toString().toLowerCase();
 
     // Can only cancel before delivery boy picks up
     bool canCancel = [
