@@ -80,21 +80,26 @@ class ApiService {
       debugPrint('📥 Response Status: ${response.statusCode}');
       debugPrint('📥 Response Body: ${response.body}');
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (response.body.trim().isEmpty) {
-          throw Exception("Empty response from server");
-        }
+      if (response.body.trim().isNotEmpty) {
+        final parsed = json.decode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            return parsed;
+          }
 
-        final responseData = json.decode(response.body);
-
-        if (responseData is Map<String, dynamic>) {
-          return responseData;
-        } else {
-          throw Exception("Invalid response format");
+          final message =
+              parsed['message']?.toString() ??
+              parsed['error']?.toString() ??
+              "Request failed with status ${response.statusCode}";
+          throw Exception(message);
         }
-      } else {
-        throw Exception("Request failed with status ${response.statusCode}");
       }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        throw Exception("Empty response from server");
+      }
+
+      throw Exception("Request failed with status ${response.statusCode}");
     } catch (e) {
       debugPrint('❌ POST Form Error: $e');
       rethrow;

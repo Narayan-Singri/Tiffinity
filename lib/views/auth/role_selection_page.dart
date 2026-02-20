@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
-import 'package:Tiffinity/views/pages/customer_pages/customer_widget_tree.dart';
 
 class RoleSelectionPage extends StatefulWidget {
   const RoleSelectionPage({super.key});
@@ -177,12 +176,13 @@ class _RoleSelectionPageState extends State<RoleSelectionPage>
                           color: primaryTeal,
                           tag: 'For eating',
                           onTap: () {
-                            Navigator.pushAndRemoveUntil(
+                            Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const CustomerWidgetTree(),
+                                builder:
+                                    (context) =>
+                                        const BothLoginPage(role: 'customer'),
                               ),
-                                  (route) => false,
                             );
                           },
                         ),

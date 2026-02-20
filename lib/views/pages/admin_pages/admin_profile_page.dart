@@ -9,6 +9,7 @@ import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/services/image_service.dart';
 import 'package:Tiffinity/services/api_service.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
+import 'package:Tiffinity/views/auth/reset_password_page.dart';
 import 'package:intl/intl.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_location_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -561,6 +562,8 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                         if (!_isEditMode) _buildLocationCard(),
                         const SizedBox(height: 16),
                         if (!_isEditMode) _buildEarningSummaryCard(),
+                        const SizedBox(height: 16),
+                        if (!_isEditMode) _buildResetPasswordButton(),
                         const SizedBox(height: 16),
                         if (!_isEditMode) _buildLogoutButton(),
                         const SizedBox(height: 100),
@@ -1452,6 +1455,35 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         label: const Text(
           'Logout',
           style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResetPasswordButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: OutlinedButton.icon(
+        onPressed: () {
+          final email = _userData?['email']?.toString() ?? '';
+          if (email.isEmpty) {
+            _showSnackbar('No email found for this account', isError: true);
+            return;
+          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => ResetPasswordPage(email: email)),
+          );
+        },
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(double.infinity, 52),
+          side: BorderSide(color: _primaryColor.withOpacity(0.25)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        icon: Icon(Icons.lock_reset_rounded, color: _primaryColor),
+        label: Text(
+          'Reset Password',
+          style: TextStyle(color: _primaryColor, fontWeight: FontWeight.w700),
         ),
       ),
     );

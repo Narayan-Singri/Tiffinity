@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/welcome_page.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
+import 'package:Tiffinity/views/auth/reset_password_page.dart';
 import 'package:Tiffinity/services/language_service.dart';
 import 'package:Tiffinity/models/app_strings.dart';
 import 'my_subscriptions_page.dart';
@@ -273,6 +274,27 @@ class _CustomerProfilePageState extends State<CustomerProfilePage>
                             _menuItem(
                               Icons.favorite_border_rounded,
                               AppStrings.getString('favourites', languageCode),
+                            ),
+                            _menuItem(
+                              Icons.lock_reset_rounded,
+                              'Reset Password',
+                              onTap: () {
+                                final email = _userData?['email']?.toString();
+                                if (email == null || email.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('No email found for account'),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ResetPasswordPage(email: email),
+                                  ),
+                                );
+                              },
                             ),
                           ],
                         ),

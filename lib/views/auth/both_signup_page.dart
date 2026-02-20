@@ -1,11 +1,10 @@
-import 'package:Tiffinity/views/pages/customer_pages/customer_location_page.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/auth/both_login_page.dart';
+import 'package:Tiffinity/views/auth/email_verification_page.dart';
 import 'package:Tiffinity/views/widgets/auth_field.dart';
 import 'package:Tiffinity/views/widgets/auth_gradient_button.dart';
-import 'package:Tiffinity/views/pages/admin_pages/admin_setup_page.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
 
 class BothSignupPage extends StatefulWidget {
   final String role;
@@ -73,32 +72,17 @@ class _BothSignupPageState extends State<BothSignupPage> {
       );
 
       if (result['success']) {
-        final user = result['user'];
-
         if (!mounted) return;
-
-        // Redirect based on role
-        if (widget.role == 'admin') {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (_) => AdminSetupPage(userId: user['uid']),
-            ),
-            (route) => false,
-          );
-        } else {
-          // ✅ Navigate to Location Page for Customer
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (_) => CustomerLocationPage(
-                    userId: user['uid'], // Pass user ID from signup response
-                  ),
-            ),
-            (route) => false,
-          );
-        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (_) => EmailVerificationPage(
+                  email: emailController.text.trim(),
+                  role: widget.role,
+                ),
+          ),
+        );
       }
     } on Exception catch (e) {
       _showError(e.toString());
@@ -154,9 +138,18 @@ class _BothSignupPageState extends State<BothSignupPage> {
                       _buildFormFields(),
                       const Spacer(),
                       AuthGradientButton(
-                        text: "Sign Up",
+                        text: "Create Account",
                         onTap: _handleSignUp,
                         isLoading: _isLoading,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'An email OTP will be sent for account verification.',
+                        style: TextStyle(
+                          color: Color(0xFF5B6F6A),
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
                       _buildSignInLink(),
@@ -185,12 +178,15 @@ class _BothSignupPageState extends State<BothSignupPage> {
           hintText: "Phone no.",
           icon: Icons.phone,
           controller: phoneNumController,
+          keyboardType: TextInputType.phone,
+          maxLength: 10,
         ),
         const SizedBox(height: 16),
         AuthField(
           hintText: "Email",
           icon: Icons.email,
           controller: emailController,
+          keyboardType: TextInputType.emailAddress,
         ),
         const SizedBox(height: 16),
         AuthField(
