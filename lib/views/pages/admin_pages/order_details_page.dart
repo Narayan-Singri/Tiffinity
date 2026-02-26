@@ -143,9 +143,15 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
   Map<String, dynamic> _getSnackbarConfig(String status) {
     switch (status) {
-      case 'confirmed':
+      case 'accepted':
         return {
           'message': 'Order Accepted Successfully',
+          'color': Colors.green,
+          'icon': Icons.check_circle,
+        };
+      case 'confirmed':
+        return {
+          'message': 'Order Confirmed by Delivery Partner',
           'color': Colors.green,
           'icon': Icons.check_circle,
         };
@@ -267,24 +273,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       case 'pending':
         return const Color(0xFFFF9800);
       case 'accepted':
-      case 'assigned':
         return const Color(0xFF2196F3);
-      case 'confirmed': // ✅ Delivery boy confirmed
+      case 'confirmed':
         return const Color(0xFF4CAF50);
-      case 'preparing':
-        return const Color(0xFF2196F3);
-      case 'waiting_for_order': // ✅ Delivery boy waiting
-      case 'at_pickup_location':
-      case 'reached_pickup':
-        return const Color(0xFFFFC107);
-      case 'waiting_for_pickup': // ✅ Order ready, boy not there
-        return const Color(0xFF673AB7);
       case 'ready':
-      case 'ready_for_pickup':
-      case 'assigned_to_delivery':
         return const Color(0xFF9C27B0);
       case 'out_for_delivery':
-      case 'picked_up':
         return const Color(0xFFFF5722);
       case 'delivered':
         return const Color(0xFF4CAF50);
@@ -302,20 +296,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         return Icons.schedule;
       case 'confirmed':
       case 'accepted':
-      case 'assigned':
         return Icons.check_circle_outline;
-      case 'preparing':
-        return Icons.restaurant;
       case 'ready':
-      case 'ready_for_pickup':
-      case 'assigned_to_delivery':
         return Icons.shopping_bag;
-      case 'waiting_for_order':
-      case 'at_pickup_location':
-      case 'reached_pickup':
-        return Icons.hourglass_top;
       case 'out_for_delivery':
-      case 'picked_up':
         return Icons.delivery_dining;
       case 'delivered':
         return Icons.check_circle;
@@ -603,7 +587,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       builder: (context, child) {
         final isPulsing =
             _currentStatus == 'pending' ||
-            _currentStatus == 'preparing' ||
+            _currentStatus == 'confirmed' ||
             _currentStatus == 'out_for_delivery';
 
         return Container(
@@ -1213,9 +1197,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
   Widget _buildActionButtons() {
     switch (_currentStatus.toLowerCase()) {
-      // ======================================================================
-      // PENDING: Mess can Accept or Reject
-      // ======================================================================
       case 'pending':
         return Row(
           children: [
@@ -1267,61 +1248,15 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ],
         );
 
-      // ======================================================================
-      // ACCEPTED: Delivery boy auto-assigned, preparing food
-      // ======================================================================
       case 'accepted':
-      case 'assigned':
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.restaurant, color: Colors.blue),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Delivery partner auto-assigned. Prepare the order.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            SlideAction(
-              text: 'Swipe to Mark Order Ready',
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              innerColor: Colors.white,
-              outerColor: Colors.blue,
-              sliderButtonIcon: const Icon(
-                Icons.restaurant_menu,
-                color: Colors.blue,
-              ),
-              onSubmit: () {
-                _updateOrderStatus('ready');
-                return null;
-              },
-            ),
-          ],
+        return _buildStatusInfoCard(
+          color: Colors.blue,
+          icon: Icons.pending_actions,
+          title: 'Order Accepted',
+          subtitle:
+              'Waiting for delivery partner confirmation before marking ready.',
         );
 
-      // ======================================================================
-      // CONFIRMED: Delivery boy accepted assignment
-      // ======================================================================
       case 'confirmed':
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -1338,7 +1273,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '✅ Delivery partner confirmed. Prepare the order now.',
+                      'Delivery partner confirmed. Mark ready when food is prepared.',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -1370,296 +1305,85 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ],
         );
 
-      // ======================================================================
-      // PREPARING: Actively preparing
-      // ======================================================================
-      case 'preparing':
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.restaurant, color: Colors.orange),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '🍳 Preparing the order...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            SlideAction(
-              text: 'Swipe to Mark Order Ready',
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              innerColor: Colors.white,
-              outerColor: Colors.orange,
-              sliderButtonIcon: const Icon(
-                Icons.restaurant_menu,
-                color: Colors.orange,
-              ),
-              onSubmit: () {
-                _updateOrderStatus('ready');
-                return null;
-              },
-            ),
-          ],
-        );
-
-      // ======================================================================
-      // 🚨 AT_PICKUP_LOCATION / REACHED_PICKUP: Delivery boy waiting
-      // ======================================================================
-      case 'at_pickup_location':
-      case 'atpickuplocation':
-      case 'reached_pickup':
-      case 'reachedpickup':
-      case 'waiting_for_order':
-      case 'waitingfororder':
-      case 'assigned_to_delivery':
-      case 'assignedtodelivery':
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber, width: 2),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.hourglass_empty, color: Colors.amber),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      '⚠️ Delivery partner is WAITING at pickup location!',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            SlideAction(
-              text: 'Swipe When Order Ready',
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              innerColor: Colors.white,
-              outerColor: Colors.amber,
-              sliderButtonIcon: const Icon(
-                Icons.restaurant_menu,
-                color: Colors.amber,
-              ),
-              onSubmit: () {
-                _updateOrderStatus('ready');
-                return null;
-              },
-            ),
-          ],
-        );
-
-      // ======================================================================
-      // READY: Order ready, waiting for delivery boy
-      // ======================================================================
       case 'ready':
-      case 'ready_for_pickup':
-      case 'readyforpickup':
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.purple.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.purple),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.shopping_bag, color: Colors.purple, size: 32),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '✅ Order Ready for Pickup',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Waiting for delivery partner to pick up the order',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        return _buildStatusInfoCard(
+          color: Colors.purple,
+          icon: Icons.shopping_bag,
+          title: 'Order Ready',
+          subtitle: 'Ready has already been set. Waiting for pickup.',
         );
 
-      // ======================================================================
-      // WAITING_FOR_PICKUP: Order ready but delivery boy not at location
-      // ======================================================================
-      case 'waiting_for_pickup':
-      case 'waitingforpickup':
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.indigo.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.indigo),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.shopping_bag, color: Colors.indigo, size: 32),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '📦 Order Ready - Waiting for Pickup',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Order is ready. Waiting for delivery partner to arrive.',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-
-      // ======================================================================
-      // OUT_FOR_DELIVERY: Delivery boy has the order (INFO ONLY - NO SLIDER)
-      // ======================================================================
       case 'out_for_delivery':
-      case 'outfordelivery':
-      case 'picked_up':
-      case 'pickedup':
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.orange.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.delivery_dining, color: Colors.orange, size: 32),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '🚴 Order Out for Delivery',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Delivery partner is on the way to customer',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        return _buildStatusInfoCard(
+          color: Colors.orange,
+          icon: Icons.delivery_dining,
+          title: 'Order Out for Delivery',
+          subtitle: 'Delivery partner picked up and is heading to customer.',
         );
 
-      // ======================================================================
-      // DELIVERED: Order completed successfully
-      // ======================================================================
       case 'delivered':
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green, width: 2),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 32),
-              SizedBox(width: 12),
-              Text(
-                '✅ Order Delivered Successfully',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-            ],
-          ),
+        return _buildStatusInfoCard(
+          color: Colors.green,
+          icon: Icons.check_circle,
+          title: 'Order Delivered',
+          subtitle: 'Order completed successfully.',
         );
 
-      // ======================================================================
-      // CANCELLED / REJECTED
-      // ======================================================================
       case 'cancelled':
       case 'rejected':
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red, width: 2),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.cancel, color: Colors.red, size: 32),
-              SizedBox(width: 12),
-              Text(
-                'Order Rejected',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-            ],
-          ),
+        return _buildStatusInfoCard(
+          color: Colors.red,
+          icon: Icons.cancel,
+          title: _currentStatus.toLowerCase() == 'rejected'
+              ? 'Order Rejected'
+              : 'Order Cancelled',
+          subtitle: 'Order flow is closed.',
         );
 
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _buildStatusInfoCard({
+    required Color color,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 32),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

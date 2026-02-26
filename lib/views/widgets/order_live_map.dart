@@ -8,6 +8,8 @@ class OrderLiveMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final normalizedStatus = status.toLowerCase();
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -34,7 +36,8 @@ class OrderLiveMap extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (status == 'preparing') ...[
+              if (normalizedStatus == 'confirmed' ||
+                  normalizedStatus == 'ready') ...[
                 const CircleAvatar(
                   backgroundColor: Colors.white,
                   radius: 30,
@@ -46,14 +49,14 @@ class OrderLiveMap extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Preparing your food...",
+                  "Mess is preparing your order...",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: Colors.black87,
                   ),
                 ),
-              ] else if (status == 'out_for_delivery') ...[
+              ] else if (normalizedStatus == 'out_for_delivery') ...[
                 const CircleAvatar(
                   backgroundColor: Colors.white,
                   radius: 30,

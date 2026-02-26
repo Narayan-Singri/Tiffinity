@@ -120,12 +120,15 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage>
         return Colors.orange;
       case 'accepted':
         return Colors.blue;
-      case 'preparing':
+      case 'confirmed':
         return Colors.purple;
+      case 'ready':
+        return Colors.deepPurple;
       case 'out_for_delivery':
         return Colors.indigo;
       case 'delivered':
         return Colors.green;
+      case 'rejected':
       case 'cancelled':
         return Colors.red;
       default:
@@ -139,12 +142,15 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage>
         return Icons.schedule;
       case 'accepted':
         return Icons.check_circle_outline;
-      case 'preparing':
-        return Icons.restaurant;
+      case 'confirmed':
+        return Icons.verified;
+      case 'ready':
+        return Icons.shopping_bag;
       case 'out_for_delivery':
         return Icons.delivery_dining;
       case 'delivered':
         return Icons.check_circle;
+      case 'rejected':
       case 'cancelled':
         return Icons.cancel;
       default:

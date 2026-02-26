@@ -737,37 +737,24 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         break;
 
       case 'accepted':
-      case 'confirmed':
-      case 'assigned':
         title = "Order Accepted";
-        subtitle = "Delivery partner assigned. Mess is preparing your order";
+        subtitle = "Mess accepted your order";
         icon = Icons.check_circle_outline;
         color = Colors.blue;
         break;
 
-      case 'preparing':
-        title = "Preparing Your Order";
-        subtitle = "Your food is being prepared";
-        icon = Icons.restaurant;
-        color = Colors.blue;
+      case 'confirmed':
+        title = "Order Confirmed";
+        subtitle = "Delivery partner confirmed. Mess is preparing your order";
+        icon = Icons.verified;
+        color = Colors.teal;
         break;
 
       case 'ready':
-      case 'ready_for_pickup':
         title = "Order Ready";
         subtitle = "Waiting for delivery partner to pick up";
         icon = Icons.shopping_bag;
         color = Colors.purple;
-        break;
-
-      case 'assigned_to_delivery':
-      case 'at_pickup_location':
-      case 'reached_pickup':
-      case 'waiting_for_order':
-        title = "Partner At Pickup";
-        subtitle = "Delivery partner reached mess and is waiting for order";
-        icon = Icons.hourglass_top;
-        color = Colors.orange;
         break;
 
       case 'out_for_delivery':
@@ -777,24 +764,23 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
         color = _primaryColor;
         break;
 
-      case 'picked_up':
-        title = "Order Picked Up";
-        subtitle = "Delivery partner is heading to your location";
-        icon = Icons.delivery_dining;
-        color = Colors.orange;
-        break;
-
       case 'delivered':
         title = "Delivered";
-        subtitle = "Enjoy your meal! 🎉";
+        subtitle = "Enjoy your meal!";
         icon = Icons.check_circle;
         color = Colors.green;
         break;
 
       case 'cancelled':
-      case 'rejected':
         title = "Order Cancelled";
         subtitle = "Your order has been cancelled";
+        icon = Icons.cancel;
+        color = Colors.red;
+        break;
+
+      case 'rejected':
+        title = "Order Rejected";
+        subtitle = "Mess rejected your order";
         icon = Icons.cancel;
         color = Colors.red;
         break;
@@ -1136,14 +1122,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final status =
         (_orderData?['status'] ?? 'pending').toString().toLowerCase();
 
-    // Can only cancel before delivery boy picks up
-    bool canCancel = [
-      'pending',
-      'confirmed',
-      'accepted',
-      'preparing',
-      'ready',
-    ].contains(status);
+    // Customer cancellation is allowed only while order is pending.
+    final bool canCancel = status == 'pending';
 
     return Column(
       children: [
@@ -1232,3 +1212,4 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     );
   }
 }
+

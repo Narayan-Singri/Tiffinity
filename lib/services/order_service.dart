@@ -3,6 +3,64 @@ import '../services/api_service.dart';
 import 'dart:convert';
 
 class OrderService {
+  static const Set<String> _assignmentAcceptedOrBeyond = {
+    'accepted',
+    'reached_pickup',
+    'picked_up',
+    'out_for_delivery',
+    'in_transit',
+    'delivered',
+  };
+
+  static Map<String, dynamic> _normalizeOrderStatus(Map<String, dynamic> raw) {
+    final order = Map<String, dynamic>.from(raw);
+    final status = (order['status'] ?? '').toString().toLowerCase().trim();
+    final assignmentStatus = _extractAssignmentStatus(order);
+
+    // confirmed must only be shown once delivery assignment is accepted.
+    // Do not override backend status — backend is source of truth
+
+    return order;
+  }
+
+  static String? _extractAssignmentStatus(Map<String, dynamic> order) {
+    final directKeys = [
+      'assignment_status',
+      'delivery_assignment_status',
+      'delivery_status',
+      'delivery_assignment',
+    ];
+
+    for (final key in directKeys) {
+      final value = order[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.toLowerCase().trim();
+      }
+      if (value is Map) {
+        final nested = value['status'];
+        if (nested is String && nested.trim().isNotEmpty) {
+          return nested.toLowerCase().trim();
+        }
+      }
+    }
+
+    final partnerDetails = order['delivery_partner_details'];
+    if (partnerDetails is Map) {
+      final nestedCandidates = [
+        partnerDetails['assignment_status'],
+        partnerDetails['delivery_assignment_status'],
+        partnerDetails['status'],
+      ];
+      for (final value in nestedCandidates) {
+        if (value is String && value.trim().isNotEmpty) {
+          return value.toLowerCase().trim();
+        }
+      }
+    }
+
+    return null;
+  }
+
   // Create a new order
   static Future<Map<String, dynamic>> createOrder({
     required String customerId,
@@ -21,22 +79,28 @@ class OrderService {
       });
       return response;
     } catch (e) {
-      debugPrint('❌ Create Order Error: $e');
+      debugPrint('Create Order Error: $e');
       rethrow;
     }
   }
 
-  // ✅ Get order by ID (Enhanced with full details)
+  // Get order by ID
   static Future<Map<String, dynamic>?> getOrderById(String orderId) async {
     try {
-      return await ApiService.getRequest('orders/get_order.php?id=$orderId');
+      final data = await ApiService.getRequest(
+        'orders/get_order.php?id=$orderId',
+      );
+      if (data is Map) {
+        return _normalizeOrderStatus(Map<String, dynamic>.from(data));
+      }
+      return data;
     } catch (e) {
-      debugPrint('❌ Get Order By ID Error: $e');
+      debugPrint('Get Order By ID Error: $e');
       rethrow;
     }
   }
 
-  // ✅ Get all orders for a customer
+  // Get all orders for a customer
   static Future<List<Map<String, dynamic>>> getCustomerOrders(
     String customerId,
   ) async {
@@ -47,23 +111,29 @@ class OrderService {
 
       if (data is List) {
         return List<Map<String, dynamic>>.from(
-          data.map((item) => Map<String, dynamic>.from(item)),
+          data.map(
+            (item) => _normalizeOrderStatus(Map<String, dynamic>.from(item)),
+          ),
         );
       } else if (data is Map && data.containsKey('data')) {
         return List<Map<String, dynamic>>.from(
-          data['data'].map((item) => Map<String, dynamic>.from(item)),
+          data['data'].map(
+            (item) => _normalizeOrderStatus(Map<String, dynamic>.from(item)),
+          ),
         );
       } else if (data is Map && data.containsKey('orders')) {
         return List<Map<String, dynamic>>.from(
-          data['orders'].map((item) => Map<String, dynamic>.from(item)),
+          data['orders'].map(
+            (item) => _normalizeOrderStatus(Map<String, dynamic>.from(item)),
+          ),
         );
       } else if (data is Map) {
-        return [Map<String, dynamic>.from(data)];
+        return [_normalizeOrderStatus(Map<String, dynamic>.from(data))];
       }
 
       return [];
     } catch (e) {
-      debugPrint('❌ Get Customer Orders Error: $e');
+      debugPrint('Get Customer Orders Error: $e');
       rethrow;
     }
   }
@@ -81,22 +151,28 @@ class OrderService {
       }
 
       if (response is List) {
-        return response.map((e) => safeParse(e)).toList();
+        return response
+            .map((e) => _normalizeOrderStatus(safeParse(e)))
+            .toList();
       } else if (response is Map) {
         if (response.containsKey('orders') && response['orders'] is List) {
-          return (response['orders'] as List).map((e) => safeParse(e)).toList();
+          return (response['orders'] as List)
+              .map((e) => _normalizeOrderStatus(safeParse(e)))
+              .toList();
         }
 
         if (response.containsKey('data') && response['data'] is List) {
-          return (response['data'] as List).map((e) => safeParse(e)).toList();
+          return (response['data'] as List)
+              .map((e) => _normalizeOrderStatus(safeParse(e)))
+              .toList();
         }
 
-        return [safeParse(response)];
+        return [_normalizeOrderStatus(safeParse(response))];
       }
 
       return [];
     } catch (e) {
-      debugPrint('❌ Get Mess Orders Error: $e');
+      debugPrint('Get Mess Orders Error: $e');
       rethrow;
     }
   }
@@ -112,12 +188,12 @@ class OrderService {
       });
       return true;
     } catch (e) {
-      debugPrint('❌ Update Order Status Error: $e');
+      debugPrint('Update Order Status Error: $e');
       return false;
     }
   }
 
-  // ✅ Reject order with reason
+  // Reject order with reason
   static Future<bool> rejectOrder({
     required String orderId,
     required String reason,
@@ -129,7 +205,7 @@ class OrderService {
       });
       return response['success'] == true;
     } catch (e) {
-      debugPrint('❌ Reject Order Error: $e');
+      debugPrint('Reject Order Error: $e');
       return false;
     }
   }

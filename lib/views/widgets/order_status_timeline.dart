@@ -9,7 +9,9 @@ class OrderStatusTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     int stepIndex = _getStepIndex(currentStatus);
-    bool isCancelled = currentStatus.toLowerCase() == 'cancelled';
+    final normalizedStatus = currentStatus.toLowerCase();
+    final isCancelled =
+        normalizedStatus == 'cancelled' || normalizedStatus == 'rejected';
 
     if (isCancelled) {
       return Container(
@@ -23,7 +25,9 @@ class OrderStatusTimeline extends StatelessWidget {
             Icon(Icons.cancel, color: Colors.red[700]),
             const SizedBox(width: 12),
             Text(
-              "Order Cancelled",
+              normalizedStatus == 'rejected'
+                  ? "Order Rejected"
+                  : "Order Cancelled",
               style: TextStyle(
                 color: Colors.red[700],
                 fontWeight: FontWeight.bold,
@@ -46,13 +50,13 @@ class OrderStatusTimeline extends StatelessWidget {
           _buildConnector(0, stepIndex, isDark),
           _buildStep(
             1,
-            "Confirmed",
+            "Accepted",
             Icons.thumb_up_alt_outlined,
             stepIndex,
             isDark,
           ),
           _buildConnector(1, stepIndex, isDark),
-          _buildStep(2, "Preparing", Icons.outdoor_grill, stepIndex, isDark),
+          _buildStep(2, "Ready", Icons.shopping_bag, stepIndex, isDark),
           _buildConnector(2, stepIndex, isDark),
           _buildStep(
             3,
@@ -73,21 +77,11 @@ class OrderStatusTimeline extends StatelessWidget {
       case 'pending':
         return 0;
       case 'accepted':
-      case 'confirmed':
-      case 'assigned':
         return 1;
+      case 'confirmed':
       case 'ready':
-      case 'ready_for_pickup':
-      case 'waiting_for_pickup':
-      case 'preparing':
-      case 'waiting_for_order':
-      case 'at_pickup_location':
-      case 'reached_pickup':
-      case 'assigned_to_delivery':
         return 2;
       case 'out_for_delivery':
-      case 'picked_up':
-      case 'in_transit':
         return 3;
       case 'delivered':
         return 4;
