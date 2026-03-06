@@ -195,11 +195,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
     // Load opt-outs from meal_opt_outs table via API
     try {
       print('📋 Fetching opt-outs for plan ID: ${widget.planId}');
-      
+
       // Fetch opt-outs from your backend API
       // You may need to create an API endpoint: /api/subscriptions/get_opt_outs.php
       final optOuts = await SubscriptionService.getPlanOptOuts(widget.planId);
-      
+
       print('📋 Loaded ${optOuts.length} opt-out records');
       setState(() {
         _customerOptOuts = {};
@@ -226,22 +226,22 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Remove Item'),
-            content: Text(
-              'Are you sure you want to remove "$itemName" from tomorrow\'s menu?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text('Remove'),
-              ),
-            ],
+        title: Text('Remove Item'),
+        content: Text(
+          'Are you sure you want to remove "$itemName" from tomorrow\'s menu?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Remove'),
+          ),
+        ],
+      ),
     );
 
     if (confirm != true) return;
@@ -249,7 +249,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
     try {
       // Remove item from the list
       final updatedItems =
-          _subscriptionMenuItems.where((item) => item['id'] != itemId).toList();
+      _subscriptionMenuItems.where((item) => item['id'] != itemId).toList();
 
       // Get tomorrow's date
       final tomorrow = DateTime.now().add(Duration(days: 1));
@@ -296,24 +296,28 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
       backgroundColor: Colors.transparent,
       builder:
           (context) => _AddSubscriptionItemsModal(
-            planId: widget.planId,
-            messId: widget.messId ?? 1,
-            onItemsAdded: () {
-              _loadSubscribers();
-              _loadSubscriptionMenuItems(); // Reload menu items after adding
-            },
-          ),
+        planId: widget.planId,
+        messId: widget.messId ?? 1,
+        onItemsAdded: () {
+          _loadSubscribers();
+          _loadSubscriptionMenuItems(); // Reload menu items after adding
+        },
+      ),
     );
   }
 
   Color _getStatusColor(String status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'active':
         return Colors.green;
+      case 'delivered':
+        return Colors.teal;
       case 'expired':
         return Colors.red;
       case 'cancelled':
         return Colors.orange;
+      case 'pending':
+        return Colors.grey;
       default:
         return Colors.grey;
     }
@@ -459,21 +463,21 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                           // Try multiple fields for customer name
                           final customerName =
                               subscriber['customer_name']?.toString() ??
-                              subscriber['user_name']?.toString() ??
-                              subscriber['name']?.toString() ??
-                              '';
+                                  subscriber['user_name']?.toString() ??
+                                  subscriber['name']?.toString() ??
+                                  '';
                           final userName =
-                              customerName.isNotEmpty
-                                  ? customerName
-                                  : 'User ${subscriber['user_id'] ?? ''}';
+                          customerName.isNotEmpty
+                              ? customerName
+                              : 'User ${subscriber['user_id'] ?? ''}';
                           final userEmail =
                               subscriber['email']?.toString() ??
-                              subscriber['customer_email']?.toString() ??
-                              '';
+                                  subscriber['customer_email']?.toString() ??
+                                  '';
                           final userInitial =
-                              userName.isNotEmpty && userName != 'User '
-                                  ? userName[0].toUpperCase()
-                                  : 'U';
+                          userName.isNotEmpty && userName != 'User '
+                              ? userName[0].toUpperCase()
+                              : 'U';
 
                           return Card(
                             margin: EdgeInsets.only(bottom: 12),
@@ -520,23 +524,44 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _getStatusColor(
-                                        status,
-                                      ).withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      status.toUpperCase(),
-                                      style: TextStyle(
-                                        color: _getStatusColor(status),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 10,
+                                  // ✅ Make Subscriber Status Badge Clickable
+                                  PopupMenuButton<String>(
+                                    onSelected: (newStatus) async {
+                                      final success = await SubscriptionService.updateSubscriptionStatus(
+                                          orderId: int.parse(subscriber['id'].toString()),
+                                          status: newStatus
+                                      );
+                                      if (success) {
+                                        _loadSubscribers();
+                                        _loadOrders();
+                                      }
+                                    },
+                                    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                      const PopupMenuItem<String>(value: 'active', child: Text('Mark as Active')),
+                                      const PopupMenuItem<String>(value: 'delivered', child: Text('Mark as Delivered')),
+                                      const PopupMenuItem<String>(value: 'cancelled', child: Text('Cancel Subscription')),
+                                    ],
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: _getStatusColor(status).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: _getStatusColor(status).withOpacity(0.5)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            status.toUpperCase(),
+                                            style: TextStyle(
+                                              color: _getStatusColor(status),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Icon(Icons.arrow_drop_down, size: 14, color: _getStatusColor(status)),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -623,32 +648,32 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                         itemCount: _orders.length,
                         itemBuilder: (context, index) {
                           final order = _orders[index];
-                          
+
                           // Filter items to only show those for today or earlier
                           final todayDate = DateTime.now();
-                          final todayDateString = 
+                          final todayDateString =
                               '${todayDate.year}-${todayDate.month.toString().padLeft(2, '0')}-${todayDate.day.toString().padLeft(2, '0')}';
-                          
+
                           final items =
                               (order['selected_items'] as List?)
                                   ?.map((e) => Map<String, dynamic>.from(e))
                                   .where((item) {
-                                    final itemDate = item['date']?.toString() ?? '';
-                                    // Only show items where date <= today
-                                    return itemDate.compareTo(todayDateString) <= 0;
-                                  })
+                                final itemDate = item['date']?.toString() ?? '';
+                                // Only show items where date <= today
+                                return itemDate.compareTo(todayDateString) <= 0;
+                              })
                                   .toList() ??
-                              [];
+                                  [];
                           final amount =
                               double.tryParse(
                                 order['total_amount']?.toString() ?? '',
                               ) ??
-                              0;
+                                  0;
                           final customerName =
-                              (order['customer_name']?.toString() ?? '')
-                                      .isNotEmpty
-                                  ? order['customer_name'].toString()
-                                  : 'User ${order['user_id']}';
+                          (order['customer_name']?.toString() ?? '')
+                              .isNotEmpty
+                              ? order['customer_name'].toString()
+                              : 'User ${order['user_id']}';
                           final status =
                               order['status']?.toString() ?? 'pending';
 
@@ -679,7 +704,7 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               customerName,
@@ -698,25 +723,44 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                                           ],
                                         ),
                                       ),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _getStatusColor(
-                                            status,
-                                          ).withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
+                                      // ✅ Make Orders Status Badge Clickable
+                                      PopupMenuButton<String>(
+                                        onSelected: (newStatus) async {
+                                          final success = await SubscriptionService.updateSubscriptionStatus(
+                                              orderId: int.parse(order['id'].toString()),
+                                              status: newStatus
+                                          );
+                                          if (success) {
+                                            _loadOrders();
+                                            _loadSubscribers();
+                                          }
+                                        },
+                                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                          const PopupMenuItem<String>(value: 'active', child: Text('Mark as Active')),
+                                          const PopupMenuItem<String>(value: 'delivered', child: Text('Mark as Delivered')),
+                                          const PopupMenuItem<String>(value: 'cancelled', child: Text('Cancel Subscription')),
+                                        ],
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: _getStatusColor(status).withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: _getStatusColor(status).withOpacity(0.5)),
                                           ),
-                                        ),
-                                        child: Text(
-                                          status.toUpperCase(),
-                                          style: TextStyle(
-                                            color: _getStatusColor(status),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 10,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                status.toUpperCase(),
+                                                style: TextStyle(
+                                                  color: _getStatusColor(status),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                              SizedBox(width: 4),
+                                              Icon(Icons.arrow_drop_down, size: 14, color: _getStatusColor(status)),
+                                            ],
                                           ),
                                         ),
                                       ),
@@ -746,20 +790,20 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                                       spacing: 8,
                                       runSpacing: 6,
                                       children:
-                                          items.map((item) {
-                                            return Chip(
-                                              label: Text(
-                                                item['name']?.toString() ??
-                                                    'Item',
-                                              ),
-                                              backgroundColor: Colors.green[50],
-                                              avatar: Icon(
-                                                Icons.restaurant_menu,
-                                                size: 16,
-                                                color: Colors.green[700],
-                                              ),
-                                            );
-                                          }).toList(),
+                                      items.map((item) {
+                                        return Chip(
+                                          label: Text(
+                                            item['name']?.toString() ??
+                                                'Item',
+                                          ),
+                                          backgroundColor: Colors.green[50],
+                                          avatar: Icon(
+                                            Icons.restaurant_menu,
+                                            size: 16,
+                                            color: Colors.green[700],
+                                          ),
+                                        );
+                                      }).toList(),
                                     )
                                   else
                                     Text(
@@ -812,42 +856,42 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child:
-                                    item['image_url'] != null &&
-                                            item['image_url']
-                                                .toString()
-                                                .isNotEmpty
-                                        ? Image.network(
-                                          item['image_url'],
-                                          width: 50,
-                                          height: 50,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) {
-                                            return Container(
-                                              width: 50,
-                                              height: 50,
-                                              color: Colors.orange.withOpacity(
-                                                0.1,
-                                              ),
-                                              child: Icon(
-                                                Icons.restaurant,
-                                                color: Colors.orange,
-                                              ),
-                                            );
-                                          },
-                                        )
-                                        : Container(
-                                          width: 50,
-                                          height: 50,
-                                          color: Colors.orange.withOpacity(0.1),
-                                          child: Icon(
-                                            Icons.restaurant,
-                                            color: Colors.orange,
-                                          ),
-                                        ),
+                                item['image_url'] != null &&
+                                    item['image_url']
+                                        .toString()
+                                        .isNotEmpty
+                                    ? Image.network(
+                                  item['image_url'],
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (
+                                      context,
+                                      error,
+                                      stackTrace,
+                                      ) {
+                                    return Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.orange.withOpacity(
+                                        0.1,
+                                      ),
+                                      child: Icon(
+                                        Icons.restaurant,
+                                        color: Colors.orange,
+                                      ),
+                                    );
+                                  },
+                                )
+                                    : Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: Colors.orange.withOpacity(0.1),
+                                  child: Icon(
+                                    Icons.restaurant,
+                                    color: Colors.orange,
+                                  ),
+                                ),
                               ),
                               title: Text(
                                 item['name'] ?? 'Item',
@@ -857,11 +901,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   if (((item['type']
-                                              ?.toString()
-                                              .toLowerCase()
-                                              .replaceAll(' ', '')
-                                              .replaceAll('-', '') ??
-                                          '')) ==
+                                      ?.toString()
+                                      .toLowerCase()
+                                      .replaceAll(' ', '')
+                                      .replaceAll('-', '') ??
+                                      '')) ==
                                       'jain')
                                     Padding(
                                       padding: EdgeInsets.only(bottom: 2),
@@ -895,9 +939,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                                     ),
                                     onPressed:
                                         () => _removeMenuItem(
-                                          item['id'] ?? 0,
-                                          item['name'] ?? 'Item',
-                                        ),
+                                      item['id'] ?? 0,
+                                      item['name'] ?? 'Item',
+                                    ),
                                   ),
                                 ],
                               ),
@@ -984,42 +1028,42 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                               leading: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child:
-                                    item['image_url'] != null &&
-                                            item['image_url']
-                                                .toString()
-                                                .isNotEmpty
-                                        ? Image.network(
-                                          item['image_url'],
-                                          width: 50,
-                                          height: 50,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (
-                                            context,
-                                            error,
-                                            stackTrace,
-                                          ) {
-                                            return Container(
-                                              width: 50,
-                                              height: 50,
-                                              color: Colors.blue.withOpacity(
-                                                0.1,
-                                              ),
-                                              child: Icon(
-                                                Icons.restaurant,
-                                                color: Colors.blue,
-                                              ),
-                                            );
-                                          },
-                                        )
-                                        : Container(
-                                          width: 50,
-                                          height: 50,
-                                          color: Colors.blue.withOpacity(0.1),
-                                          child: Icon(
-                                            Icons.restaurant,
-                                            color: Colors.blue,
-                                          ),
-                                        ),
+                                item['image_url'] != null &&
+                                    item['image_url']
+                                        .toString()
+                                        .isNotEmpty
+                                    ? Image.network(
+                                  item['image_url'],
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (
+                                      context,
+                                      error,
+                                      stackTrace,
+                                      ) {
+                                    return Container(
+                                      width: 50,
+                                      height: 50,
+                                      color: Colors.blue.withOpacity(
+                                        0.1,
+                                      ),
+                                      child: Icon(
+                                        Icons.restaurant,
+                                        color: Colors.blue,
+                                      ),
+                                    );
+                                  },
+                                )
+                                    : Container(
+                                  width: 50,
+                                  height: 50,
+                                  color: Colors.blue.withOpacity(0.1),
+                                  child: Icon(
+                                    Icons.restaurant,
+                                    color: Colors.blue,
+                                  ),
+                                ),
                               ),
                               title: Text(
                                 item['name'] ?? 'Item',
@@ -1029,11 +1073,11 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   if (((item['type']
-                                              ?.toString()
-                                              .toLowerCase()
-                                              .replaceAll(' ', '')
-                                              .replaceAll('-', '') ??
-                                          '')) ==
+                                      ?.toString()
+                                      .toLowerCase()
+                                      .replaceAll(' ', '')
+                                      .replaceAll('-', '') ??
+                                      '')) ==
                                       'jain')
                                     Padding(
                                       padding: EdgeInsets.only(bottom: 2),
@@ -1131,12 +1175,6 @@ class _AddSubscriptionItemsModalState
           _allMenuItems = results[0] as List<Map<String, dynamic>>;
           _categories = results[1] as List<Category>;
           _isLoadingData = false;
-
-          // 🔍 DEBUG: Print what we received from backend
-          print('✅ Loaded ${_allMenuItems.length} menu items');
-          print('✅ Loaded ${_categories.length} categories');
-          print('📋 Items: $_allMenuItems');
-          print('📋 Categories: $_categories');
         });
       }
     } catch (e) {
@@ -1207,33 +1245,26 @@ class _AddSubscriptionItemsModalState
     try {
       // Format new items for database
       final newItems =
-          _selectedItems.map((id) {
-            final menuItem = _allMenuItems.firstWhere(
+      _selectedItems.map((id) {
+        final menuItem = _allMenuItems.firstWhere(
               (item) => int.parse(item['id'].toString()) == id,
-              orElse: () => {},
-            );
-            return {
-              'id': id,
-              'name': menuItem['name'] ?? 'Item',
-              'price': menuItem['price'] ?? 0,
-              'type': menuItem['type'] ?? 'veg',
-              'quantity': '1',
-              'image_url': menuItem['image_url'] ?? '',
-            };
-          }).toList();
+          orElse: () => {},
+        );
+        return {
+          'id': id,
+          'name': menuItem['name'] ?? 'Item',
+          'price': menuItem['price'] ?? 0,
+          'type': menuItem['type'] ?? 'veg',
+          'quantity': '1',
+          'image_url': menuItem['image_url'] ?? '',
+        };
+      }).toList();
 
       // Get tomorrow's date
       final tomorrow = DateTime.now().add(Duration(days: 1));
       final tomorrowDateString =
           '${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}';
 
-      print('💾 PREPARING TO SAVE ITEMS');
-      print('📋 New items count: ${newItems.length}');
-      print('📅 Date: $tomorrowDateString');
-      print('🏢 Mess ID: ${widget.messId}');
-
-      // Fetch existing items for this date to merge with new items
-      print('🔍 Fetching existing items for this date...');
       final existingMenus = await SubscriptionService.getMenus(
         messId: widget.messId,
         startDate: tomorrowDateString,
@@ -1242,20 +1273,17 @@ class _AddSubscriptionItemsModalState
 
       List<Map<String, dynamic>> existingItems = [];
 
-      // Find existing items for lunch meal time
       for (var menu in existingMenus) {
         if (menu['meal_time'] == 'lunch' &&
             menu['date'] == tomorrowDateString) {
           final items = menu['items'];
           if (items is String) {
-            // Parse JSON string
             final decoded = jsonDecode(items);
             existingItems =
                 (decoded as List)
                     .map((item) => Map<String, dynamic>.from(item))
                     .toList();
           } else if (items is List) {
-            // Already a list
             existingItems =
                 items.map((item) => Map<String, dynamic>.from(item)).toList();
           }
@@ -1263,29 +1291,21 @@ class _AddSubscriptionItemsModalState
         }
       }
 
-      print('📦 Found ${existingItems.length} existing items');
-
-      // Merge existing items with new items (avoid duplicates by item id)
       final existingItemIds = existingItems.map((item) => item['id']).toSet();
       final mergedItems = <Map<String, dynamic>>[...existingItems];
 
       for (var newItem in newItems) {
         if (!existingItemIds.contains(newItem['id'])) {
           mergedItems.add(newItem);
-        } else {
-          print('⚠️ Item ${newItem['name']} already exists, skipping...');
         }
       }
-
-      print('✅ Total items to save: ${mergedItems.length}');
-      print('📋 Merged items: $mergedItems');
 
       await SubscriptionService.addMenu(
         messId: widget.messId,
         date: tomorrowDateString,
         mealTime: 'lunch',
         items: mergedItems,
-        append: false, // We're sending the complete list, not appending
+        append: false,
       );
 
       if (mounted) {
@@ -1301,7 +1321,6 @@ class _AddSubscriptionItemsModalState
         );
       }
     } catch (e) {
-      print('❌ ERROR saving items: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error adding items: $e')));
@@ -1382,15 +1401,15 @@ class _AddSubscriptionItemsModalState
             hintStyle: TextStyle(color: Colors.grey[500]),
             prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
             suffixIcon:
-                _searchQuery.isNotEmpty
-                    ? IconButton(
-                      icon: Icon(Icons.clear, color: Colors.grey[600]),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    )
-                    : null,
+            _searchQuery.isNotEmpty
+                ? IconButton(
+              icon: Icon(Icons.clear, color: Colors.grey[600]),
+              onPressed: () {
+                _searchController.clear();
+                setState(() => _searchQuery = '');
+              },
+            )
+                : null,
             border: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
@@ -1452,10 +1471,6 @@ class _AddSubscriptionItemsModalState
         ),
       );
     }
-
-    print('DEBUG: _allMenuItems count: ${_allMenuItems.length}');
-    print('DEBUG: _groupedItems keys: ${_groupedItems.keys.toList()}');
-    print('DEBUG: _groupedItems: $_groupedItems');
 
     if (_allMenuItems.isEmpty) {
       return Expanded(
@@ -1574,12 +1589,12 @@ class _AddSubscriptionItemsModalState
         decoration: BoxDecoration(
           color: Color.fromARGB(255, 27, 84, 78).withOpacity(0.1),
           borderRadius:
-              isExpanded
-                  ? BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  )
-                  : BorderRadius.circular(12),
+          isExpanded
+              ? BorderRadius.only(
+            topLeft: Radius.circular(12),
+            topRight: Radius.circular(12),
+          )
+              : BorderRadius.circular(12),
         ),
         child: Row(
           children: [
@@ -1622,10 +1637,10 @@ class _AddSubscriptionItemsModalState
   }
 
   Widget _buildSelectableItem(
-    Map<String, dynamic> item,
-    int id,
-    bool isSelected,
-  ) {
+      Map<String, dynamic> item,
+      int id,
+      bool isSelected,
+      ) {
     final imageUrl = item['image_url']?.toString();
     final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
@@ -1634,14 +1649,14 @@ class _AddSubscriptionItemsModalState
       decoration: BoxDecoration(
         border: Border.all(
           color:
-              isSelected ? Color.fromARGB(255, 27, 84, 78) : Colors.grey[300]!,
+          isSelected ? Color.fromARGB(255, 27, 84, 78) : Colors.grey[300]!,
           width: isSelected ? 2 : 1,
         ),
         borderRadius: BorderRadius.circular(12),
         color:
-            isSelected
-                ? Color.fromARGB(255, 27, 84, 78).withOpacity(0.05)
-                : Colors.white,
+        isSelected
+            ? Color.fromARGB(255, 27, 84, 78).withOpacity(0.05)
+            : Colors.white,
       ),
       child: Material(
         color: Colors.transparent,
@@ -1673,17 +1688,17 @@ class _AddSubscriptionItemsModalState
                       fit: BoxFit.cover,
                       errorBuilder:
                           (context, error, stackTrace) => Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
-                            ),
-                          ),
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ),
                   ),
                   SizedBox(width: 12),
@@ -1761,7 +1776,7 @@ class _AddSubscriptionItemsModalState
             .toLowerCase()
             .replaceAll(' ', '')
             .replaceAll('-', '') ??
-        'veg';
+            'veg';
     if (normalizedType == 'nonveg') return Colors.red.withOpacity(0.2);
     // Treat Jain as Veg for color display
     return Colors.green.withOpacity(0.2);
@@ -1774,7 +1789,7 @@ class _AddSubscriptionItemsModalState
             .toLowerCase()
             .replaceAll(' ', '')
             .replaceAll('-', '') ??
-        'veg';
+            'veg';
     if (normalizedType == 'nonveg') return Colors.red.shade700;
     return Colors.green.shade700;
   }
@@ -1786,7 +1801,7 @@ class _AddSubscriptionItemsModalState
             .toLowerCase()
             .replaceAll(' ', '')
             .replaceAll('-', '') ??
-        'veg';
+            'veg';
     if (normalizedType == 'nonveg') return '🔴';
     // Treat Jain as Veg for emoji display
     return '🟢';
@@ -1799,7 +1814,7 @@ class _AddSubscriptionItemsModalState
             .toLowerCase()
             .replaceAll(' ', '')
             .replaceAll('-', '') ??
-        '';
+            '';
     return normalizedType == 'jain';
   }
 
@@ -1811,13 +1826,13 @@ class _AddSubscriptionItemsModalState
         color: isSelected ? Color.fromARGB(255, 27, 84, 78) : Colors.white,
         border: Border.all(
           color:
-              isSelected ? Color.fromARGB(255, 27, 84, 78) : Colors.grey[400]!,
+          isSelected ? Color.fromARGB(255, 27, 84, 78) : Colors.grey[400]!,
           width: 2,
         ),
         borderRadius: BorderRadius.circular(6),
       ),
       child:
-          isSelected ? Icon(Icons.check, color: Colors.white, size: 16) : null,
+      isSelected ? Icon(Icons.check, color: Colors.white, size: 16) : null,
     );
   }
 

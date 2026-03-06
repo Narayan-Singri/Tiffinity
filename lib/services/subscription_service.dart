@@ -370,4 +370,21 @@ class SubscriptionService {
       return [];
     }
   }
+
+  /// Update the status of a subscription order (e.g., pending -> active)
+  static Future<bool> updateSubscriptionStatus({
+    required int orderId,
+    required String status,
+  }) async {
+    try {
+      final response = await ApiService.postForm('subscriptions/update_subscription_status.php', {
+        'order_id': orderId,
+        'status': status,
+      });
+      return response['success'] == true;
+    } catch (e) {
+      print('Error updating status: $e');
+      return false;
+    }
+  }
 }

@@ -244,7 +244,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     MaterialPageRoute(
                       builder:
                           (context) =>
-                              AdminSetupPage(userId: currentUser['uid']),
+                          AdminSetupPage(userId: currentUser['uid']),
                     ),
                   );
                 }
@@ -260,21 +260,21 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
     // Filter orders for the list
     final filteredOrders =
-        _orders.where((order) {
-          final matchesStatus =
-              _selectedStatus == "All" ||
+    _orders.where((order) {
+      final matchesStatus =
+          _selectedStatus == "All" ||
               order['status'].toString().toLowerCase() ==
                   _selectedStatus.toLowerCase();
-          final matchesSearch =
-              _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
               order['id'].toString().toLowerCase().contains(
                 _searchQuery.toLowerCase(),
               ) ||
               (_customerNames[order['customer_id']] ?? '')
                   .toLowerCase()
                   .contains(_searchQuery.toLowerCase());
-          return matchesStatus && matchesSearch;
-        }).toList();
+      return matchesStatus && matchesSearch;
+    }).toList();
 
     // ✅ EVERYTHING IN ONE SCROLLABLE ListView
     return RefreshIndicator(
@@ -303,9 +303,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors:
-                    isOnline
-                        ? [Colors.green.shade400, Colors.green.shade600]
-                        : [Colors.red.shade400, Colors.red.shade600],
+                isOnline
+                    ? [Colors.green.shade400, Colors.green.shade600]
+                    : [Colors.red.shade400, Colors.red.shade600],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -313,9 +313,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
               boxShadow: [
                 BoxShadow(
                   color:
-                      isOnline
-                          ? Colors.green.withOpacity(0.3)
-                          : Colors.red.withOpacity(0.3),
+                  isOnline
+                      ? Colors.green.withOpacity(0.3)
+                      : Colors.red.withOpacity(0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -446,7 +446,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
               ),
             )
           else
-            // List all order cards directly
+          // List all order cards directly
             ...filteredOrders.map((order) {
               final status = order['status'] ?? 'pending';
               final customerId = order['customer_id'];
@@ -459,7 +459,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     order['created_at'].toString(),
                   );
                   formattedTime =
-                      '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+                  '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
                 } catch (e) {
                   formattedTime = 'N/A';
                 }
@@ -490,9 +490,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     MaterialPageRoute(
                       builder:
                           (context) => OrderDetailsPage(
-                            orderId: order['id'].toString(),
-                            orderData: order,
-                          ),
+                        orderId: order['id'].toString(),
+                        orderData: order,
+                      ),
                     ),
                   );
                 },
@@ -717,21 +717,21 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Widget _buildOrdersList() {
     final filteredOrders =
-        _orders.where((order) {
-          final matchesStatus =
-              _selectedStatus == "All" ||
+    _orders.where((order) {
+      final matchesStatus =
+          _selectedStatus == "All" ||
               order['status'].toString().toLowerCase() ==
                   _selectedStatus.toLowerCase();
-          final matchesSearch =
-              _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
               order['id'].toString().toLowerCase().contains(
                 _searchQuery.toLowerCase(),
               ) ||
               (_customerNames[order['customer_id']] ?? '')
                   .toLowerCase()
                   .contains(_searchQuery.toLowerCase());
-          return matchesStatus && matchesSearch;
-        }).toList();
+      return matchesStatus && matchesSearch;
+    }).toList();
 
     if (_orders.isEmpty) {
       return ListView(
@@ -798,7 +798,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           try {
             final dateTime = DateTime.parse(order['created_at'].toString());
             formattedTime =
-                '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+            '${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
           } catch (e) {
             formattedTime = 'N/A';
           }
@@ -829,9 +829,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
               MaterialPageRoute(
                 builder:
                     (context) => OrderDetailsPage(
-                      orderId: order['id'].toString(),
-                      orderData: order,
-                    ),
+                  orderId: order['id'].toString(),
+                  orderData: order,
+                ),
               ),
             );
           },
