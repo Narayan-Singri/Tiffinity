@@ -1,5 +1,3 @@
-// lib/views/pages/admin_pages/weekly_menu_management_page.dart
-
 import 'dart:ui';
 import 'package:Tiffinity/views/pages/admin_pages/add_menu_item_page.dart';
 import 'package:flutter/material.dart';
@@ -102,7 +100,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
         }
       }
     } catch (e) {
-      print('Error in _loadMessId: $e');
+      debugPrint('Error in _loadMessId: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -131,7 +129,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
         });
       }
     } catch (e) {
-      print('Error loading data: $e');
+      debugPrint('Error loading data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         _showError('Error: ${e.toString()}');
@@ -162,76 +160,100 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  _buildAppBar(),
-                  _buildModeToggle(),
-                  if (_isWeeklyMode) _buildWeekSelector(),
-                  if (!_isWeeklyMode) _buildTodayHeader(),
-                  if (_isWeeklyMode) _buildDayTabs(),
-                  _buildMenuList(),
-                ],
-              ),
+      backgroundColor: Colors.grey[100],
+      body: _isLoading
+          ? const Center(
+          child: CircularProgressIndicator(
+              color: Color.fromARGB(255, 27, 84, 78)))
+          : CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          _buildAppBar(),
+          _buildModeToggle(),
+          if (_isWeeklyMode) _buildWeekSelector(),
+          if (!_isWeeklyMode) _buildTodayHeader(),
+          if (_isWeeklyMode) _buildDayTabs(),
+          _buildMenuList(),
+        ],
+      ),
       floatingActionButton: _buildAddMenuFAB(),
     );
   }
 
   // ============================================
-  // APP BAR
+  // APP BAR (Professional Rounded Design)
   // ============================================
   Widget _buildAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 140.0,
       floating: false,
       pinned: true,
-      elevation: 0,
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+      elevation: 2,
+      shadowColor: Colors.black38,
       automaticallyImplyLeading: false,
-      flexibleSpace: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color.fromARGB(255, 27, 84, 78).withOpacity(0.95),
-                  const Color.fromARGB(255, 27, 84, 78).withOpacity(0.85),
-                ],
+      shape: const ContinuousRectangleBorder(
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(60),
+          bottomRight: Radius.circular(60),
+        ),
+      ),
+      flexibleSpace: FlexibleSpaceBar(
+        titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Weekly Menu',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -0.5,
               ),
             ),
-            child: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Weekly Menu',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _isWeeklyMode ? 'Plan Entire Week' : 'Today\'s Menu',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+            Text(
+              _isWeeklyMode ? 'Plan Entire Week' : 'Today\'s Menu',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
               ),
             ),
+          ],
+        ),
+        background: ClipRRect(
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(60),
+            bottomRight: Radius.circular(60),
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color.fromARGB(255, 18, 65, 60),
+                      Color.fromARGB(255, 27, 84, 78)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+              // Premium subtle calendar watermark
+              Positioned(
+                right: -20,
+                top: 10,
+                child: Icon(
+                  Icons.calendar_month,
+                  size: 130,
+                  color: Colors.white.withOpacity(0.06),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -244,14 +266,14 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   Widget _buildModeToggle() {
     return SliverToBoxAdapter(
       child: Container(
-        margin: const EdgeInsets.all(20),
+        margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -294,7 +316,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   Widget _buildTodayHeader() {
     return SliverToBoxAdapter(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -302,15 +324,15 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
             end: Alignment.bottomRight,
             colors: [
               const Color.fromARGB(255, 27, 84, 78),
-              const Color.fromARGB(255, 27, 84, 78).withOpacity(0.8),
+              const Color.fromARGB(255, 38, 114, 106),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.3),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -341,7 +363,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
               'Showing items scheduled for today',
               style: TextStyle(
                 color: Colors.white.withOpacity(0.8),
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
               textAlign: TextAlign.center,
@@ -358,7 +380,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   Widget _buildWeekSelector() {
     return SliverToBoxAdapter(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -366,15 +388,15 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
             end: Alignment.bottomRight,
             colors: [
               const Color.fromARGB(255, 27, 84, 78),
-              const Color.fromARGB(255, 27, 84, 78).withOpacity(0.8),
+              const Color.fromARGB(255, 38, 114, 106),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
               color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.3),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -399,7 +421,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
                     'Week of',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -436,18 +458,8 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   String _formatWeekRange() {
     final end = _selectedWeekStart.add(const Duration(days: 6));
     final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
 
     if (_selectedWeekStart.month == end.month) {
@@ -463,7 +475,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   Widget _buildDayTabs() {
     return SliverToBoxAdapter(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         height: 60,
         child: TabBar(
           controller: _tabController,
@@ -471,66 +483,76 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
           indicatorColor: Colors.transparent,
           labelPadding: const EdgeInsets.symmetric(horizontal: 8),
           onTap: (index) => setState(() => _selectedDay = _days[index]),
-          tabs:
-              _days
-                  .map(
-                    (day) => DayTab(day: day, isSelected: _selectedDay == day),
-                  )
-                  .toList(),
+          tabs: _days
+              .map(
+                (day) => DayTab(day: day, isSelected: _selectedDay == day),
+          )
+              .toList(),
         ),
       ),
     );
   }
 
   // ============================================
-  // MENU LIST
+  // MENU LIST & EMPTY STATE
   // ============================================
   Widget _buildMenuList() {
-    final filteredItems =
-        _weeklyMenu.where((item) {
-          final dayValue = item.days[_selectedDay];
-          return dayValue != null;
-        }).toList();
+    final filteredItems = _weeklyMenu.where((item) {
+      final dayValue = item.days[_selectedDay];
+      return dayValue != null;
+    }).toList();
 
     if (filteredItems.isEmpty) {
-      return SliverToBoxAdapter(
+      return SliverFillRemaining(
+        hasScrollBody: false,
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(40),
-            child: Column(
-              children: [
-                Icon(Icons.restaurant_menu, size: 80, color: Colors.grey[300]),
-                const SizedBox(height: 16),
-                Text(
-                  'No items scheduled for ${_selectedDay[0].toUpperCase()}${_selectedDay.substring(1)}',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                  textAlign: TextAlign.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, spreadRadius: 5)
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Tap + button to add items',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                ),
-              ],
-            ),
+                child: Icon(Icons.restaurant_menu, size: 64, color: Colors.grey.shade300),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'No items scheduled',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tap the Add Items button below to assign dishes to ${_selectedDay[0].toUpperCase()}${_selectedDay.substring(1)}.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+            ],
           ),
         ),
       );
     }
 
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        final item = filteredItems[index];
-        final availability = item.days[_selectedDay];
+    return SliverPadding(
+      padding: const EdgeInsets.only(bottom: 100), // Space for FAB
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final item = filteredItems[index];
+          final availability = item.days[_selectedDay];
 
-        return WeeklyMenuItemCard(
-          item: item,
-          availability: availability,
-          onToggleAvailability: () => _cycleAvailability(item, availability),
-          onDelete: () => _deleteWeeklyMenuItem(item.id),
-          onEdit: () => _editMenuItem(item),
-        );
-      }, childCount: filteredItems.length),
+          return WeeklyMenuItemCard(
+            item: item,
+            availability: availability,
+            onToggleAvailability: () => _cycleAvailability(item, availability),
+            onDelete: () => _deleteWeeklyMenuItem(item.id),
+            onEdit: () => _editMenuItem(item),
+          );
+        }, childCount: filteredItems.length),
+      ),
     );
   }
 
@@ -557,26 +579,34 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   Future<void> _deleteWeeklyMenuItem(int id) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Remove Item'),
-            content: Text(
-              'Remove this item from ${_selectedDay[0].toUpperCase()}${_selectedDay.substring(1)}?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Remove',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Remove Item'),
+          ],
+        ),
+        content: Text(
+          'Remove this item from ${_selectedDay[0].toUpperCase()}${_selectedDay.substring(1)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
           ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
     );
 
     if (confirmed == true) {
@@ -591,9 +621,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
     }
   }
 
-  // ✅ NEW METHOD: Edit menu item from weekly menu
   Future<void> _editMenuItem(WeeklyMenuItem item) async {
-    // Convert WeeklyMenuItem to the format expected by AddMenuItemPage
     final itemData = {
       'id': item.menuItemId,
       'name': item.itemName,
@@ -602,15 +630,13 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
       'image_url': item.imageUrl,
       'type': item.itemType,
       'category': item.categoryName,
-      'is_available': 1, // Default to available
+      'is_available': 1,
     };
 
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder:
-            (context) =>
-                AddMenuItemPage(messId: _messId!, existingItem: itemData),
+        builder: (context) => AddMenuItemPage(messId: _messId!, existingItem: itemData),
       ),
     );
 
@@ -624,49 +650,15 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   // ADD MENU FAB
   // ============================================
   Widget _buildAddMenuFAB() {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+    return FloatingActionButton.extended(
+      onPressed: _showAddItemsDialog,
+      backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+      icon: const Icon(Icons.add_rounded, color: Colors.white),
+      label: const Text(
+        'Add Items',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  const Color.fromARGB(255, 27, 84, 78),
-                  const Color.fromARGB(255, 27, 84, 78).withOpacity(0.9),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: FloatingActionButton.extended(
-              onPressed: _showAddItemsDialog,
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              icon: const Icon(Icons.add_rounded, color: Colors.white),
-              label: const Text(
-                'Add Items',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      elevation: 4,
     );
   }
 
@@ -687,13 +679,12 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder:
-          (context) => AddWeeklyItemsPage(
-            messId: _messId!,
-            weekStartDate: _formatWeekStart(_selectedWeekStart),
-            selectedDay: _selectedDay,
-            allItems: _allMenuItems,
-          ),
+      builder: (context) => AddWeeklyItemsPage(
+        messId: _messId!,
+        weekStartDate: _formatWeekStart(_selectedWeekStart),
+        selectedDay: _selectedDay,
+        allItems: _allMenuItems,
+      ),
     ).then((result) {
       if (result == true) {
         _loadData();

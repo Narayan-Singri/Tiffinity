@@ -6,6 +6,7 @@ import 'package:Tiffinity/services/menu_service.dart';
 import 'package:Tiffinity/models/category_model.dart';
 import 'package:Tiffinity/views/widgets/filter_chips.dart' as CustomChips;
 import 'package:Tiffinity/views/widgets/veg_nonveg_logo.dart';
+import 'order_details_page.dart';
 import 'subscription_tmrw_admin.dart';
 
 class PlanDetailsPage extends StatefulWidget {
@@ -482,6 +483,23 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
                           return Card(
                             margin: EdgeInsets.only(bottom: 12),
                             child: ListTile(
+                              // ✅ Added onTap to make the subscriber card clickable
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => OrderDetailsPage(
+                                      orderId: subscriber['id'].toString(),
+                                      orderData: Map<String, dynamic>.from(subscriber),
+                                      isSubscriptionOrder: true, // ✅ Hide the reject button
+                                    ),
+                                  ),
+                                ).then((_) {
+                                  // ✅ Refresh the lists when the admin comes back to this page
+                                  _loadSubscribers();
+                                  _loadOrders();
+                                });
+                              },
                               leading: CircleAvatar(
                                 backgroundColor: _getStatusColor(status),
                                 child: Text(
@@ -679,138 +697,162 @@ class _PlanDetailsPageState extends State<PlanDetailsPage>
 
                           return Card(
                             margin: EdgeInsets.only(bottom: 10),
-                            child: Padding(
-                              padding: EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        backgroundColor: _getStatusColor(
-                                          status,
-                                        ).withOpacity(0.15),
-                                        child: Text(
-                                          customerName.isNotEmpty
-                                              ? customerName[0].toUpperCase()
-                                              : '?',
-                                          style: TextStyle(
-                                            color: _getStatusColor(status),
-                                            fontWeight: FontWeight.bold,
+                            // ✅ Added shape for clean ripple effect
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: InkWell(
+                              // ✅ Make the entire order card clickable
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => OrderDetailsPage(
+                                      orderId: order['id'].toString(),
+                                      orderData: Map<String, dynamic>.from(order),
+                                      isSubscriptionOrder: true, // ✅ Hide the reject button
+                                    ),
+                                  ),
+                                ).then((_) {
+                                  // ✅ Refresh data when returning
+                                  _loadOrders();
+                                  _loadSubscribers();
+                                });
+                              },
+                              child: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: _getStatusColor(
+                                            status,
+                                          ).withOpacity(0.15),
+                                          child: Text(
+                                            customerName.isNotEmpty
+                                                ? customerName[0].toUpperCase()
+                                                : '?',
+                                            style: TextStyle(
+                                              color: _getStatusColor(status),
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              customerName,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${order['start_date']} → ${order['end_date']}',
-                                              style: TextStyle(
-                                                color: Colors.grey[700],
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      // ✅ Make Orders Status Badge Clickable
-                                      PopupMenuButton<String>(
-                                        onSelected: (newStatus) async {
-                                          final success = await SubscriptionService.updateSubscriptionStatus(
-                                              orderId: int.parse(order['id'].toString()),
-                                              status: newStatus
-                                          );
-                                          if (success) {
-                                            _loadOrders();
-                                            _loadSubscribers();
-                                          }
-                                        },
-                                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                                          const PopupMenuItem<String>(value: 'active', child: Text('Mark as Active')),
-                                          const PopupMenuItem<String>(value: 'delivered', child: Text('Mark as Delivered')),
-                                          const PopupMenuItem<String>(value: 'cancelled', child: Text('Cancel Subscription')),
-                                        ],
-                                        child: Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: _getStatusColor(status).withOpacity(0.15),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: _getStatusColor(status).withOpacity(0.5)),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
+                                        SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                status.toUpperCase(),
+                                                customerName,
                                                 style: TextStyle(
-                                                  color: _getStatusColor(status),
                                                   fontWeight: FontWeight.bold,
-                                                  fontSize: 10,
                                                 ),
                                               ),
-                                              SizedBox(width: 4),
-                                              Icon(Icons.arrow_drop_down, size: 14, color: _getStatusColor(status)),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                '${order['start_date']} → ${order['end_date']}',
+                                                style: TextStyle(
+                                                  color: Colors.grey[700],
+                                                  fontSize: 12,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.currency_rupee,
-                                        size: 16,
-                                        color: Colors.green[700],
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        amount.toStringAsFixed(0),
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.green[800],
+                                        // ✅ Make Orders Status Badge Clickable
+                                        PopupMenuButton<String>(
+                                          onSelected: (newStatus) async {
+                                            final success = await SubscriptionService.updateSubscriptionStatus(
+                                                orderId: int.parse(order['id'].toString()),
+                                                status: newStatus
+                                            );
+                                            if (success) {
+                                              _loadOrders();
+                                              _loadSubscribers();
+                                            }
+                                          },
+                                          itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                            const PopupMenuItem<String>(value: 'active', child: Text('Mark as Active')),
+                                            const PopupMenuItem<String>(value: 'delivered', child: Text('Mark as Delivered')),
+                                            const PopupMenuItem<String>(value: 'cancelled', child: Text('Cancel Subscription')),
+                                          ],
+                                          child: Container(
+                                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: _getStatusColor(status).withOpacity(0.15),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: _getStatusColor(status).withOpacity(0.5)),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  status.toUpperCase(),
+                                                  style: TextStyle(
+                                                    color: _getStatusColor(status),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 4),
+                                                Icon(Icons.arrow_drop_down, size: 14, color: _getStatusColor(status)),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (items.isNotEmpty)
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 6,
-                                      children:
-                                      items.map((item) {
-                                        return Chip(
-                                          label: Text(
-                                            item['name']?.toString() ??
-                                                'Item',
-                                          ),
-                                          backgroundColor: Colors.green[50],
-                                          avatar: Icon(
-                                            Icons.restaurant_menu,
-                                            size: 16,
-                                            color: Colors.green[700],
-                                          ),
-                                        );
-                                      }).toList(),
-                                    )
-                                  else
-                                    Text(
-                                      'No item details provided',
-                                      style: TextStyle(color: Colors.grey[700]),
+                                      ],
                                     ),
-                                ],
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.currency_rupee,
+                                          size: 16,
+                                          color: Colors.green[700],
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          amount.toStringAsFixed(0),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green[800],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (items.isNotEmpty)
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 6,
+                                        children:
+                                        items.map((item) {
+                                          return Chip(
+                                            label: Text(
+                                              item['name']?.toString() ??
+                                                  'Item',
+                                            ),
+                                            backgroundColor: Colors.green[50],
+                                            avatar: Icon(
+                                              Icons.restaurant_menu,
+                                              size: 16,
+                                              color: Colors.green[700],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      )
+                                    else
+                                      Text(
+                                        'No item details provided',
+                                        style: TextStyle(color: Colors.grey[700]),
+                                      ),
+                                  ],
+                                ),
                               ),
                             ),
                           );

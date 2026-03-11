@@ -9,14 +9,18 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:Tiffinity/services/order_service.dart';
 import 'package:Tiffinity/views/widgets/rejection_reason_bottom_sheet.dart';
 
+import '../../../services/subscription_service.dart';
+
 class OrderDetailsPage extends StatefulWidget {
   final String orderId;
   final Map<String, dynamic> orderData;
+  final bool isSubscriptionOrder; // ✅ Add this flag
 
   const OrderDetailsPage({
     super.key,
     required this.orderId,
     required this.orderData,
+    this.isSubscriptionOrder = false, // ✅ Default to false so standard orders aren't affected
   });
 
   @override
@@ -71,7 +75,11 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     if (!silent) setState(() => _isLoading = true);
 
     try {
-      final order = await OrderService.getOrderById(widget.orderId);
+      // ✅ Choose the correct API call based on the flag
+      final order = widget.isSubscriptionOrder
+          ? await OrderService.getSubscriptionOrderById(widget.orderId)
+          : await OrderService.getOrderById(widget.orderId);
+
       if (mounted) {
         setState(() {
           _orderDetails = order;
@@ -103,41 +111,66 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   Future<void> _updateOrderStatus(String newStatus) async {
     HapticFeedback.mediumImpact();
 
-    final success = await OrderService.updateOrderStatus(
-      orderId: widget.orderId,
-      status: newStatus,
+    // Show a quick loading dialog so the user knows it's working
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    if (success && mounted) {
-      setState(() => _currentStatus = newStatus);
+    bool success = false;
 
-      // Show appropriate snackbar
-      final snackbarConfig = _getSnackbarConfig(newStatus);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(snackbarConfig['icon'], color: Colors.white),
-              const SizedBox(width: 12),
-              Text(snackbarConfig['message']),
-            ],
-          ),
-          backgroundColor: snackbarConfig['color'],
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+    try {
+      // ✅ Check if it's a subscription order to use the correct service
+      if (widget.isSubscriptionOrder) {
+        success = await SubscriptionService.updateSubscriptionStatus(
+          orderId: int.parse(widget.orderId),
+          status: newStatus,
+        );
+      } else {
+        success = await OrderService.updateOrderStatus(
+          orderId: widget.orderId,
+          status: newStatus,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating status: $e');
+    }
 
-      _loadOrderDetails(silent: true);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to update order status'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (mounted) {
+      Navigator.pop(context); // Close loading dialog
+
+      if (success) {
+        setState(() => _currentStatus = newStatus);
+
+        // Show appropriate snackbar
+        final snackbarConfig = _getSnackbarConfig(newStatus);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(snackbarConfig['icon'], color: Colors.white),
+                const SizedBox(width: 12),
+                Text(snackbarConfig['message']),
+              ],
+            ),
+            backgroundColor: snackbarConfig['color'],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+
+        _loadOrderDetails(silent: true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update order status'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -869,7 +902,11 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
     final totalAmount =
         double.tryParse(_orderDetails!['total_amount'].toString()) ?? 0.0;
-    final deliveryFee = totalAmount - itemTotal;
+
+    // ✅ Fix: Set Delivery fee to 0 if it's a subscription order
+    final deliveryFee = widget.isSubscriptionOrder
+        ? 0.0
+        : (totalAmount - itemTotal);
 
     return Card(
       elevation: 2,
@@ -884,12 +921,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(
-                      255,
-                      27,
-                      84,
-                      78,
-                    ).withOpacity(0.1),
+                    color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -907,14 +939,28 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
             const Divider(height: 24),
             _buildBillRow('Item Total', itemTotal),
             const SizedBox(height: 8),
-            _buildBillRow('Delivery Fee', deliveryFee),
+            // ✅ Fix: Change the text to "Included in Plan" if it's a subscription
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Delivery Fee', style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+                Text(
+                  widget.isSubscriptionOrder ? 'Included in Plan' : _formatCurrency(deliveryFee),
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: widget.isSubscriptionOrder ? Colors.green : Colors.black
+                  ),
+                ),
+              ],
+            ),
             const Divider(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Grand Total',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  widget.isSubscriptionOrder ? 'Subscription Plan Price' : 'Grand Total',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   _formatCurrency(totalAmount),
@@ -1198,6 +1244,39 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   Widget _buildActionButtons() {
     switch (_currentStatus.toLowerCase()) {
       case 'pending':
+      // ✅ Check if it's a subscription order
+        if (widget.isSubscriptionOrder) {
+          return Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  // ✅ Changed from 'accepted' to 'active'
+                  onPressed: () => _updateOrderStatus('active'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle_outline),
+                      SizedBox(width: 8),
+                      // ✅ Changed text to make it clear this activates the plan
+                      Text('ACTIVATE SUBSCRIPTION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
+
+        // Standard behavior for normal orders
         return Row(
           children: [
             Expanded(
@@ -1248,13 +1327,24 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ],
         );
 
+      case 'active':
+        if (widget.isSubscriptionOrder) {
+          // ✅ Removed the slider. Subscriptions now just show this informational card!
+          return _buildStatusInfoCard(
+            color: Colors.green,
+            icon: Icons.autorenew,
+            title: 'Subscription Active',
+            subtitle: 'Daily deliveries for this plan will automatically generate in your normal Orders list every morning.',
+          );
+        }
+        return const SizedBox.shrink();
+
       case 'accepted':
         return _buildStatusInfoCard(
           color: Colors.blue,
           icon: Icons.pending_actions,
           title: 'Order Accepted',
-          subtitle:
-              'Waiting for delivery partner confirmation before marking ready.',
+          subtitle: 'Waiting for delivery partner confirmation before marking ready.',
         );
 
       case 'confirmed':
@@ -1334,9 +1424,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         return _buildStatusInfoCard(
           color: Colors.red,
           icon: Icons.cancel,
-          title: _currentStatus.toLowerCase() == 'rejected'
-              ? 'Order Rejected'
-              : 'Order Cancelled',
+          title: _currentStatus.toLowerCase() == 'rejected' ? 'Order Rejected' : 'Order Cancelled',
           subtitle: 'Order flow is closed.',
         );
 
