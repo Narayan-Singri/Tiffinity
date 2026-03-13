@@ -24,8 +24,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
   bool _isLoading = true;
   static bool _notificationsInitialized = false;
 
+  // ✅ Added 'subscriptions' to the filter options
   final List<String> _statusFilters = [
     'All',
+    'subscriptions',
     'pending',
     'accepted',
     'confirmed',
@@ -80,11 +82,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
           setState(() {
             _messData = mess;
             if (orders is List) {
-              this._orders =
-                  orders
-                      .where((e) => e is Map)
-                      .map((e) => Map<String, dynamic>.from(e as Map))
-                      .toList();
+              this._orders = orders
+                  .where((e) => e is Map)
+                  .map((e) => Map<String, dynamic>.from(e as Map))
+                  .toList();
             } else {
               this._orders = [];
             }
@@ -277,11 +278,30 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }).join(' ');
 
     final filteredOrders = _orders.where((order) {
-      final matchesStatus = _selectedStatus == "All" ||
-          order['status'].toString().toLowerCase() == _selectedStatus.toLowerCase();
+      // Logic to safely identify subscription orders depending on your database setup
+      final subId = order['subscription_id'];
+      final isSubField = order['is_subscription'];
+      final type = order['order_type'];
+      final orderId = order['id']?.toString() ?? '';
+
+      final isSubscriptionOrder = (subId != null && subId.toString() != '0') ||
+          (isSubField == 1 || isSubField == '1' || isSubField == true) ||
+          (type == 'subscription') ||
+          orderId.startsWith('SUB');
+
+      bool matchesStatus = false;
+      if (_selectedStatus == "All") {
+        matchesStatus = true;
+      } else if (_selectedStatus.toLowerCase() == "subscriptions") {
+        matchesStatus = isSubscriptionOrder;
+      } else {
+        matchesStatus = order['status'].toString().toLowerCase() == _selectedStatus.toLowerCase();
+      }
+
       final matchesSearch = _searchQuery.isEmpty ||
           order['id'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
           (_customerNames[order['customer_id']] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+
       return matchesStatus && matchesSearch;
     }).toList();
 
@@ -293,7 +313,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
         child: CustomScrollView(
           slivers: [
             // Professional App Bar
-            // Professional App Bar
             SliverAppBar(
               expandedHeight: 140.0,
               floating: false,
@@ -301,7 +320,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
               backgroundColor: const Color.fromARGB(255, 27, 84, 78),
               elevation: 2,
               shadowColor: Colors.black38,
-              // ✅ 1. Add this shape to physically round the AppBar's bottom edges
               shape: const ContinuousRectangleBorder(
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(60),
@@ -315,13 +333,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
-                    letterSpacing: -0.5, // Tightens the letters for a modern look
+                    letterSpacing: -0.5,
                   ),
                 ),
-                // ✅ 2. Wrap the background in a ClipRRect so the gradient respects the curve
                 background: ClipRRect(
                   borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(60), // Match the radius above
+                    bottomLeft: Radius.circular(60),
                     bottomRight: Radius.circular(60),
                   ),
                   child: Stack(
@@ -339,7 +356,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           ),
                         ),
                       ),
-                      // Premium subtle background watermark
                       Positioned(
                         right: -20,
                         top: 10,
@@ -361,7 +377,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     radius: 20,
                     child: IconButton(
                       icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22),
-                      onPressed: () {}, // Add notification routing later
+                      onPressed: () {},
                     ),
                   ),
                 ),
@@ -382,7 +398,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
                     const SizedBox(height: 16),
-                    _buildMetricsGrid(),
+                    _buildMetricsGrid(), // ✅ Upgraded to 2x2 Grid
                     const SizedBox(height: 24),
                     _buildSearchBar(),
                     const SizedBox(height: 16),
@@ -492,19 +508,42 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
+  // ✅ New 2x2 Grid for Metrics (Total, Pending, Subscriptions, Preparing)
   Widget _buildMetricsGrid() {
+    final total = _orders.length;
     final pending = _orders.where((o) => o['status'] == 'pending').length;
-    final accepted = _orders.where((o) => o['status'] == 'accepted').length;
-    final ready = _orders.where((o) => o['status'] == 'ready').length;
-    final delivered = _orders.where((o) => o['status'] == 'delivered').length;
+    final preparing = _orders.where((o) => o['status'] == 'accepted' || o['status'] == 'ready').length;
 
-    return Row(
+    // Identify subscription orders
+    final subscriptions = _orders.where((o) {
+      final subId = o['subscription_id'];
+      final isSub = o['is_subscription'];
+      final type = o['order_type'];
+      final orderId = o['id']?.toString() ?? '';
+
+      return (subId != null && subId.toString() != '0') ||
+          (isSub == 1 || isSub == '1' || isSub == true) ||
+          (type == 'subscription') ||
+          orderId.startsWith('SUB');
+    }).length;
+
+    return Column(
       children: [
-        Expanded(child: _buildMetricCard('Pending', pending.toString(), Icons.schedule, Colors.orange)),
-        const SizedBox(width: 12),
-        Expanded(child: _buildMetricCard('Preparing', (accepted + ready).toString(), Icons.soup_kitchen, Colors.blue)),
-        const SizedBox(width: 12),
-        Expanded(child: _buildMetricCard('Delivered', delivered.toString(), Icons.check_circle, Colors.green)),
+        Row(
+          children: [
+            Expanded(child: _buildMetricCard('Total Orders', total.toString(), Icons.receipt_long, Colors.blue)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildMetricCard('Pending', pending.toString(), Icons.schedule, Colors.orange)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: _buildMetricCard('Subscriptions', subscriptions.toString(), Icons.event_repeat, Colors.purple)),
+            const SizedBox(width: 12),
+            Expanded(child: _buildMetricCard('Preparing', preparing.toString(), Icons.soup_kitchen, Colors.green)),
+          ],
+        ),
       ],
     );
   }
@@ -573,7 +612,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
         itemBuilder: (context, index) {
           final filter = _statusFilters[index];
           final isSelected = _selectedStatus.toLowerCase() == filter.toLowerCase();
-          final displayLabel = filter == 'All' ? 'All Orders' : filter.replaceAll('_', ' ').toUpperCase();
+
+          // Proper capitalization for display
+          final displayLabel = filter == 'All'
+              ? 'All Orders'
+              : filter == 'subscriptions'
+              ? 'Subscriptions'
+              : filter.replaceAll('_', ' ').toUpperCase();
 
           return FilterChip(
             label: Text(
@@ -631,6 +676,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
     final customerName = _customerNames[customerId] ?? 'Loading...';
     final formattedTime = _formatTime(order['created_at']?.toString());
 
+    // Check if this is a subscription order to display a special tag on the card
+    final isSubscription = (order['subscription_id'] != null && order['subscription_id'].toString() != '0') ||
+        (order['is_subscription'] == 1 || order['is_subscription'] == '1') ||
+        (order['id'] != null && order['id'].toString().startsWith('SUB'));
+
     final statusColor = _getStatusColor(status);
     final statusIcon = _getStatusIcon(status);
 
@@ -660,7 +710,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   orderData: order,
                 ),
               ),
-            ).then((_) => _loadData()); // Refresh when coming back
+            ).then((_) => _loadData());
           },
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -685,21 +735,31 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start, // Align to top
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded( // ✅ Added Expanded to prevent overflow
-                            child: Text(
-                              "Order #${order['id'] ?? ''}",
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                              maxLines: 1, // ✅ Keep it on one line
-                              overflow: TextOverflow.ellipsis, // ✅ Add ... if too long
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    "Order #${order['id'] ?? ''}",
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isSubscription) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.event_repeat, color: Colors.purple, size: 16),
+                                ],
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8), // ✅ Add a tiny bit of breathing room
+                          const SizedBox(width: 8),
                           Text(
                             formattedTime,
                             style: TextStyle(
