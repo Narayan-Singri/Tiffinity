@@ -62,23 +62,44 @@ class _AdminSetupPageState extends State<AdminSetupPage> {
   }
 
   // 🆕 REQUEST LOCATION PERMISSION
-  Future<void> _requestLocationPermission() async {
+  Future<bool> _ensureLocationPermission() async {
     try {
-      final permission = await Permission.location.request();
-      if (permission.isGranted) {
-        setState(() => _locationPermissionGranted = true);
-        await _getCurrentLocation();
-      } else {
-        _showError('Location permission is required to set mess location');
+      PermissionStatus status = await Permission.location.status;
+      if (status.isDenied || status.isRestricted) {
+        status = await Permission.location.request();
       }
+
+      if (status.isGranted) {
+        return true;
+      }
+
+      if (status.isPermanentlyDenied) {
+        _showError(
+          'Location permission permanently denied. Please enable it from Settings.',
+        );
+        await openAppSettings();
+        return false;
+      }
+
+      _showError('Location permission is required to set mess location');
+      return false;
     } catch (e) {
       _showError('Error requesting location permission: $e');
+      return false;
+    }
+  }
+
+  Future<void> _requestLocationPermission() async {
+    if (await _ensureLocationPermission()) {
+      setState(() => _locationPermissionGranted = true);
+      await _getCurrentLocation();
     }
   }
 
   // 🆕 GET CURRENT LOCATION
   Future<void> _getCurrentLocation() async {
     try {
+      if (!await _ensureLocationPermission()) return;
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );

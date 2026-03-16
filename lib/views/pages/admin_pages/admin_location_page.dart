@@ -47,12 +47,35 @@ class _AdminLocationPageState extends State<AdminLocationPage> {
     super.dispose();
   }
 
+  Future<bool> _ensureLocationPermission() async {
+    try {
+      PermissionStatus status = await Permission.location.status;
+      if (status.isDenied || status.isRestricted) {
+        status = await Permission.location.request();
+      }
+
+      if (status.isGranted) return true;
+
+      if (status.isPermanentlyDenied) {
+        _showError(
+          'Location permission permanently denied. Please open Settings.',
+        );
+        await openAppSettings();
+        return false;
+      }
+
+      _showError('Location permission is required');
+      return false;
+    } catch (e) {
+      _showError('Error checking location permission: $e');
+      return false;
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
-      final permission = await Permission.location.request();
-
-      if (permission.isDenied) {
-        _showError('Location permission is required');
+      if (!await _ensureLocationPermission()) {
+        setState(() => _isLoading = false);
         return;
       }
 

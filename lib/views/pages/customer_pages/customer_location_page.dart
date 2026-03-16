@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -66,6 +65,31 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
     }
   }
 
+  Future<bool> _ensureLocationPermission() async {
+    try {
+      PermissionStatus status = await Permission.location.status;
+      if (status.isDenied || status.isRestricted) {
+        status = await Permission.location.request();
+      }
+
+      if (status.isGranted) return true;
+
+      if (status.isPermanentlyDenied) {
+        _showError(
+          'Location permission permanently denied. Please enable from Settings',
+        );
+        await openAppSettings();
+        return false;
+      }
+
+      _showError('Location permission is required');
+      return false;
+    } catch (e) {
+      _showError('Error checking location permission: $e');
+      return false;
+    }
+  }
+
   Future<void> _getCurrentLocation() async {
     setState(() {
       _isLoading = true;
@@ -73,15 +97,15 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
     });
 
     try {
-      final permission = await Permission.location.request();
-      if (permission.isDenied) {
-        _showError('Location permission is required');
+      if (!await _ensureLocationPermission()) {
+        setState(() => _isLoading = false);
         return;
       }
 
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         _showError('Please enable location services');
+        setState(() => _isLoading = false);
         return;
       }
 
