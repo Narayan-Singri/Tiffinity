@@ -4,7 +4,13 @@ import 'package:Tiffinity/services/wallet_api.dart';
 import 'package:flutter/foundation.dart';
 
 class WalletController extends ChangeNotifier {
-  WalletController({WalletApi? api}) : _api = api ?? WalletApi();
+  WalletController({
+    required String ownerId,
+    required String ownerType,
+    WalletApi? api,
+  }) : _api = api ?? WalletApi(),
+       _ownerId = ownerId,
+       _ownerType = ownerType;
 
   final WalletApi _api;
 
@@ -12,22 +18,21 @@ class WalletController extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSubmitting = false;
   String? _errorMessage;
+
   String? _ownerId;
+  String? _ownerType; // ✅ ADD THIS
 
   WalletDashboard? get dashboard => _dashboard;
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
-  String get ownerType => 'mess';
+
+  String get ownerType => _ownerType ?? 'mess'; // ✅ FIXED
 
   Future<void> loadWallet({bool forceRefresh = false}) async {
-    if (_isLoading) {
-      return;
-    }
+    if (_isLoading) return;
 
-    if (!forceRefresh && _dashboard != null) {
-      return;
-    }
+    if (!forceRefresh && _dashboard != null) return;
 
     _isLoading = true;
     _errorMessage = null;
@@ -35,6 +40,7 @@ class WalletController extends ChangeNotifier {
 
     try {
       _ownerId ??= await _resolveOwnerId();
+
       _dashboard = await _api.fetchDashboard(
         ownerId: _ownerId!,
         ownerType: ownerType,
@@ -62,12 +68,15 @@ class WalletController extends ChangeNotifier {
 
     try {
       _ownerId ??= await _resolveOwnerId();
+
       final message = await _api.submitWithdrawRequest(
         ownerId: _ownerId!,
         ownerType: ownerType,
         amount: amount,
       );
+
       await refresh();
+
       return message;
     } catch (error) {
       final message = _normalizeError(error);
@@ -81,18 +90,23 @@ class WalletController extends ChangeNotifier {
 
   Future<String> _resolveOwnerId() async {
     final currentUser = await AuthService.currentUser;
+
     final ownerId = currentUser?['uid']?.toString();
+
     if (ownerId == null || ownerId.isEmpty) {
       throw Exception('Unable to identify the mess owner account.');
     }
+
     return ownerId;
   }
 
   String _normalizeError(Object error) {
     final raw = error.toString().trim();
+
     if (raw.startsWith('Exception: ')) {
       return raw.substring('Exception: '.length);
     }
+
     return raw.isEmpty ? 'Something went wrong while loading the wallet.' : raw;
   }
 }

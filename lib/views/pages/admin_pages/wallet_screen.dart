@@ -7,7 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class WalletScreen extends StatefulWidget {
-  const WalletScreen({super.key});
+  final String ownerId;
+  final String ownerType;
+
+  const WalletScreen({
+    super.key,
+    required this.ownerId,
+    required this.ownerType,
+  });
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -31,7 +38,10 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = WalletController()..loadWallet();
+    _controller = WalletController(
+      ownerId: widget.ownerId,
+      ownerType: widget.ownerType,
+    )..loadWallet();
   }
 
   @override
@@ -53,7 +63,10 @@ class _WalletScreenState extends State<WalletScreen> {
     );
 
     if (result == true && mounted) {
-      _showSnackBar('Withdrawal request submitted successfully.', isError: false);
+      _showSnackBar(
+        'Withdrawal request submitted successfully.',
+        isError: false,
+      );
     }
   }
 
@@ -106,26 +119,27 @@ class _WalletScreenState extends State<WalletScreen> {
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                    child: _controller.isLoading && dashboard == null
-                        ? _buildLoadingState()
-                        : dashboard == null
+                    child:
+                        _controller.isLoading && dashboard == null
+                            ? _buildLoadingState()
+                            : dashboard == null
                             ? _buildErrorState()
                             : Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildBalanceHero(dashboard),
-                                  const SizedBox(height: 18),
-                                  _buildQuickActions(),
-                                  const SizedBox(height: 18),
-                                  _buildStatsGrid(dashboard),
-                                  const SizedBox(height: 18),
-                                  _buildHighlightsCard(dashboard),
-                                  const SizedBox(height: 18),
-                                  _buildRecentActivity(dashboard),
-                                  const SizedBox(height: 18),
-                                  _buildWithdrawalPreview(dashboard),
-                                ],
-                              ),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildBalanceHero(dashboard),
+                                const SizedBox(height: 18),
+                                _buildQuickActions(),
+                                const SizedBox(height: 18),
+                                _buildStatsGrid(dashboard),
+                                const SizedBox(height: 18),
+                                _buildHighlightsCard(dashboard),
+                                const SizedBox(height: 18),
+                                _buildRecentActivity(dashboard),
+                                const SizedBox(height: 18),
+                                _buildWithdrawalPreview(dashboard),
+                              ],
+                            ),
                   ),
                 ),
               ],
@@ -175,7 +189,11 @@ class _WalletScreenState extends State<WalletScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.account_balance_wallet_rounded, size: 44, color: _primaryColor),
+          Icon(
+            Icons.account_balance_wallet_rounded,
+            size: 44,
+            color: _primaryColor,
+          ),
           const SizedBox(height: 14),
           const Text(
             'Unable to load wallet',
@@ -214,11 +232,7 @@ class _WalletScreenState extends State<WalletScreen> {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            const Color(0xFF113D38),
-            _primaryColor,
-            _highlightColor,
-          ],
+          colors: [const Color(0xFF113D38), _primaryColor, _highlightColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -410,33 +424,37 @@ class _WalletScreenState extends State<WalletScreen> {
       title: 'Recent earnings history',
       actionLabel: dashboard.statements.isEmpty ? null : 'View all',
       onAction: dashboard.statements.isEmpty ? null : _openHistory,
-      child: items.isEmpty
-          ? const _EmptyState(
-              title: 'No earnings yet',
-              subtitle: 'Settlements from the statement API will appear here.',
-            )
-          : Column(
-              children: items
-                  .map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _TransactionTile(
-                        title: entry.title,
-                        subtitle: entry.createdAt == null
-                            ? 'Date unavailable'
-                            : _dateFormat.format(entry.createdAt!),
-                        amount: _currency.format(entry.amount),
-                        typeLabel: entry.isCredit ? 'Credit' : 'Debit',
-                        isCredit: entry.isCredit,
-                        balanceLabel:
-                            'Balance ${_currency.format(entry.balanceAfter)}',
-                        successColor: _successColor,
-                        debitColor: _warningColor,
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
+      child:
+          items.isEmpty
+              ? const _EmptyState(
+                title: 'No earnings yet',
+                subtitle:
+                    'Settlements from the statement API will appear here.',
+              )
+              : Column(
+                children:
+                    items
+                        .map(
+                          (entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _TransactionTile(
+                              title: entry.title,
+                              subtitle:
+                                  entry.createdAt == null
+                                      ? 'Date unavailable'
+                                      : _dateFormat.format(entry.createdAt!),
+                              amount: _currency.format(entry.amount),
+                              typeLabel: entry.isCredit ? 'Credit' : 'Debit',
+                              isCredit: entry.isCredit,
+                              balanceLabel:
+                                  'Balance ${_currency.format(entry.balanceAfter)}',
+                              successColor: _successColor,
+                              debitColor: _warningColor,
+                            ),
+                          ),
+                        )
+                        .toList(),
+              ),
     );
   }
 
@@ -447,31 +465,34 @@ class _WalletScreenState extends State<WalletScreen> {
       title: 'Withdraw history',
       actionLabel: 'View all',
       onAction: _openWithdrawHistory,
-      child: items.isEmpty
-          ? const _EmptyState(
-              title: 'No withdrawal requests yet',
-              subtitle:
-                  'Once a payout request is created, it will show up here.',
-            )
-          : Column(
-              children: items
-                  .map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _WithdrawalTile(
-                        amount: _currency.format(entry.amount),
-                        status: entry.status,
-                        date: entry.createdAt == null
-                            ? 'Date unavailable'
-                            : _dateFormat.format(entry.createdAt!),
-                        primaryColor: _primaryColor,
-                        successColor: _successColor,
-                        warningColor: _warningColor,
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
+      child:
+          items.isEmpty
+              ? const _EmptyState(
+                title: 'No withdrawal requests yet',
+                subtitle:
+                    'Once a payout request is created, it will show up here.',
+              )
+              : Column(
+                children:
+                    items
+                        .map(
+                          (entry) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _WithdrawalTile(
+                              amount: _currency.format(entry.amount),
+                              status: entry.status,
+                              date:
+                                  entry.createdAt == null
+                                      ? 'Date unavailable'
+                                      : _dateFormat.format(entry.createdAt!),
+                              primaryColor: _primaryColor,
+                              successColor: _successColor,
+                              warningColor: _warningColor,
+                            ),
+                          ),
+                        )
+                        .toList(),
+              ),
     );
   }
 }
@@ -567,10 +588,7 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({
-    required this.label,
-    required this.value,
-  });
+  const _HeroMetric({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -644,7 +662,8 @@ class _ActionButton extends StatelessWidget {
             color: backgroundColor,
             gradient: background,
             borderRadius: BorderRadius.circular(22),
-            border: borderColor == null ? null : Border.all(color: borderColor!),
+            border:
+                borderColor == null ? null : Border.all(color: borderColor!),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.04),
@@ -658,9 +677,10 @@ class _ActionButton extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: background == null
-                      ? const Color(0xFFEAF6F3)
-                      : Colors.white.withOpacity(0.16),
+                  color:
+                      background == null
+                          ? const Color(0xFFEAF6F3)
+                          : Colors.white.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: iconColor, size: 22),
@@ -675,7 +695,8 @@ class _ActionButton extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: background == null ? Colors.black87 : Colors.white,
+                        color:
+                            background == null ? Colors.black87 : Colors.white,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -683,9 +704,10 @@ class _ActionButton extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         fontSize: 12,
-                        color: background == null
-                            ? Colors.grey.shade600
-                            : Colors.white.withOpacity(0.76),
+                        color:
+                            background == null
+                                ? Colors.grey.shade600
+                                : Colors.white.withOpacity(0.76),
                       ),
                     ),
                   ],
@@ -882,7 +904,10 @@ class _TransactionTile extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: accent.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -924,9 +949,10 @@ class _WithdrawalTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final normalizedStatus = status.toLowerCase();
-    final accent = normalizedStatus == 'approved'
-        ? successColor
-        : normalizedStatus == 'rejected'
+    final accent =
+        normalizedStatus == 'approved'
+            ? successColor
+            : normalizedStatus == 'rejected'
             ? Colors.red.shade600
             : warningColor;
 
@@ -991,10 +1017,7 @@ class _WithdrawalTile extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.title,
-    required this.subtitle,
-  });
+  const _EmptyState({required this.title, required this.subtitle});
 
   final String title;
   final String subtitle;

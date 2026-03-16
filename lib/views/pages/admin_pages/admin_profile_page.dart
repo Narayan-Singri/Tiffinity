@@ -66,6 +66,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   Color get _primaryColor => const Color.fromARGB(255, 27, 84, 78);
   Color get _accentColor => Colors.orange;
 
+  // wallet
+  double _walletBalance = 0;
+  double _walletLocked = 0;
+  double _walletAvailable = 0;
+
   @override
   void initState() {
     super.initState();
@@ -111,12 +116,13 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           _userData = user;
           _messData = mess;
           _originalMessData =
-          mess != null ? Map<String, dynamic>.from(mess) : null;
+              mess != null ? Map<String, dynamic>.from(mess) : null;
           _originalUserData = Map<String, dynamic>.from(user);
           _isLoading = false;
         });
         _populateControllers();
         _animationController.forward();
+        await _loadWallet();
       } else {
         setState(() => _isLoading = false);
       }
@@ -174,7 +180,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       if (pincode.isNotEmpty) locationParts.add(pincode);
 
       _messLocation =
-      locationParts.isNotEmpty ? locationParts.join(', ') : 'Location set';
+          locationParts.isNotEmpty ? locationParts.join(', ') : 'Location set';
     }
   }
 
@@ -190,46 +196,59 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   void _showDiscardDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('Discard Changes?', style: TextStyle(fontWeight: FontWeight.w700)),
-          ],
-        ),
-        content: const Text('Are you sure you want to discard all changes?'),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('No', style: TextStyle(color: Colors.grey.shade700)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _isEditMode = false;
-                _messData = _originalMessData != null
-                    ? Map<String, dynamic>.from(_originalMessData!)
-                    : null;
-                _userData = Map<String, dynamic>.from(_originalUserData!);
-                _populateControllers();
-              });
-            },
-            child: const Text('Yes, Discard'),
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                SizedBox(width: 8),
+                Text(
+                  'Discard Changes?',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            content: const Text(
+              'Are you sure you want to discard all changes?',
+            ),
+            actionsPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'No',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _isEditMode = false;
+                    _messData =
+                        _originalMessData != null
+                            ? Map<String, dynamic>.from(_originalMessData!)
+                            : null;
+                    _userData = Map<String, dynamic>.from(_originalUserData!);
+                    _populateControllers();
+                  });
+                },
+                child: const Text('Yes, Discard'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -258,12 +277,14 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         'description': _descriptionController.text.trim(),
         'phone': _messPhoneController.text.trim(),
         'address': _addressController.text.trim(),
-        'open_time': _openingTime != null
-            ? '${_openingTime!.hour.toString().padLeft(2, '0')}:${_openingTime!.minute.toString().padLeft(2, '0')}:00'
-            : '',
-        'close_time': _closingTime != null
-            ? '${_closingTime!.hour.toString().padLeft(2, '0')}:${_closingTime!.minute.toString().padLeft(2, '0')}:00'
-            : '',
+        'open_time':
+            _openingTime != null
+                ? '${_openingTime!.hour.toString().padLeft(2, '0')}:${_openingTime!.minute.toString().padLeft(2, '0')}:00'
+                : '',
+        'close_time':
+            _closingTime != null
+                ? '${_closingTime!.hour.toString().padLeft(2, '0')}:${_closingTime!.minute.toString().padLeft(2, '0')}:00'
+                : '',
       });
 
       await ApiService.postForm('users/update_user_details.php', {
@@ -344,78 +365,83 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor.withOpacity(0.98),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding:
-            const EdgeInsets.symmetric(vertical: 20).copyWith(bottom: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[400],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+      builder:
+          (context) => Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor.withOpacity(0.98),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 20,
+                ).copyWith(bottom: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Update Mess Photo',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: _primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    ListTile(
+                      leading: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: _primaryColor.withOpacity(0.08),
+                        child: Icon(Icons.camera_alt, color: _primaryColor),
+                      ),
+                      title: const Text('Take Photo'),
+                      onTap: () => _pickAndUploadImage(ImageSource.camera),
+                    ),
+                    ListTile(
+                      leading: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: _primaryColor.withOpacity(0.08),
+                        child: Icon(Icons.photo_library, color: _primaryColor),
+                      ),
+                      title: const Text('Choose from Gallery'),
+                      onTap: () => _pickAndUploadImage(ImageSource.gallery),
+                    ),
+                    ListTile(
+                      leading: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.red.withOpacity(0.06),
+                        child: const Icon(Icons.close, color: Colors.red),
+                      ),
+                      title: const Text('Cancel'),
+                      onTap: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Update Mess Photo',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: _primaryColor,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ListTile(
-                  leading: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: _primaryColor.withOpacity(0.08),
-                    child: Icon(Icons.camera_alt, color: _primaryColor),
-                  ),
-                  title: const Text('Take Photo'),
-                  onTap: () => _pickAndUploadImage(ImageSource.camera),
-                ),
-                ListTile(
-                  leading: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: _primaryColor.withOpacity(0.08),
-                    child: Icon(Icons.photo_library, color: _primaryColor),
-                  ),
-                  title: const Text('Choose from Gallery'),
-                  onTap: () => _pickAndUploadImage(ImageSource.gallery),
-                ),
-                ListTile(
-                  leading: CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.red.withOpacity(0.06),
-                    child: const Icon(Icons.close, color: Colors.red),
-                  ),
-                  title: const Text('Cancel'),
-                  onTap: () => Navigator.pop(context),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
     );
   }
 
   Future<void> _selectTime(BuildContext context, bool isOpeningTime) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: isOpeningTime
-          ? (_openingTime ?? TimeOfDay.now())
-          : (_closingTime ?? TimeOfDay.now()),
+      initialTime:
+          isOpeningTime
+              ? (_openingTime ?? TimeOfDay.now())
+              : (_closingTime ?? TimeOfDay.now()),
     );
     if (picked != null) {
       setState(() {
@@ -432,7 +458,8 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : const Color.fromARGB(255, 27, 84, 78),
+        backgroundColor:
+            isError ? Colors.red : const Color.fromARGB(255, 27, 84, 78),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -440,39 +467,67 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     );
   }
 
+  Future<void> _loadWallet() async {
+    if (_userData == null) return;
+
+    try {
+      final res = await ApiService.postForm('transactions/wallet_balance.php', {
+        "owner_id": _userData!['uid'],
+        "owner_type": "mess",
+      });
+
+      setState(() {
+        _walletBalance = double.tryParse(res["balance"].toString()) ?? 0;
+
+        _walletAvailable = double.tryParse(res["available"].toString()) ?? 0;
+
+        _walletLocked = double.tryParse(res["locked_balance"].toString()) ?? 0;
+      });
+    } catch (e) {
+      debugPrint("Wallet load error $e");
+    }
+  }
+
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Row(
-          children: [
-            Icon(Icons.logout, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Logout'),
-          ],
-        ),
-        content: const Text('Are you sure you want to logout?'),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
+            title: const Row(
+              children: [
+                Icon(Icons.logout, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Logout'),
+              ],
+            ),
+            content: const Text('Are you sure you want to logout?'),
+            actionsPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Logout'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirm == true && mounted) {
@@ -483,7 +538,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const WelcomePage()),
-                (route) => false,
+            (route) => false,
           );
         }
       } catch (e) {
@@ -692,7 +747,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   gradient: LinearGradient(
                     colors: [
                       Color.fromARGB(255, 18, 65, 60),
-                      Color.fromARGB(255, 27, 84, 78)
+                      Color.fromARGB(255, 27, 84, 78),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -717,7 +772,8 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   }
 
   Widget _buildMessImageSection() {
-    final hasImage = _messData?['image_url'] != null &&
+    final hasImage =
+        _messData?['image_url'] != null &&
         _messData!['image_url'].toString().isNotEmpty;
 
     return Stack(
@@ -726,9 +782,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         Hero(
           tag: 'mess_image',
           child: GestureDetector(
-            onTap: hasImage
-                ? () => _showFullImage(context, _messData!['image_url'])
-                : null,
+            onTap:
+                hasImage
+                    ? () => _showFullImage(context, _messData!['image_url'])
+                    : null,
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               height: 190,
@@ -758,14 +815,15 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   children: [
                     hasImage
                         ? CachedNetworkImage(
-                      imageUrl: _messData!['image_url'],
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      errorWidget: (context, url, error) =>
-                          _buildPlaceholder(),
-                    )
+                          imageUrl: _messData!['image_url'],
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (context, url) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                          errorWidget:
+                              (context, url, error) => _buildPlaceholder(),
+                        )
                         : _buildPlaceholder(),
                     Positioned(
                       left: 0,
@@ -833,10 +891,15 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.star, size: 16, color: Colors.amber),
+                                    const Icon(
+                                      Icons.star,
+                                      size: 16,
+                                      color: Colors.amber,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      (_messData?['rating']?.toString() ?? '0.0'),
+                                      (_messData?['rating']?.toString() ??
+                                          '0.0'),
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.w600,
@@ -881,7 +944,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   const SizedBox(width: 6),
                   Text(
                     'Change',
-                    style: TextStyle(color: _primaryColor, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: _primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -911,8 +977,14 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           ),
           const SizedBox(width: 8),
           Chip(
-            backgroundColor: _isEditMode ? Colors.orange.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-            side: BorderSide(color: _isEditMode ? Colors.orange.shade200 : Colors.grey.shade200),
+            backgroundColor:
+                _isEditMode
+                    ? Colors.orange.withOpacity(0.1)
+                    : Colors.grey.withOpacity(0.1),
+            side: BorderSide(
+              color:
+                  _isEditMode ? Colors.orange.shade200 : Colors.grey.shade200,
+            ),
             label: Text(
               _isEditMode ? 'Edit mode enabled' : 'View mode',
               style: TextStyle(
@@ -963,17 +1035,18 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   void _showFullImage(BuildContext context, String imageUrl) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black87,
-        insetPadding: const EdgeInsets.all(16),
-        child: Hero(
-          tag: 'mess_image',
-          child: CachedNetworkImage(
-            imageUrl: imageUrl,
-            fit: BoxFit.contain,
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.black87,
+            insetPadding: const EdgeInsets.all(16),
+            child: Hero(
+              tag: 'mess_image',
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
-        ),
-      ),
     );
   }
 
@@ -983,9 +1056,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.black.withOpacity(0.02),
-        ),
+        border: Border.all(color: Colors.black.withOpacity(0.02)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -1005,14 +1076,21 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         child: ExpansionTile(
           initiallyExpanded: true,
           tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          childrenPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          childrenPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
           leading: Container(
             decoration: BoxDecoration(
               color: _primaryColor.withOpacity(0.06),
               borderRadius: BorderRadius.circular(10),
             ),
             padding: const EdgeInsets.all(8),
-            child: Icon(Icons.storefront_rounded, color: _primaryColor, size: 20),
+            child: Icon(
+              Icons.storefront_rounded,
+              color: _primaryColor,
+              size: 20,
+            ),
           ),
           title: const Text(
             'Mess Details',
@@ -1038,11 +1116,12 @@ class _AdminProfilePageState extends State<AdminProfilePage>
               label: 'Mess Type',
               value: _messTypeController.text,
               items: const ['veg', 'non-veg', 'veg | non-veg'],
-              onChanged: _isEditMode
-                  ? (val) {
-                setState(() => _messTypeController.text = val!);
-              }
-                  : null,
+              onChanged:
+                  _isEditMode
+                      ? (val) {
+                        setState(() => _messTypeController.text = val!);
+                      }
+                      : null,
             ),
             const SizedBox(height: 14),
             _buildEditableField(
@@ -1097,7 +1176,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         child: ExpansionTile(
           initiallyExpanded: false,
           tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          childrenPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          childrenPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
           leading: Container(
             decoration: BoxDecoration(
               color: _primaryColor.withOpacity(0.06),
@@ -1145,9 +1227,12 @@ class _AdminProfilePageState extends State<AdminProfilePage>
             _buildReadOnlyField(
               icon: Icons.calendar_today,
               label: 'Registered Since',
-              value: _userData?['created_at'] != null
-                  ? DateFormat('dd MMM yyyy').format(DateTime.parse(_userData!['created_at']))
-                  : 'N/A',
+              value:
+                  _userData?['created_at'] != null
+                      ? DateFormat(
+                        'dd MMM yyyy',
+                      ).format(DateTime.parse(_userData!['created_at']))
+                      : 'N/A',
             ),
             const SizedBox(height: 8),
           ],
@@ -1163,7 +1248,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         child: ExpansionTile(
           initiallyExpanded: false,
           tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          childrenPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          childrenPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
@@ -1202,10 +1290,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AdminLocationPage(
-                        messId: int.parse(messId.toString()),
-                        ownerName: _userData?['name'] ?? 'Owner',
-                      ),
+                      builder:
+                          (context) => AdminLocationPage(
+                            messId: int.parse(messId.toString()),
+                            ownerName: _userData?['name'] ?? 'Owner',
+                          ),
                     ),
                   );
 
@@ -1225,10 +1314,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   }
 
   Widget _buildEarningSummaryCard() {
-    final todayEarning = 0;
-    final monthEarning = 0;
-    final totalEarning = 0;
-    final pendingPayout = 0;
+    final todayEarning = _walletAvailable;
+    final monthEarning = _walletAvailable;
+    final totalEarning = _walletBalance;
+    final pendingPayout = _walletLocked;
 
     if (_messData == null) return const SizedBox.shrink();
 
@@ -1236,10 +1325,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            const Color.fromARGB(255, 18, 65, 60),
-            _primaryColor,
-          ],
+          colors: [const Color.fromARGB(255, 18, 65, 60), _primaryColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1259,7 +1345,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const WalletScreen(),
+              builder:
+                  (context) => WalletScreen(
+                    ownerId: _userData!['uid'],
+                    ownerType: 'mess',
+                  ),
             ),
           );
         },
@@ -1274,10 +1364,18 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   SizedBox(width: 12),
                   Text(
                     'Wallet Summary',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                   Spacer(),
-                  Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white70,
+                    size: 16,
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -1293,15 +1391,25 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Today\'s Earning', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const Text(
+                          'Today\'s Earning',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           'Rs $todayEarning',
-                          style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const SizedBox(height: 12),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.18),
                             borderRadius: BorderRadius.circular(16),
@@ -1309,11 +1417,19 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.lock_clock, color: Colors.white, size: 16),
+                              const Icon(
+                                Icons.lock_clock,
+                                color: Colors.white,
+                                size: 16,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 'Pending: Rs $pendingPayout',
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
@@ -1326,18 +1442,32 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text('Available', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const Text(
+                          'Available',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           'Rs $monthEarning',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 12),
-                        const Text('Total Earning', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const Text(
+                          'Total Earning',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           'Rs $totalEarning',
-                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -1367,7 +1497,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           elevation: 0,
         ),
         icon: const Icon(Icons.logout),
-        label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w600)),
+        label: const Text(
+          'Logout',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -1390,11 +1523,16 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(double.infinity, 52),
           side: BorderSide(color: _primaryColor.withOpacity(0.25)),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           backgroundColor: Colors.white,
         ),
         icon: Icon(Icons.lock_reset_rounded, color: _primaryColor),
-        label: Text('Reset Password', style: TextStyle(color: _primaryColor, fontWeight: FontWeight.w700)),
+        label: Text(
+          'Reset Password',
+          style: TextStyle(color: _primaryColor, fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
@@ -1429,16 +1567,24 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                 ),
                 elevation: 0,
               ),
-              child: _isSaving
-                  ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-              )
-                  : const Text(
-                'Save Changes',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
-              ),
+              child:
+                  _isSaving
+                      ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                      : const Text(
+                        'Save Changes',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
             ),
           ),
         ),
@@ -1483,7 +1629,9 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       fillColor: enabled ? Colors.white : Colors.grey[50],
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: enabled ? Colors.grey[300]! : Colors.transparent),
+        borderSide: BorderSide(
+          color: enabled ? Colors.grey[300]! : Colors.transparent,
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1516,7 +1664,12 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           value: value,
-          items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+          items:
+              items
+                  .map(
+                    (item) => DropdownMenuItem(value: item, child: Text(item)),
+                  )
+                  .toList(),
           onChanged: onChanged,
           decoration: _inputDecoration(enabled: onChanged != null),
         ),
@@ -1531,7 +1684,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -1557,7 +1714,9 @@ class _AdminProfilePageState extends State<AdminProfilePage>
             decoration: BoxDecoration(
               color: enabled ? Colors.white : Colors.grey[50],
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: enabled ? Colors.grey[300]! : Colors.transparent),
+              border: Border.all(
+                color: enabled ? Colors.grey[300]! : Colors.transparent,
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1570,7 +1729,8 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                     color: time != null ? Colors.black : Colors.grey[500],
                   ),
                 ),
-                if (enabled) Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
+                if (enabled)
+                  Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
               ],
             ),
           ),
@@ -1600,7 +1760,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
               Expanded(
                 child: Text(
                   value,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
                 ),
               ),
             ],

@@ -12,9 +12,7 @@ class WalletOverview {
   factory WalletOverview.fromJson(Map<String, dynamic> json) {
     return WalletOverview(
       balance: _toDouble(json['balance']),
-      lockedBalance: _toDouble(
-        json['locked_balance'] ?? json['lockedBalance'],
-      ),
+      lockedBalance: _toDouble(json['locked_balance'] ?? json['lockedBalance']),
       availableBalance: _toDouble(
         json['available'] ??
             json['available_balance'] ??
