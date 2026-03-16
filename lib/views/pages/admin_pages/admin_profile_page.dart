@@ -14,7 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_location_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'earnings_details_page.dart';
+import 'wallet_screen.dart';
 
 class AdminProfilePage extends StatefulWidget {
   const AdminProfilePage({super.key});
@@ -1259,9 +1259,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => EarningsDetailsPage(
-                messId: _messData!['id'].toString(),
-              ),
+              builder: (context) => const WalletScreen(),
             ),
           );
         },
@@ -1275,7 +1273,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   Icon(Icons.payments_rounded, color: Colors.white, size: 28),
                   SizedBox(width: 12),
                   Text(
-                    'Earning Summary',
+                    'Wallet Summary',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   Spacer(),
@@ -1284,7 +1282,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
               ),
               const SizedBox(height: 4),
               const Text(
-                'Tap to view transactions & completed orders',
+                'Tap to view wallet balance, earnings, and withdrawals',
                 style: TextStyle(color: Colors.white70, fontSize: 11),
               ),
               const SizedBox(height: 18),
@@ -1298,7 +1296,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                         const Text('Today\'s Earning', style: TextStyle(color: Colors.white70, fontSize: 12)),
                         const SizedBox(height: 4),
                         Text(
-                          '₹$todayEarning',
+                          'Rs $todayEarning',
                           style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 12),
@@ -1314,7 +1312,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                               const Icon(Icons.lock_clock, color: Colors.white, size: 16),
                               const SizedBox(width: 6),
                               Text(
-                                'Pending: ₹$pendingPayout',
+                                'Pending: Rs $pendingPayout',
                                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
                               ),
                             ],
@@ -1328,17 +1326,17 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text('This Month', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        const Text('Available', style: TextStyle(color: Colors.white70, fontSize: 12)),
                         const SizedBox(height: 4),
                         Text(
-                          '₹$monthEarning',
+                          'Rs $monthEarning',
                           style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: 12),
                         const Text('Total Earning', style: TextStyle(color: Colors.white70, fontSize: 12)),
                         const SizedBox(height: 4),
                         Text(
-                          '₹$totalEarning',
+                          'Rs $totalEarning',
                           style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
                         ),
                       ],
