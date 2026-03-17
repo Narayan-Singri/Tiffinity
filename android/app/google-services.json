@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "32279255090",
-    "project_id": "messfood-3e360",
-    "storage_bucket": "messfood-3e360.firebasestorage.app"
+    "project_number": "644293045536",
+    "project_id": "tiffinity-2febc",
+    "storage_bucket": "tiffinity-2febc.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:32279255090:android:cabff103c4c85cc877442b",
+        "mobilesdk_app_id": "1:644293045536:android:6b21eb6207415a2dbe7b45",
         "android_client_info": {
-          "package_name": "com.example.practise"
+          "package_name": "com.tiffinity.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAs-Q73fYEX5_bOW_9NKgYL_7j7ykWpXik"
+          "current_key": "AIzaSyCTQfjjb9IaWMFgTITSNwQWrHAQBxwe9q0"
         }
       ],
       "services": {

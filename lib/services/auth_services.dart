@@ -15,7 +15,7 @@ class AuthService {
   static Future<void> saveFCMToken(String userId) async {
     try {
       final notificationService = NotificationService();
-      final token = await notificationService.getDeviceToken();
+      final token = await notificationService.getToken();
       if (token != null) {
         // ✅ FIXED: Correct path with folder structure
         await ApiService.put('users/update_fcm_token.php', {
@@ -56,6 +56,10 @@ class AuthService {
         }
         await ApiService.saveToken(data['token']);
         await ApiService.saveUserData(data['user']);
+
+        await NotificationService().initialize();
+        await saveFCMToken(data['user']['uid']);
+
         return {'success': true, 'user': data['user']};
       } else {
         throw AuthException(_extractMessage(response) ?? 'Login failed');
@@ -205,6 +209,10 @@ class AuthService {
 
         await ApiService.saveToken(data['token']);
         await ApiService.saveUserData(user);
+
+        await NotificationService().initialize();
+        await saveFCMToken(user['uid']);
+
         return {'success': true, 'user': user};
       }
 
@@ -229,7 +237,9 @@ class AuthService {
       }
     } catch (e) {
       if (e is AuthException) rethrow;
-      throw AuthException(_normalizeError(e, 'Failed to send password reset OTP'));
+      throw AuthException(
+        _normalizeError(e, 'Failed to send password reset OTP'),
+      );
     }
   }
 
