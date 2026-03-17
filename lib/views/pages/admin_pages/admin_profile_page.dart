@@ -70,6 +70,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   double _walletBalance = 0;
   double _walletLocked = 0;
   double _walletAvailable = 0;
+  double _todayEarning = 0;
 
   @override
   void initState() {
@@ -471,10 +472,36 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     if (_userData == null) return;
 
     try {
+      /// balance API
       final res = await ApiService.postForm('transactions/wallet_balance.php', {
         "owner_id": _userData!['uid'],
         "owner_type": "mess",
       });
+
+      /// statement API (same as wallet screen)
+      final statementRes = await ApiService.postForm(
+        'transactions/statement.php',
+        {"owner_id": _userData!['uid'], "owner_type": "mess"},
+      );
+
+      double today = 0;
+
+      if (statementRes["data"] != null) {
+        final list = statementRes["data"] as List;
+
+        final todayDate = DateTime.now();
+
+        for (var item in list) {
+          final date = DateTime.tryParse(item["created_at"]);
+
+          if (date != null &&
+              date.year == todayDate.year &&
+              date.month == todayDate.month &&
+              date.day == todayDate.day) {
+            today += double.tryParse(item["credit"].toString()) ?? 0;
+          }
+        }
+      }
 
       setState(() {
         _walletBalance = double.tryParse(res["balance"].toString()) ?? 0;
@@ -482,6 +509,8 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         _walletAvailable = double.tryParse(res["available"].toString()) ?? 0;
 
         _walletLocked = double.tryParse(res["locked_balance"].toString()) ?? 0;
+
+        _todayEarning = today;
       });
     } catch (e) {
       debugPrint("Wallet load error $e");
@@ -1314,7 +1343,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   }
 
   Widget _buildEarningSummaryCard() {
-    final todayEarning = _walletAvailable;
+    final todayEarning = _todayEarning;
     final monthEarning = _walletAvailable;
     final totalEarning = _walletBalance;
     final pendingPayout = _walletLocked;
