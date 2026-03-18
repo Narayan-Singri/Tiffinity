@@ -18,6 +18,12 @@ class _DeliveryRatingDialogState extends State<DeliveryRatingDialog> {
   bool _isSubmitting = false;
 
   @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     const primary = Color(0xFF1B544E);
 
