@@ -1,75 +1,67 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'package:Tiffinity/services/api_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:Tiffinity/services/notification_navigation_helper.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
+
   factory NotificationService() => _instance;
+
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
   Timer? _pollingTimer;
+
   String? _deviceToken;
-  int _lastNotificationId = 0;
+
   bool _isInitialized = false;
 
-  // ✅ Global Navigator Key for navigation
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
-  // ============================================
-  // INITIALIZATION
-  // ============================================
+  // ===============================
+  // INIT
+  // ===============================
 
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    try {
-      // Initialize local notifications
-      await _initializeLocalNotifications();
+    await _initializeLocalNotifications();
 
-      // Generate or retrieve device token
-      _deviceToken = await _getOrCreateDeviceToken();
-      debugPrint('✅ Device Token: $_deviceToken');
+    await _initFirebaseMessaging();
 
-      // Register device with backend
-      await _registerDevice();
+    await _registerDevice();
 
-      // Start polling for notifications
-      _startPolling();
+    _isInitialized = true;
 
-      _isInitialized = true;
-      debugPrint('✅ Custom Notification Service Initialized');
-    } catch (e) {
-      debugPrint('❌ Notification Service Error: $e');
-    }
+    debugPrint("✅ NotificationService ready");
   }
 
-  // ============================================
-  // LOCAL NOTIFICATIONS SETUP
-  // ============================================
+  // ===============================
+  // LOCAL NOTIFICATION
+  // ===============================
 
   Future<void> _initializeLocalNotifications() async {
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/launcher_icon');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/launcher_icon',
+    );
 
-    const DarwinInitializationSettings iosSettings =
-        DarwinInitializationSettings(
-          requestSoundPermission: true,
-          requestBadgePermission: true,
-          requestAlertPermission: true,
-        );
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
 
-    const InitializationSettings initSettings = InitializationSettings(
+    const initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
@@ -78,124 +70,69 @@ class NotificationService {
       initSettings,
       onDidReceiveNotificationResponse: _onNotificationTap,
     );
-
-    debugPrint('✅ Local Notifications Initialized');
   }
 
-  // ============================================
-  // DEVICE TOKEN MANAGEMENT
-  // ============================================
+  // ===============================
+  // FIREBASE INIT
+  // ===============================
 
-  Future<String?> _getOrCreateDeviceToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('device_token');
+  Future<void> _initFirebaseMessaging() async {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
 
-    if (token == null || token.isEmpty) {
-      // Generate new UUID-based device token
-      token = const Uuid().v4();
-      await prefs.setString('device_token', token);
-      debugPrint('🆕 Generated Device Token: $token');
-    } else {
-      debugPrint('♻️ Existing Device Token: $token');
-    }
+    await messaging.requestPermission();
 
-    return token;
+    _deviceToken = await messaging.getToken();
+
+    debugPrint("FCM TOKEN = $_deviceToken");
+
+    // foreground
+    FirebaseMessaging.onMessage.listen((message) {
+      final title = message.notification?.title ?? "";
+      final body = message.notification?.body ?? "";
+
+      _showLocalNotification(
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: title,
+        body: body,
+        payload: jsonEncode(message.data),
+      );
+    });
+
+    // tap
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _handleMessage(message.data);
+    });
   }
+
+  // ===============================
+  // REGISTER TOKEN TO BACKEND
+  // ===============================
 
   Future<void> _registerDevice() async {
     try {
       final userData = await ApiService.getUserData();
-      if (userData == null || _deviceToken == null) {
-        debugPrint('⚠️ Cannot register device: No user data or token');
-        return;
-      }
 
-      final userId = userData['uid'];
-      // Call update_fcm_token.php in users folder
-      await ApiService.put('users/update_fcm_token.php?id=$userId', {
-        'fcm_token': _deviceToken!,
-      });
-      debugPrint('✅ Device registered with backend');
-    } catch (e) {
-      debugPrint('❌ Device registration failed: $e');
-    }
-  }
-
-  // ============================================
-  // POLLING MECHANISM
-  // ============================================
-
-  void _startPolling() {
-    // Poll every 30 seconds
-    _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _fetchNotifications();
-    });
-
-    // Fetch immediately on start
-    _fetchNotifications();
-    debugPrint('🔄 Polling started (every 30 seconds)');
-  }
-
-  void stopPolling() {
-    _pollingTimer?.cancel();
-    debugPrint('⏸️ Polling stopped');
-  }
-
-  Future<void> _fetchNotifications() async {
-    try {
-      final userData = await ApiService.getUserData();
       if (userData == null) return;
 
       final userId = userData['uid'];
 
-      // Fetch unread notifications from backend
-      final response = await ApiService.getRequest(
-        'notifications/fetch_notifications.php?user_id=$userId&last_id=$_lastNotificationId',
-      );
+      if (_deviceToken == null) return;
 
-      if (response is List && response.isNotEmpty) {
-        debugPrint('📬 Fetched ${response.length} new notifications');
-
-        for (var notification in response) {
-          // Parse notification data
-          Map<String, dynamic>? notificationData;
-          if (notification['data'] != null) {
-            try {
-              notificationData = jsonDecode(notification['data']);
-            } catch (e) {
-              debugPrint('⚠️ Failed to parse notification data: $e');
-            }
-          }
-
-          _showLocalNotification(
-            id:
-                int.tryParse(notification['id'].toString()) ??
-                DateTime.now().millisecond,
-            title: notification['title'] ?? 'New Notification',
-            body: notification['body'] ?? '',
-            payload: jsonEncode({
-              'type': notification['type'],
-              'order_id': notification['order_id'],
-              'data': notificationData,
-            }),
-          );
-
-          // Update last notification ID
-          int notifId = int.tryParse(notification['id'].toString()) ?? 0;
-          if (notifId > _lastNotificationId) {
-            _lastNotificationId = notifId;
-          }
-        }
+      if (_deviceToken != null) {
+        await ApiService.put('users/update_fcm_token.php?id=$userId', {
+          'fcm_token': _deviceToken!,
+        });
       }
+
+      debugPrint("✅ token saved to backend");
     } catch (e) {
-      debugPrint('❌ Fetch notifications error: $e');
+      debugPrint("register error $e");
     }
   }
 
-  // ============================================
-  // DISPLAY NOTIFICATIONS
-  // ============================================
+  // ===============================
+  // SHOW LOCAL
+  // ===============================
 
   Future<void> _showLocalNotification({
     required int id,
@@ -203,151 +140,64 @@ class NotificationService {
     required String body,
     String? payload,
   }) async {
-    final Int64List vibrationPattern = Int64List.fromList([0, 1000, 500, 1000]);
+    final vibration = Int64List.fromList([0, 500, 200, 500]);
 
-    final AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'order_channel',
-          'Order Notifications',
-          channelDescription: 'Notifications for orders and updates',
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-          enableVibration: true,
-          vibrationPattern: vibrationPattern,
-        );
-
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
+    final androidDetails = AndroidNotificationDetails(
+      'order_channel',
+      'Orders',
+      importance: Importance.max,
+      priority: Priority.high,
+      playSound: true,
+      vibrationPattern: vibration,
     );
 
-    final NotificationDetails notificationDetails = NotificationDetails(
+    const iosDetails = DarwinNotificationDetails();
+
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
-    await _localNotifications.show(
-      id,
-      title,
-      body,
-      notificationDetails,
-      payload: payload,
-    );
-
-    debugPrint('🔔 Notification displayed: $title');
+    await _localNotifications.show(id, title, body, details, payload: payload);
   }
 
-  // ============================================
-  // NOTIFICATION TAP HANDLER
-  // ============================================
+  // ===============================
+  // TAP
+  // ===============================
 
-  void _onNotificationTap(NotificationResponse response) async {
-    debugPrint('👆 Notification tapped: ${response.payload}');
-
+  void _onNotificationTap(NotificationResponse response) {
     if (response.payload == null) return;
 
-    try {
-      final payload = jsonDecode(response.payload!);
-      final String? orderId = payload['order_id'];
+    final data = jsonDecode(response.payload!);
 
-      if (orderId == null || orderId.isEmpty) {
-        debugPrint('⚠️ No order ID in notification payload');
-        return;
-      }
-
-      // Get user role
-      final userData = await ApiService.getUserData();
-      final String? userRole = userData?['role'];
-
-      final context = navigatorKey.currentContext;
-      if (context == null || userRole == null) {
-        debugPrint('⚠️ No navigation context or user role');
-        return;
-      }
-
-      // Import the navigation helper at the top of the file
-      // Then use it here:
-      await NotificationNavigationHelper.navigateToOrder(
-        context: context,
-        orderId: orderId,
-        userRole: userRole,
-      );
-    } catch (e) {
-      debugPrint('❌ Error handling notification tap: $e');
-    }
+    _handleMessage(data);
   }
 
-  // Helper methods to build pages (avoid circular imports)
-  Widget _buildOrderTrackingPage(String orderId) {
-    // Dynamically import to avoid circular dependency
-    return Builder(
-      builder: (context) {
-        // Use dynamic import with error handling
-        try {
-          final orderTrackingModule = const Symbol(
-            'package:Tiffinity/views/pages/customer_pages/order_tracking_page.dart',
-          );
-          return Container(); // Placeholder - actual page loaded below
-        } catch (e) {
-          debugPrint('Error loading OrderTrackingPage: $e');
-          return Scaffold(
-            appBar: AppBar(title: const Text('Order Tracking')),
-            body: Center(child: Text('Order #$orderId')),
-          );
-        }
-      },
+  void _handleMessage(Map<String, dynamic> data) async {
+    final orderId = data["order_id"];
+
+    if (orderId == null) return;
+
+    final userData = await ApiService.getUserData();
+
+    final role = userData?["role"];
+
+    final context = navigatorKey.currentContext;
+
+    if (context == null || role == null) return;
+
+    await NotificationNavigationHelper.navigateToOrder(
+      context: context,
+      orderId: orderId,
+      userRole: role,
     );
   }
 
-  Widget _buildOrderDetailsPage(String orderId) {
-    return Builder(
-      builder: (context) {
-        try {
-          final orderDetailsModule = const Symbol(
-            'package:Tiffinity/views/pages/admin_pages/order_details_page.dart',
-          );
-          return Container(); // Placeholder
-        } catch (e) {
-          debugPrint('Error loading OrderDetailsPage: $e');
-          return Scaffold(
-            appBar: AppBar(title: const Text('Order Details')),
-            body: Center(child: Text('Order #$orderId')),
-          );
-        }
-      },
-    );
-  }
+  // ===============================
+  // PUBLIC
+  // ===============================
 
-  // ============================================
-  // PUBLIC METHODS
-  // ============================================
-
-  /// Manual notification (for testing)
-  Future<void> showLocalNotification({
-    required String title,
-    required String body,
-  }) async {
-    await _showLocalNotification(
-      id: DateTime.now().millisecond,
-      title: title,
-      body: body,
-    );
-  }
-
-  /// Get device token
-  Future<String?> getDeviceToken() async {
+  Future<String?> getToken() async {
     return _deviceToken;
-  }
-
-  /// Force refresh notifications
-  Future<void> refreshNotifications() async {
-    await _fetchNotifications();
-  }
-
-  /// Dispose resources
-  void dispose() {
-    stopPolling();
   }
 }

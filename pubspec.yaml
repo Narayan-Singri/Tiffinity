@@ -33,10 +33,9 @@ dependencies:
   flutter_dotenv: ^6.0.0
 
   # KEEP for local notifications display
-  flutter_local_notifications: ^18.0.1
-
-  # ADD for device token generation
-  uuid: ^4.5.1
+  firebase_core: ^2.30.0
+  firebase_messaging: ^14.7.10
+  flutter_local_notifications: ^17.1.2
 
 dev_dependencies:
   flutter_test:

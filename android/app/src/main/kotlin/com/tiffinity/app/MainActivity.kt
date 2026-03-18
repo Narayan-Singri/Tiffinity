@@ -1,4 +1,4 @@
-package com.example.practise
+package com.tiffinity.app
 
 import io.flutter.embedding.android.FlutterActivity
 
