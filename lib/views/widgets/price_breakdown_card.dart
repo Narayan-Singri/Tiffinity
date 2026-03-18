@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 class PriceBreakdownCard extends StatelessWidget {
   final double subtotal;
   final double deliveryFee;
+  final double platformFee;
   final double taxAmount;
   final double totalAmount;
 
@@ -11,6 +12,7 @@ class PriceBreakdownCard extends StatelessWidget {
     super.key,
     required this.subtotal,
     required this.deliveryFee,
+    required this.platformFee,
     required this.taxAmount,
     required this.totalAmount,
   });
@@ -54,15 +56,29 @@ class PriceBreakdownCard extends StatelessWidget {
                     letterSpacing: 0.3,
                   ),
                 ),
+
                 const SizedBox(height: 16),
+
                 _buildPriceRow('Item Total', subtotal),
+
                 const SizedBox(height: 12),
+
                 _buildPriceRow('Delivery Fee', deliveryFee),
+
                 const SizedBox(height: 12),
-                _buildPriceRow('Taxes & Charges', taxAmount),
+
+                _buildPriceRow('Platform Fee', platformFee),
+
+                const SizedBox(height: 12),
+
+                _buildPriceRow('Taxes (5%)', taxAmount),
+
                 const SizedBox(height: 16),
+
                 Divider(color: Colors.grey[300], thickness: 1.5),
+
                 const SizedBox(height: 16),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

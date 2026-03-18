@@ -100,9 +100,20 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
                   0.0,
                   (sum, item) => sum + item.totalPrice,
                 );
-                final deliveryFee = 20.0;
-                final taxAmount = subtotal * 0.05;
-                final totalAmount = subtotal + deliveryFee + taxAmount;
+                final distanceKm = 2.0; // TODO from API later
+
+                double deliveryFee = 25;
+
+                if (distanceKm > 3) {
+                  deliveryFee += (distanceKm - 3) * 10;
+                }
+
+                final platformFee = 11.50;
+
+                final taxAmount = (subtotal + deliveryFee + platformFee) * 0.05;
+
+                final totalAmount =
+                    subtotal + deliveryFee + taxAmount + platformFee;
 
                 return FadeTransition(
                   opacity: _fadeAnimation,
@@ -136,6 +147,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
                             PriceBreakdownCard(
                               subtotal: subtotal,
                               deliveryFee: deliveryFee,
+                              platformFee: platformFee,
                               taxAmount: taxAmount,
                               totalAmount: totalAmount,
                             ),
@@ -143,7 +155,13 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
                           ],
                         ),
                       ),
-                      _buildFloatingCheckoutButton(totalAmount),
+                      _buildFloatingCheckoutButton(
+                        totalAmount,
+                        subtotal,
+                        taxAmount,
+                        platformFee,
+                        distanceKm,
+                      ),
                     ],
                   ),
                 );
@@ -481,7 +499,13 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
   }
 
   // Floating Pill-Shaped Checkout Button (UPDATED)
-  Widget _buildFloatingCheckoutButton(double totalAmount) {
+  Widget _buildFloatingCheckoutButton(
+    double totalAmount,
+    double subtotal,
+    double taxAmount,
+    double platformFee,
+    double distanceKm,
+  ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: BoxDecoration(
@@ -515,7 +539,16 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: _isProcessing ? null : () => _proceedToCheckout(totalAmount),
+            onTap:
+                _isProcessing
+                    ? null
+                    : () => _proceedToCheckout(
+                      totalAmount,
+                      subtotal,
+                      taxAmount,
+                      platformFee,
+                      distanceKm,
+                    ),
             borderRadius: BorderRadius.circular(50),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
@@ -622,7 +655,13 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
     await CartHelper.saveCart(cart);
   }
 
-  void _proceedToCheckout(double totalAmount) async {
+  void _proceedToCheckout(
+    double totalAmount,
+    double subtotal,
+    double taxAmount,
+    double platformFee,
+    double distanceKm,
+  ) async {
     final currentCart = _getCurrentMessCart();
     if (currentCart.isEmpty) return;
 
@@ -640,10 +679,22 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
       return;
     }
 
-    await _placeOrder(totalAmount);
+    await _placeOrder(
+      totalAmount,
+      subtotal,
+      taxAmount,
+      platformFee,
+      distanceKm,
+    );
   }
 
-  Future<void> _placeOrder(double totalAmount) async {
+  Future<void> _placeOrder(
+    double totalAmount,
+    double subtotal,
+    double taxAmount,
+    double platformFee,
+    double distanceKm,
+  ) async {
     final currentCart = _getCurrentMessCart();
     if (currentCart.isEmpty) return;
 
@@ -706,7 +757,13 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
       final result = await OrderService.createOrder(
         customerId: currentUser['uid'],
         messId: int.parse(widget.messId),
+
         totalAmount: totalAmount,
+        subtotal: subtotal,
+        tax: taxAmount,
+        platformFee: platformFee,
+        distanceKm: distanceKm,
+
         items: orderItems,
         deliveryAddress: deliveryAddress,
       );

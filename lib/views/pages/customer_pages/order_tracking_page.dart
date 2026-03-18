@@ -86,7 +86,8 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
         // --- NEW OTP LOGIC ---
         // Check for 'delivery_otp' (matches your PHP script) or fallback to 'otp'
-        final otp = data?['delivery_otp']?.toString() ?? data?['otp']?.toString();
+        final otp =
+            data?['delivery_otp']?.toString() ?? data?['otp']?.toString();
 
         // If order isn't delivered yet, and we have a valid OTP that hasn't been shown
         if (status != 'delivered' &&
@@ -94,7 +95,6 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             otp.trim().isNotEmpty &&
             otp != 'null' &&
             !_otpDialogShown) {
-
           _otpDialogShown = true;
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -173,7 +173,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   bool _isRatingSuccess(Map<String, dynamic> response) {
     final isSuccess =
         response['success'] == true ||
-            response['status']?.toString().toLowerCase() == 'success';
+        response['status']?.toString().toLowerCase() == 'success';
     if (isSuccess) return true;
 
     final message = response['message']?.toString().toLowerCase() ?? '';
@@ -205,11 +205,11 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final review = _feedbackController.text.trim();
     final messId =
         _extractId(messDetails, ['id', 'mess_id']) ??
-            _orderData?['mess_id']?.toString();
+        _orderData?['mess_id']?.toString();
 
     final deliveryPartnerId =
         _extractId(partner, ['user_id', 'id', 'delivery_partner_id']) ??
-            _orderData?['delivery_partner_id']?.toString();
+        _orderData?['delivery_partner_id']?.toString();
 
     bool messRatedNow = false;
     bool driverRatedNow = false;
@@ -308,52 +308,62 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   void _showOtpDialog(String otp) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: Row(
-          children: const [
-            Icon(Icons.security, color: _primaryColor),
-            SizedBox(width: 8),
-            Text('Delivery OTP'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Please share this OTP with your delivery partner to receive your order.',
-              style: TextStyle(color: Colors.grey[700]),
-              textAlign: TextAlign.center,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              decoration: BoxDecoration(
-                color: _primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _primaryColor.withOpacity(0.3)),
-              ),
-              child: Text(
-                otp,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 8,
-                  color: _primaryColor,
+            title: Row(
+              children: const [
+                Icon(Icons.security, color: _primaryColor),
+                SizedBox(width: 8),
+                Text('Delivery OTP'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Please share this OTP with your delivery partner to receive your order.',
+                  style: TextStyle(color: Colors.grey[700]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _primaryColor.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    otp,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 8,
+                      color: _primaryColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'Got it',
+                  style: TextStyle(
+                    color: _primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it', style: TextStyle(color: _primaryColor, fontWeight: FontWeight.bold)),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -361,9 +371,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     final partnerRaw = _orderData?['delivery_partner_details'];
     final messRaw = _orderData?['mess_details'];
     final Map<String, dynamic>? partner =
-    partnerRaw is Map ? Map<String, dynamic>.from(partnerRaw) : null;
+        partnerRaw is Map ? Map<String, dynamic>.from(partnerRaw) : null;
     final Map<String, dynamic>? messDetails =
-    messRaw is Map ? Map<String, dynamic>.from(messRaw) : null;
+        messRaw is Map ? Map<String, dynamic>.from(messRaw) : null;
     debugPrint("🚗 Partner data: $partner");
 
     if (partner == null && messDetails == null) {
@@ -380,227 +390,225 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       barrierColor: Colors.black.withOpacity(0.5),
       builder:
           (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              contentPadding: const EdgeInsets.all(24),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Driver Avatar
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.grey[200],
-                    backgroundImage:
-                    partner?['photo'] != null
-                        ? NetworkImage(
-                      partner!['photo'].toString(),
-                    )
-                        : null,
-                    child:
-                    partner?['photo'] == null
-                        ? const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.grey,
-                    )
-                        : null,
+            filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+            child: StatefulBuilder(
+              builder: (context, setDialogState) {
+                return AlertDialog(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Title
-                  Text(
-                    'Rate Your Order',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Driver Name
-                  Text(
-                    partner?['name'] ?? messDetails?['name'] ?? 'Tiffinity',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 24),
-
-                  if (messDetails != null) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Rate food & mess',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setDialogState(() {
-                              _messRating = index + 1;
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                            ),
-                            child: Icon(
-                              index < _messRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              size: 32,
-                              color:
-                              index < _messRating
-                                  ? Colors.amber
-                                  : Colors.grey[400],
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  if (partner != null) ...[
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Rate delivery partner',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setDialogState(() {
-                              _driverRating = index + 1;
-                            });
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                            ),
-                            child: Icon(
-                              index < _driverRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              size: 32,
-                              color:
-                              index < _driverRating
-                                  ? Colors.amber
-                                  : Colors.grey[400],
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-
-                  // Feedback TextField
-                  TextField(
-                    controller: _feedbackController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Share your experience (optional)',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: _primaryColor),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Action Buttons
-                  Row(
+                  contentPadding: const EdgeInsets.all(24),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            _ratingDialogShownForSession = true;
-                            _messRating = 0;
-                            _driverRating = 0;
-                            _feedbackController.clear();
-                          },
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: BorderSide(color: Colors.grey[300]!),
-                          ),
-                          child: const Text('Skip'),
+                      // Driver Avatar
+                      CircleAvatar(
+                        radius: 40,
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage:
+                            partner?['photo'] != null
+                                ? NetworkImage(partner!['photo'].toString())
+                                : null,
+                        child:
+                            partner?['photo'] == null
+                                ? const Icon(
+                                  Icons.person,
+                                  size: 40,
+                                  color: Colors.grey,
+                                )
+                                : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Title
+                      Text(
+                        'Rate Your Order',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey[800],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed:
-                          (_driverRating > 0 || _messRating > 0)
-                              ? () async {
-                            await _submitRatings(
-                              partner: partner,
-                              messDetails: messDetails,
-                            );
-                          }
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            disabledBackgroundColor: Colors.grey[300],
-                          ),
+                      const SizedBox(height: 8),
+
+                      // Driver Name
+                      Text(
+                        partner?['name'] ?? messDetails?['name'] ?? 'Tiffinity',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      const SizedBox(height: 24),
+
+                      if (messDetails != null) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
                           child: Text(
-                            _isSubmittingRatings
-                                ? 'Submitting...'
-                                : 'Submit',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+                            'Rate food & mess',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
                             ),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(5, (index) {
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  _messRating = index + 1;
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Icon(
+                                  index < _messRating
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 32,
+                                  color:
+                                      index < _messRating
+                                          ? Colors.amber
+                                          : Colors.grey[400],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      if (partner != null) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Rate delivery partner',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(5, (index) {
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() {
+                                  _driverRating = index + 1;
+                                });
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: Icon(
+                                  index < _driverRating
+                                      ? Icons.star
+                                      : Icons.star_border,
+                                  size: 32,
+                                  color:
+                                      index < _driverRating
+                                          ? Colors.amber
+                                          : Colors.grey[400],
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+
+                      // Feedback TextField
+                      TextField(
+                        controller: _feedbackController,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          hintText: 'Share your experience (optional)',
+                          hintStyle: TextStyle(color: Colors.grey[400]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: Colors.grey[300]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _primaryColor),
+                          ),
+                          contentPadding: const EdgeInsets.all(12),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                _ratingDialogShownForSession = true;
+                                _messRating = 0;
+                                _driverRating = 0;
+                                _feedbackController.clear();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                side: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              child: const Text('Skip'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed:
+                                  (_driverRating > 0 || _messRating > 0)
+                                      ? () async {
+                                        await _submitRatings(
+                                          partner: partner,
+                                          messDetails: messDetails,
+                                        );
+                                      }
+                                      : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                disabledBackgroundColor: Colors.grey[300],
+                              ),
+                              child: Text(
+                                _isSubmittingRatings
+                                    ? 'Submitting...'
+                                    : 'Submit',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+                );
+              },
+            ),
+          ),
     );
   }
 
@@ -611,194 +619,194 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     return Scaffold(
       backgroundColor: isDark ? Colors.grey[900] : _bgLight,
       body:
-      _isLoading
-          ? const Center(
-        child: CircularProgressIndicator(color: _primaryColor),
-      )
-          : _hasError
-          ? _buildErrorView()
-          : Stack(
-        children: [
-          // 1. BACKGROUND MAP LAYER
-          Positioned.fill(
-            child: OrderLiveMap(
-              status: _orderData?['status'] ?? 'pending',
-              deliveryPartner: _orderData?['delivery_partner_details'],
-            ),
-          ),
-
-          // 2. DRAGGABLE BOTTOM SHEET (FOREGROUND)
-          DraggableScrollableSheet(
-            initialChildSize: 0.6,
-            minChildSize: 0.5,
-            maxChildSize: 1.0, // ⬅️ Allow full screen coverage
-            builder: (context, scrollController) {
-              return Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.grey[900] : _bgLight,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(color: _primaryColor),
+              )
+              : _hasError
+              ? _buildErrorView()
+              : Stack(
+                children: [
+                  // 1. BACKGROUND MAP LAYER
+                  Positioned.fill(
+                    child: OrderLiveMap(
+                      status: _orderData?['status'] ?? 'pending',
+                      deliveryPartner: _orderData?['delivery_partner_details'],
                     ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  physics: const ClampingScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // DRAG HANDLE
-                        Center(
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 20),
-                            width: 40,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(2),
+                  ),
+
+                  // 2. DRAGGABLE BOTTOM SHEET (FOREGROUND)
+                  DraggableScrollableSheet(
+                    initialChildSize: 0.6,
+                    minChildSize: 0.5,
+                    maxChildSize: 1.0, // ⬅️ Allow full screen coverage
+                    builder: (context, scrollController) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.grey[900] : _bgLight,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(24),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 10,
+                              offset: const Offset(0, -5),
+                            ),
+                          ],
+                        ),
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          physics: const ClampingScrollPhysics(),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // DRAG HANDLE
+                                Center(
+                                  child: Container(
+                                    margin: const EdgeInsets.only(bottom: 20),
+                                    width: 40,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  ),
+                                ),
+
+                                // Order Status Card
+                                _buildStatusCard(isDark),
+                                const SizedBox(height: 24),
+
+                                // Track Order Section
+                                Text(
+                                  "Track Order",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Timeline
+                                OrderStatusTimeline(
+                                  currentStatus:
+                                      _orderData?['status'] ?? 'pending',
+                                ),
+                                const SizedBox(height: 24),
+
+                                // Delivery Partner Card
+                                if (_orderData!['delivery_partner_details'] !=
+                                    null) ...[
+                                  _buildDeliveryPartnerCard(isDark),
+                                  const SizedBox(height: 24),
+                                ],
+
+                                // Order Details Section
+                                Text(
+                                  "Order Details",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+
+                                _buildOrderItemsList(isDark),
+                                const SizedBox(height: 16),
+                                _buildBillDetails(isDark),
+                                const SizedBox(height: 30),
+                                _buildActionButtons(isDark),
+                                const SizedBox(height: 40),
+                              ],
                             ),
                           ),
                         ),
-
-                        // Order Status Card
-                        _buildStatusCard(isDark),
-                        const SizedBox(height: 24),
-
-                        // Track Order Section
-                        Text(
-                          "Track Order",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Timeline
-                        OrderStatusTimeline(
-                          currentStatus:
-                          _orderData?['status'] ?? 'pending',
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Delivery Partner Card
-                        if (_orderData!['delivery_partner_details'] !=
-                            null) ...[
-                          _buildDeliveryPartnerCard(isDark),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Order Details Section
-                        Text(
-                          "Order Details",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        _buildOrderItemsList(isDark),
-                        const SizedBox(height: 16),
-                        _buildBillDetails(isDark),
-                        const SizedBox(height: 30),
-                        _buildActionButtons(isDark),
-                        const SizedBox(height: 40),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                ),
-              );
-            },
-          ),
 
-          // 3. FLOATING ORDER ID PILL (TOP CENTER)
-          Positioned(
-            top:
-            MediaQuery.of(context).padding.top +
-                10, // Below status bar
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black87 : Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.receipt_long,
-                      size: 18,
-                      color: _primaryColor,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "Order #${_orderData?['id'] ?? ''}",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: isDark ? Colors.white : Colors.black87,
+                  // 3. FLOATING ORDER ID PILL (TOP CENTER)
+                  Positioned(
+                    top:
+                        MediaQuery.of(context).padding.top +
+                        10, // Below status bar
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.black87 : Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.receipt_long,
+                              size: 18,
+                              color: _primaryColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Order #${_orderData?['id'] ?? ''}",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+                  ),
 
-          // 4. BACK BUTTON (TOP LEFT)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 10,
-            left: 16,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 8,
-                    offset: Offset(0, 2),
+                  // 4. BACK BUTTON (TOP LEFT)
+                  Positioned(
+                    top: MediaQuery.of(context).padding.top + 10,
+                    left: 16,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.black),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
                   ),
                 ],
               ),
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   Widget _buildStatusCard(bool isDark) {
     final status =
-    (_orderData?['status'] ?? 'pending').toString().toLowerCase();
+        (_orderData?['status'] ?? 'pending').toString().toLowerCase();
     String title = "Order Placed";
     String subtitle = "Waiting for confirmation";
     IconData icon = Icons.receipt_long;
@@ -926,7 +934,9 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
     if (partner == null) return const SizedBox.shrink();
 
     // Safely extract OTP
-    final otp = _orderData?['delivery_otp']?.toString() ?? _orderData?['otp']?.toString();
+    final otp =
+        _orderData?['delivery_otp']?.toString() ??
+        _orderData?['otp']?.toString();
     final hasOtp = otp != null && otp.trim().isNotEmpty && otp != 'null';
 
     return Container(
@@ -944,13 +954,13 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             radius: 24,
             backgroundColor: Colors.grey[200],
             backgroundImage:
-            partner['photo'] != null
-                ? NetworkImage(partner['photo'].toString())
-                : null,
+                partner['photo'] != null
+                    ? NetworkImage(partner['photo'].toString())
+                    : null,
             child:
-            partner['photo'] == null
-                ? const Icon(Icons.person, color: Colors.grey)
-                : null,
+                partner['photo'] == null
+                    ? const Icon(Icons.person, color: Colors.grey)
+                    : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -969,7 +979,10 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 // Show actual OTP if it exists, otherwise show a waiting message
                 if (hasOtp)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _primaryColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
@@ -1015,7 +1028,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
   Widget _buildOrderItemsList(bool isDark) {
     final items = _orderData!['items'] as List? ?? [];
     final messDetails =
-    _orderData!['mess_details']; // Changed from 'mess' to 'mess_details'
+        _orderData!['mess_details']; // Changed from 'mess' to 'mess_details'
 
     // Add null check for mess details
     if (messDetails == null) {
@@ -1070,49 +1083,49 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
             ),
           ),
           children:
-          items.where((item) => item != null && item is Map).map((item) {
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.circle,
-                    color:
-                    (item['type']?.toString().toLowerCase() ?? 'veg') ==
-                        'veg'
-                        ? Colors.green
-                        : Colors.red,
-                    size: 12,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    "${item['quantity'] ?? 1}x",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: _primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      item['name']?.toString() ?? 'Item',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? Colors.white : Colors.black,
+              items.where((item) => item != null && item is Map).map((item) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        color:
+                            (item['type']?.toString().toLowerCase() ?? 'veg') ==
+                                    'veg'
+                                ? Colors.green
+                                : Colors.red,
+                        size: 12,
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "${item['quantity'] ?? 1}x",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _primaryColor,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          item['name']?.toString() ?? 'Item',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        "₹${item['price_at_time'] ?? item['price'] ?? 0}", // Use price_at_time
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white : Colors.black,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    "₹${item['price_at_time'] ?? item['price'] ?? 0}", // Use price_at_time
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
+                );
+              }).toList(),
         ),
       ),
     );
@@ -1130,10 +1143,20 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
       }
     }
 
-    final totalAmount = _orderData!['total_amount'];
-    final totalAmountValue =
-        double.tryParse(totalAmount?.toString() ?? '0') ?? 0.0;
-    final deliveryFee = totalAmountValue - itemTotal;
+    final foodSubtotal =
+        double.tryParse(_orderData!['food_subtotal']?.toString() ?? '0') ?? 0;
+
+    final deliveryFee =
+        double.tryParse(_orderData!['delivery_fee']?.toString() ?? '0') ?? 0;
+
+    final platformFee =
+        double.tryParse(_orderData!['platform_fee']?.toString() ?? '0') ?? 0;
+
+    final taxAmount =
+        double.tryParse(_orderData!['tax_amount']?.toString() ?? '0') ?? 0;
+
+    final totalAmount =
+        double.tryParse(_orderData!['total_amount']?.toString() ?? '0') ?? 0;
 
     if (totalAmount == null) return const SizedBox.shrink();
 
@@ -1157,14 +1180,24 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
           const SizedBox(height: 16),
           _buildBillRow(
             "Item Total",
-            "₹${itemTotal.toStringAsFixed(2)}",
+            "₹${foodSubtotal.toStringAsFixed(2)}",
             isDark,
           ),
+
           _buildBillRow(
             "Delivery Fee",
             "₹${deliveryFee.toStringAsFixed(2)}",
             isDark,
           ),
+
+          _buildBillRow(
+            "Platform Fee",
+            "₹${platformFee.toStringAsFixed(2)}",
+            isDark,
+          ),
+
+          _buildBillRow("Taxes", "₹${taxAmount.toStringAsFixed(2)}", isDark),
+
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Divider(color: isDark ? Colors.grey[700] : Colors.grey[300]),
@@ -1181,7 +1214,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                 ),
               ),
               Text(
-                "₹$totalAmount",
+                "₹${totalAmount.toStringAsFixed(2)}",
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
@@ -1223,7 +1256,7 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
 
   Widget _buildActionButtons(bool isDark) {
     final status =
-    (_orderData?['status'] ?? 'pending').toString().toLowerCase();
+        (_orderData?['status'] ?? 'pending').toString().toLowerCase();
 
     // Customer cancellation is allowed only while order is pending.
     final bool canCancel = status == 'pending';
@@ -1240,28 +1273,28 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                   context: context,
                   builder:
                       (context) => AlertDialog(
-                    title: const Text('Cancel Order?'),
-                    content: const Text(
-                      'Are you sure you want to cancel this order?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('No'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          // TODO: Implement cancel order API call
-                          // await OrderService.cancelOrder(widget.orderId);
-                        },
-                        child: const Text(
-                          'Yes, Cancel',
-                          style: TextStyle(color: Colors.red),
+                        title: const Text('Cancel Order?'),
+                        content: const Text(
+                          'Are you sure you want to cancel this order?',
                         ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('No'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              // TODO: Implement cancel order API call
+                              // await OrderService.cancelOrder(widget.orderId);
+                            },
+                            child: const Text(
+                              'Yes, Cancel',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
                 );
               },
               style: OutlinedButton.styleFrom(

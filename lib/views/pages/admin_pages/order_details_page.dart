@@ -20,7 +20,8 @@ class OrderDetailsPage extends StatefulWidget {
     super.key,
     required this.orderId,
     required this.orderData,
-    this.isSubscriptionOrder = false, // ✅ Default to false so standard orders aren't affected
+    this.isSubscriptionOrder =
+        false, // ✅ Default to false so standard orders aren't affected
   });
 
   @override
@@ -76,9 +77,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
     try {
       // ✅ Choose the correct API call based on the flag
-      final order = widget.isSubscriptionOrder
-          ? await OrderService.getSubscriptionOrderById(widget.orderId)
-          : await OrderService.getOrderById(widget.orderId);
+      final order =
+          widget.isSubscriptionOrder
+              ? await OrderService.getSubscriptionOrderById(widget.orderId)
+              : await OrderService.getOrderById(widget.orderId);
 
       if (mounted) {
         setState(() {
@@ -365,138 +367,146 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Order Details'),
           backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+          title: const Text("Order"),
         ),
         body: _buildShimmerLoading(),
       );
     }
 
-    if (_orderDetails == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Order Details'),
-          backgroundColor: const Color.fromARGB(255, 27, 84, 78),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 80, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              const Text(
-                'Order not found',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Go Back'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 27, 84, 78),
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final items = _orderDetails!['items'] as List? ?? [];
+
+    final customer =
+        _orderDetails!['customer_details'] as Map<String, dynamic>?;
+
+    final partner =
+        _orderDetails!['delivery_partner_details'] as Map<String, dynamic>?;
 
     final statusColor = _getStatusColor(_currentStatus);
-    final items = _orderDetails!['items'] as List? ?? [];
-    final customerDetails =
-        _orderDetails!['customer_details'] != null
-            ? Map<String, dynamic>.from(
-              _orderDetails!['customer_details'] as Map,
-            )
-            : <String, dynamic>{};
-    final deliveryPartnerDetails =
-        _orderDetails!['delivery_partner_details'] != null
-            ? Map<String, dynamic>.from(
-              _orderDetails!['delivery_partner_details'] as Map,
-            )
-            : <String, dynamic>{};
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
+
       appBar: AppBar(
-        title: const Text('Order Details'),
         backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+        title: const Text("Order Details"),
         actions: [
           IconButton(
+            onPressed: _loadOrderDetails,
             icon: const Icon(Icons.refresh),
-            onPressed: () => _loadOrderDetails(),
-            tooltip: 'Refresh',
           ),
         ],
       ),
+
       body: Stack(
         children: [
-          RefreshIndicator(
-            onRefresh: () => _loadOrderDetails(),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. HEADER CARD
-                  _buildHeaderCard(statusColor),
-                  const SizedBox(height: 16),
+          ListView(
+            padding: const EdgeInsets.all(12),
+            children: [
+              _buildSwiggyHeader(),
 
-                  // 2. CUSTOMER DETAILS CARD
-                  _buildCustomerCard(customerDetails),
-                  const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-                  // 3. ORDER ITEMS CARD
-                  _buildOrderItemsCard(items),
-                  const SizedBox(height: 16),
+              if (customer != null) _buildCustomerCard(customer),
 
-                  // 4. BILL BREAKDOWN CARD
-                  _buildBillBreakdownCard(),
-                  const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-                  // 5. DELIVERY PARTNER CARD (if assigned)
-                  if (deliveryPartnerDetails.isNotEmpty) ...[
-                    _buildDeliveryPartnerCard(deliveryPartnerDetails),
-                    const SizedBox(height: 16),
-                  ],
+              if (partner != null) _buildDeliveryPartnerCard(partner),
 
-                  // 6. REJECTION DETAILS (if rejected)
-                  if (_currentStatus == 'rejected' ||
-                      _currentStatus == 'cancelled')
-                    _buildRejectionCard(),
+              const SizedBox(height: 12),
 
-                  const SizedBox(height: 100), // Space for bottom action button
-                ],
-              ),
-            ),
+              _buildOrderItemsCard(items),
+
+              const SizedBox(height: 12),
+
+              _buildBillBreakdownCard(),
+
+              if (_currentStatus == 'rejected' || _currentStatus == 'cancelled')
+                _buildRejectionCard(),
+
+              const SizedBox(height: 120),
+            ],
           ),
 
-          // Confetti overlay
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: false,
-              colors: const [
-                Colors.green,
-                Colors.blue,
-                Colors.pink,
-                Colors.orange,
-                Colors.purple,
-              ],
-            ),
-          ),
-
-          // Bottom Action Section
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: _buildBottomActionSection(statusColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge() {
+    final color = _getStatusColor(_currentStatus);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        _currentStatus.toUpperCase(),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
+  Widget _buildSwiggyHeader() {
+    final total =
+        double.tryParse(_orderDetails!['food_subtotal']?.toString() ?? '0') ??
+        0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Order #${widget.orderId}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+
+              _statusBadge(),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          Text(
+            _getRelativeTime(_orderDetails!['created_at']?.toString()),
+            style: const TextStyle(color: Colors.grey),
+          ),
+
+          const Divider(height: 24),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Your Earnings", style: TextStyle(fontSize: 16)),
+
+              Text(
+                _formatCurrency(total),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 27, 84, 78),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -891,101 +901,73 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   }
 
   Widget _buildBillBreakdownCard() {
-    // Calculate item total from actual items
-    final items = _orderDetails!['items'] as List? ?? [];
-    double itemTotal = 0.0;
-    for (var item in items) {
-      final quantity = int.tryParse(item['quantity'].toString()) ?? 0;
-      final price = double.tryParse(item['price_at_time'].toString()) ?? 0.0;
-      itemTotal += quantity * price;
-    }
+    final subtotal =
+        double.tryParse(_orderDetails!['food_subtotal']?.toString() ?? '0') ??
+        0;
 
-    final totalAmount =
-        double.tryParse(_orderDetails!['total_amount'].toString()) ?? 0.0;
+    final delivery =
+        double.tryParse(_orderDetails!['delivery_fee']?.toString() ?? '0') ?? 0;
 
-    // ✅ Fix: Set Delivery fee to 0 if it's a subscription order
-    final deliveryFee = widget.isSubscriptionOrder
-        ? 0.0
-        : (totalAmount - itemTotal);
+    final tax =
+        double.tryParse(_orderDetails!['tax_amount']?.toString() ?? '0') ?? 0;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.receipt_long,
-                    color: Color.fromARGB(255, 27, 84, 78),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Bill Details',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            _buildBillRow('Item Total', itemTotal),
-            const SizedBox(height: 8),
-            // ✅ Fix: Change the text to "Included in Plan" if it's a subscription
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Delivery Fee', style: TextStyle(fontSize: 15, color: Colors.grey[700])),
-                Text(
-                  widget.isSubscriptionOrder ? 'Included in Plan' : _formatCurrency(deliveryFee),
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: widget.isSubscriptionOrder ? Colors.green : Colors.black
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  widget.isSubscriptionOrder ? 'Subscription Plan Price' : 'Grand Total',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  _formatCurrency(totalAmount),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 27, 84, 78),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+    final platform =
+        double.tryParse(_orderDetails!['platform_fee']?.toString() ?? '0') ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
       ),
-    ).animate().fadeIn(delay: 300.ms).scale(begin: const Offset(0.9, 0.9));
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Bill Details",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+
+          const SizedBox(height: 12),
+
+          _billRow("Item Total", subtotal),
+
+          _billRow("Delivery Fee", delivery),
+
+          _billRow("Platform Fee", platform),
+
+          _billRow("Taxes", tax),
+
+          const Divider(),
+
+          _billTotalRow("Your Earnings", subtotal),
+        ],
+      ),
+    );
   }
 
-  Widget _buildBillRow(String label, double amount) {
+  Widget _billRow(String t, double v) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [Text(t), Text(_formatCurrency(v))],
+      ),
+    );
+  }
+
+  Widget _billTotalRow(String t, double v) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: 15, color: Colors.grey[700])),
+        Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
         Text(
-          _formatCurrency(amount),
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          _formatCurrency(v),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Color.fromARGB(255, 27, 84, 78),
+          ),
         ),
       ],
     );
@@ -1244,7 +1226,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   Widget _buildActionButtons() {
     switch (_currentStatus.toLowerCase()) {
       case 'pending':
-      // ✅ Check if it's a subscription order
+        // ✅ Check if it's a subscription order
         if (widget.isSubscriptionOrder) {
           return Row(
             children: [
@@ -1267,7 +1249,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                       Icon(Icons.check_circle_outline),
                       SizedBox(width: 8),
                       // ✅ Changed text to make it clear this activates the plan
-                      Text('ACTIVATE SUBSCRIPTION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(
+                        'ACTIVATE SUBSCRIPTION',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1334,7 +1322,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
             color: Colors.green,
             icon: Icons.autorenew,
             title: 'Subscription Active',
-            subtitle: 'Daily deliveries for this plan will automatically generate in your normal Orders list every morning.',
+            subtitle:
+                'Daily deliveries for this plan will automatically generate in your normal Orders list every morning.',
           );
         }
         return const SizedBox.shrink();
@@ -1344,7 +1333,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           color: Colors.blue,
           icon: Icons.pending_actions,
           title: 'Order Accepted',
-          subtitle: 'Waiting for delivery partner confirmation before marking ready.',
+          subtitle:
+              'Waiting for delivery partner confirmation before marking ready.',
         );
 
       case 'confirmed':
@@ -1424,7 +1414,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         return _buildStatusInfoCard(
           color: Colors.red,
           icon: Icons.cancel,
-          title: _currentStatus.toLowerCase() == 'rejected' ? 'Order Rejected' : 'Order Cancelled',
+          title:
+              _currentStatus.toLowerCase() == 'rejected'
+                  ? 'Order Rejected'
+                  : 'Order Cancelled',
           subtitle: 'Order flow is closed.',
         );
 
@@ -1463,10 +1456,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(fontSize: 13),
-                ),
+                Text(subtitle, style: const TextStyle(fontSize: 13)),
               ],
             ),
           ),

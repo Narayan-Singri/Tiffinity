@@ -9,16 +9,30 @@ class OrderService {
     required int messId,
     required List<Map<String, dynamic>> items,
     required double totalAmount,
+
+    required double subtotal,
+    required double tax,
+    required double platformFee,
+    required double distanceKm,
+
     required String deliveryAddress,
   }) async {
     try {
       final response = await ApiService.postForm('orders/create_order.php', {
         'customer_id': customerId,
         'mess_id': messId.toString(),
+
         'items': json.encode(items),
+
         'total_amount': totalAmount.toString(),
+        'subtotal': subtotal.toString(),
+        'tax': tax.toString(),
+        'platform_fee': platformFee.toString(),
+        'distance_km': distanceKm.toString(),
+
         'delivery_address': deliveryAddress,
       });
+
       return response;
     } catch (e) {
       debugPrint('❌ Create Order Error: $e');
@@ -36,10 +50,14 @@ class OrderService {
     }
   }
 
-// ✅ Get SUBSCRIPTION order by ID (Updated to safely handle Lists and Maps)
-  static Future<Map<String, dynamic>?> getSubscriptionOrderById(String orderId) async {
+  // ✅ Get SUBSCRIPTION order by ID (Updated to safely handle Lists and Maps)
+  static Future<Map<String, dynamic>?> getSubscriptionOrderById(
+    String orderId,
+  ) async {
     try {
-      final response = await ApiService.getRequest('subscriptions/get_subscription_order.php?id=$orderId');
+      final response = await ApiService.getRequest(
+        'subscriptions/get_subscription_order.php?id=$orderId',
+      );
 
       if (response == null) return null;
 
@@ -73,8 +91,8 @@ class OrderService {
 
   // ✅ Get all orders for a customer
   static Future<List<Map<String, dynamic>>> getCustomerOrders(
-      String customerId,
-      ) async {
+    String customerId,
+  ) async {
     try {
       final data = await ApiService.getRequest(
         'orders/get_customer_orders.php?customer_id=$customerId',
