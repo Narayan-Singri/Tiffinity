@@ -42,7 +42,8 @@ class WalletStatementEntry {
 
   factory WalletStatementEntry.fromJson(Map<String, dynamic> json) {
     return WalletStatementEntry(
-      title: (json['title'] ?? 'Wallet entry').toString(),
+      title:
+          (json['title'] ?? json['description'] ?? 'Wallet entry').toString(),
       credit: _toDouble(json['credit']),
       debit: _toDouble(json['debit']),
       balanceAfter: _toDouble(
@@ -119,13 +120,21 @@ double _toDouble(dynamic value) {
 }
 
 DateTime? _toDateTime(dynamic value) {
-  if (value == null) {
-    return null;
-  }
+  if (value == null) return null;
 
+  final str = value.toString().trim();
+
+  // try ISO first
   try {
-    return DateTime.parse(value.toString()).toLocal();
-  } catch (_) {
-    return null;
-  }
+    return DateTime.parse(str).toLocal();
+  } catch (_) {}
+
+  // try common formatted date
+  try {
+    return DateTime.parse(
+      str.replaceAll(',', '').replaceAll('AM', '').replaceAll('PM', ''),
+    );
+  } catch (_) {}
+
+  return null;
 }

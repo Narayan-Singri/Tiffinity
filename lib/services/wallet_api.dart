@@ -66,19 +66,22 @@ class WalletApi {
   Future<List<WalletStatementEntry>> fetchStatements({
     required String ownerId,
     required String ownerType,
+    String period = "all",
   }) async {
     final response = await _post(
       'statement.php',
-      body: {'owner_id': ownerId, 'owner_type': ownerType},
+      body: {'owner_id': ownerId, 'owner_type': ownerType, 'period': period},
     );
 
     final items =
         _extractList(response).map(WalletStatementEntry.fromJson).toList();
+
     items.sort(
       (a, b) => (b.createdAt ?? DateTime(2000)).compareTo(
         a.createdAt ?? DateTime(2000),
       ),
     );
+
     return items;
   }
 
@@ -86,21 +89,20 @@ class WalletApi {
     required String ownerId,
     required String ownerType,
   }) async {
-    // ✅ Single endpoint — add more only if your server actually has alternates
-    const endpoint = 'withdraw_history.php';
-
     final response = await _post(
-      endpoint,
+      'withdraw_history.php',
       body: {'owner_id': ownerId, 'owner_type': ownerType},
     );
 
     final items =
         _extractList(response).map(WithdrawalRequestModel.fromJson).toList();
+
     items.sort(
       (a, b) => (b.createdAt ?? DateTime(2000)).compareTo(
         a.createdAt ?? DateTime(2000),
       ),
     );
+
     return items;
   }
 
@@ -118,7 +120,12 @@ class WalletApi {
       },
     );
 
+    if (response["request_id"] != null) {
+      return "Withdrawal request submitted.";
+    }
+
     final message = response['message']?.toString();
+
     return message == null || message.isEmpty
         ? 'Withdrawal request submitted successfully.'
         : message;
@@ -131,20 +138,17 @@ class WalletApi {
     final uri = Uri.parse('$_baseUrl/$endpoint');
 
     final http.Response response;
-    try {
-      response = await http.post(
-        uri,
-        headers: const {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
-        body: body,
-        encoding: Encoding.getByName('utf-8'),
-      );
-    } catch (error) {
-      // ✅ Only network-level errors (no internet, timeout, etc.) land here
-      throw Exception('Network error: ${_normalizeError(error)}');
-    }
+    response = await http
+        .post(
+          uri,
+          headers: const {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+          },
+          body: body,
+          encoding: Encoding.getByName('utf-8'),
+        )
+        .timeout(const Duration(seconds: 15));
 
     debugPrint('Wallet POST $uri -> ${response.statusCode} | ${response.body}');
 

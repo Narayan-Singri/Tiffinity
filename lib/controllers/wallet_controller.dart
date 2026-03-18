@@ -20,14 +20,14 @@ class WalletController extends ChangeNotifier {
   String? _errorMessage;
 
   String? _ownerId;
-  String? _ownerType; // ✅ ADD THIS
+  final String? _ownerType;
 
   WalletDashboard? get dashboard => _dashboard;
   bool get isLoading => _isLoading;
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
 
-  String get ownerType => _ownerType ?? 'mess'; // ✅ FIXED
+  String get ownerType => _ownerType ?? 'mess';
 
   Future<void> loadWallet({bool forceRefresh = false}) async {
     if (_isLoading) return;
@@ -40,6 +40,10 @@ class WalletController extends ChangeNotifier {
 
     try {
       _ownerId ??= await _resolveOwnerId();
+
+      if (_ownerType == null || _ownerType!.isEmpty) {
+        throw Exception('ownerType missing');
+      }
 
       _dashboard = await _api.fetchDashboard(
         ownerId: _ownerId!,
@@ -69,6 +73,9 @@ class WalletController extends ChangeNotifier {
     try {
       _ownerId ??= await _resolveOwnerId();
 
+      if (_ownerType == null || _ownerType!.isEmpty) {
+        throw Exception('ownerType missing');
+      }
       final message = await _api.submitWithdrawRequest(
         ownerId: _ownerId!,
         ownerType: ownerType,
@@ -94,7 +101,7 @@ class WalletController extends ChangeNotifier {
     final ownerId = currentUser?['uid']?.toString();
 
     if (ownerId == null || ownerId.isEmpty) {
-      throw Exception('Unable to identify the mess owner account.');
+      throw Exception('Unable to identify the wallet owner account.');
     }
 
     return ownerId;
