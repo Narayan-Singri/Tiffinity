@@ -1,4 +1,5 @@
 import 'package:Tiffinity/views/pages/admin_pages/admin_setup_page.dart';
+import 'package:Tiffinity/views/pages/admin_pages/weekly_menu_management_page.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/mess_service.dart';
 import 'package:Tiffinity/services/order_service.dart';
@@ -6,6 +7,7 @@ import 'package:Tiffinity/services/user_service.dart';
 import 'package:Tiffinity/services/auth_services.dart';
 import 'package:Tiffinity/views/pages/admin_pages/order_details_page.dart';
 import 'package:Tiffinity/services/notification_service.dart';
+import 'package:Tiffinity/services/subscription_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminHomePage extends StatefulWidget {
@@ -24,7 +26,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
   bool _isLoading = true;
   static bool _notificationsInitialized = false;
 
-  // ✅ Added 'subscriptions' to the filter options
+  // Warning Banner Variables
+  bool _showMenuWarning = false;
+  int _activeSubsTomorrow = 0;
+
   final List<String> _statusFilters = [
     'All',
     'subscriptions',
@@ -92,6 +97,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
             _isLoading = false;
           });
 
+          // Check for tomorrow's menu warning
+          _checkTomorrowMenuStatus(messId);
+
           if (this._orders.isNotEmpty) {
             for (var order in this._orders) {
               if (order.containsKey('customer_id')) {
@@ -116,6 +124,44 @@ class _AdminHomePageState extends State<AdminHomePage> {
     } catch (e) {
       debugPrint('Error loading admin data: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _checkTomorrowMenuStatus(int messId) async {
+    try {
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final formattedDate = "${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}";
+
+      final menus = await SubscriptionService.getMenus(
+        messId: messId,
+        startDate: formattedDate,
+        endDate: formattedDate,
+      );
+
+      if (menus.isNotEmpty) {
+        if (mounted) setState(() => _showMenuWarning = false);
+        return;
+      }
+
+      final plans = await SubscriptionService.getMessPlans(messId);
+      final activePlans = plans.where((p) => p['is_active'] == 1 || p['is_active'] == '1').toList();
+
+      if (activePlans.isNotEmpty) {
+        int totalSubscribers = 0;
+        for (var plan in activePlans) {
+          final subs = await SubscriptionService.getPlanSubscribers(int.parse(plan['id'].toString()));
+          totalSubscribers += subs.length;
+        }
+
+        if (totalSubscribers > 0 && mounted) {
+          setState(() {
+            _activeSubsTomorrow = totalSubscribers;
+            _showMenuWarning = true;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error checking menu status: $e");
     }
   }
 
@@ -278,7 +324,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }).join(' ');
 
     final filteredOrders = _orders.where((order) {
-      // Logic to safely identify subscription orders depending on your database setup
       final subId = order['subscription_id'];
       final isSubField = order['is_subscription'];
       final type = order['order_type'];
@@ -392,13 +437,19 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildStatusToggle(isOnline),
+
+                    if (_showMenuWarning) ...[
+                      const SizedBox(height: 16),
+                      _buildWarningBanner(),
+                    ],
+
                     const SizedBox(height: 24),
                     const Text(
                       'Dashboard',
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                     ),
                     const SizedBox(height: 16),
-                    _buildMetricsGrid(), // ✅ Upgraded to 2x2 Grid
+                    _buildMetricsGrid(),
                     const SizedBox(height: 24),
                     _buildSearchBar(),
                     const SizedBox(height: 16),
@@ -432,6 +483,70 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWarningBanner() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const WeeklyMenuManagementPage()),
+        ).then((_) => _loadData());
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.shade200, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Missing Menu for Tomorrow",
+                    style: TextStyle(
+                      color: Colors.red.shade800,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "You have $_activeSubsTomorrow active subscribers expecting food, but no menu is scheduled. Tap to add items.",
+                    style: TextStyle(
+                      color: Colors.red.shade900,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.arrow_forward_ios, color: Colors.red.shade700, size: 16),
           ],
         ),
       ),
@@ -508,13 +623,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // ✅ New 2x2 Grid for Metrics (Total, Pending, Subscriptions, Preparing)
   Widget _buildMetricsGrid() {
     final total = _orders.length;
     final pending = _orders.where((o) => o['status'] == 'pending').length;
     final preparing = _orders.where((o) => o['status'] == 'accepted' || o['status'] == 'ready').length;
 
-    // Identify subscription orders
     final subscriptions = _orders.where((o) {
       final subId = o['subscription_id'];
       final isSub = o['is_subscription'];
@@ -539,7 +652,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildMetricCard('Subscriptions', subscriptions.toString(), Icons.event_repeat, Colors.purple)),
+            Expanded(child: _buildMetricCard('Subscriptions', subscriptions.toString(), Icons.workspace_premium, Colors.purple)),
             const SizedBox(width: 12),
             Expanded(child: _buildMetricCard('Preparing', preparing.toString(), Icons.soup_kitchen, Colors.green)),
           ],
@@ -613,7 +726,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
           final filter = _statusFilters[index];
           final isSelected = _selectedStatus.toLowerCase() == filter.toLowerCase();
 
-          // Proper capitalization for display
           final displayLabel = filter == 'All'
               ? 'All Orders'
               : filter == 'subscriptions'
@@ -670,13 +782,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
+  // --- THE NEW, PREMIUM ORDER CARD DESIGN ---
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final status = order['status'] ?? 'pending';
     final customerId = order['customer_id'];
     final customerName = _customerNames[customerId] ?? 'Loading...';
     final formattedTime = _formatTime(order['created_at']?.toString());
 
-    // Check if this is a subscription order to display a special tag on the card
     final isSubscription = (order['subscription_id'] != null && order['subscription_id'].toString() != '0') ||
         (order['is_subscription'] == 1 || order['is_subscription'] == '1') ||
         (order['id'] != null && order['id'].toString().startsWith('SUB'));
@@ -685,125 +797,195 @@ class _AdminHomePageState extends State<AdminHomePage> {
     final statusIcon = _getStatusIcon(status);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20), // More rounded, modern corners
+        // Subtle outline based on type
+        border: Border.all(
+          color: isSubscription ? Colors.purple.shade200 : Colors.grey.shade100,
+          width: isSubscription ? 1.5 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: isSubscription ? Colors.purple.withOpacity(0.08) : Colors.black.withOpacity(0.04),
+            blurRadius: 15,
+            spreadRadius: 1,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => OrderDetailsPage(
-                  orderId: order['id'].toString(),
-                  orderData: order,
-                ),
-              ),
-            ).then((_) => _loadData());
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Icon Status Box
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20), // Keeps header inside borders
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => OrderDetailsPage(
+                    orderId: order['id'].toString(),
+                    orderData: order,
+                    isSubscriptionOrder: isSubscription, // ✅ CRITICAL FIX: Pass the flag here
                   ),
-                  child: Icon(statusIcon, color: statusColor, size: 28),
                 ),
-                const SizedBox(width: 16),
+              ).then((_) => _loadData());
+            },
+            child: Column( // Use a column to easily stack the premium header on top
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
 
-                // Order Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                // --- PREMIUM SUBSCRIPTION TICKET HEADER ---
+                if (isSubscription)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.purple.shade700, Colors.purple.shade500],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.stars_rounded, color: Colors.amber, size: 18),
+                        const SizedBox(width: 6),
+                        const Text(
+                          "ACTIVE SUBSCRIPTION",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          formattedTime,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // --- MAIN CARD BODY ---
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Row(
+                      // Circular Icon Status Box (More modern than square)
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isSubscription ? Colors.purple.shade50 : statusColor.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isSubscription ? Icons.local_dining : statusIcon,
+                          color: isSubscription ? Colors.purple.shade600 : statusColor,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+
+                      // Order Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Flexible(
+                                Expanded(
                                   child: Text(
                                     "Order #${order['id'] ?? ''}",
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                      fontWeight: FontWeight.w800,
+                                      color: isSubscription ? Colors.purple.shade900 : Colors.black87,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                if (isSubscription) ...[
-                                  const SizedBox(width: 6),
-                                  const Icon(Icons.event_repeat, color: Colors.purple, size: 16),
-                                ],
+                                // Show time here only if it's NOT a subscription (since subs have it in the header)
+                                if (!isSubscription)
+                                  Text(
+                                    formattedTime,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.grey.shade500,
+                                    ),
+                                  ),
                               ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            formattedTime,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade500,
+                            const SizedBox(height: 4),
+                            Text(
+                              customerName,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        customerName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
-                          fontWeight: FontWeight.w500,
+                            const SizedBox(height: 8),
+
+                            // Modern Status Pill with Dot Indicator
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: statusColor.withOpacity(0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.circle, color: statusColor, size: 8),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        status.replaceAll('_', ' ').toUpperCase(),
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(width: 8),
+                      // Modern Action Arrow
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: statusColor.withOpacity(0.3)),
+                          color: Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(
-                          status.replaceAll('_', ' ').toUpperCase(),
-                          style: TextStyle(
-                            color: statusColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
+                        child: Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 14),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right, color: Colors.grey),
               ],
             ),
           ),
