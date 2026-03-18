@@ -184,6 +184,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           'color': Colors.green,
           'icon': Icons.check_circle,
         };
+      case 'active':
+        return {
+          'message': 'Subscription Activated Successfully',
+          'color': Colors.green,
+          'icon': Icons.check_circle,
+        };
       case 'confirmed':
         return {
           'message': 'Order Confirmed by Delivery Partner',
@@ -308,6 +314,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       case 'pending':
         return const Color(0xFFFF9800);
       case 'accepted':
+      case 'active':
         return const Color(0xFF2196F3);
       case 'confirmed':
         return const Color(0xFF4CAF50);
@@ -331,6 +338,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         return Icons.schedule;
       case 'confirmed':
       case 'accepted':
+      case 'active':
         return Icons.check_circle_outline;
       case 'ready':
         return Icons.shopping_bag;
@@ -374,6 +382,38 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       );
     }
 
+    if (_orderDetails == null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+          title: const Text("Order Details"),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 80, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              const Text(
+                'Order not found',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Go Back'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 27, 84, 78),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final items = _orderDetails!['items'] as List? ?? [];
 
     final customer =
@@ -400,34 +440,42 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
       body: Stack(
         children: [
-          ListView(
-            padding: const EdgeInsets.all(12),
-            children: [
-              _buildSwiggyHeader(),
-
-              const SizedBox(height: 12),
-
-              if (customer != null) _buildCustomerCard(customer),
-
-              const SizedBox(height: 12),
-
-              if (partner != null) _buildDeliveryPartnerCard(partner),
-
-              const SizedBox(height: 12),
-
-              _buildOrderItemsCard(items),
-
-              const SizedBox(height: 12),
-
-              _buildBillBreakdownCard(),
-
-              if (_currentStatus == 'rejected' || _currentStatus == 'cancelled')
-                _buildRejectionCard(),
-
-              const SizedBox(height: 120),
-            ],
+          RefreshIndicator(
+            onRefresh: () => _loadOrderDetails(),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(12),
+              children: [
+                _buildSwiggyHeader(),
+                const SizedBox(height: 12),
+                if (customer != null) _buildCustomerCard(customer),
+                const SizedBox(height: 12),
+                if (partner != null) _buildDeliveryPartnerCard(partner),
+                const SizedBox(height: 12),
+                _buildOrderItemsCard(items),
+                const SizedBox(height: 12),
+                _buildBillBreakdownCard(),
+                if (_currentStatus == 'rejected' || _currentStatus == 'cancelled')
+                  _buildRejectionCard(),
+                const SizedBox(height: 120),
+              ],
+            ),
           ),
-
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: const [
+                Colors.green,
+                Colors.blue,
+                Colors.pink,
+                Colors.orange,
+                Colors.purple,
+              ],
+            ),
+          ),
           Positioned(
             bottom: 0,
             left: 0,
@@ -914,6 +962,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     final platform =
         double.tryParse(_orderDetails!['platform_fee']?.toString() ?? '0') ?? 0;
 
+    final totalAmount =
+        double.tryParse(_orderDetails!['total_amount']?.toString() ?? '0') ??
+        subtotal + delivery + platform + tax;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -932,7 +984,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
           _billRow("Item Total", subtotal),
 
-          _billRow("Delivery Fee", delivery),
+          if (widget.isSubscriptionOrder)
+            _billTextRow("Delivery Fee", "Included in Plan", Colors.green)
+          else
+            _billRow("Delivery Fee", delivery),
 
           _billRow("Platform Fee", platform),
 
@@ -940,7 +995,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
           const Divider(),
 
-          _billTotalRow("Your Earnings", subtotal),
+          _billTotalRow(
+            widget.isSubscriptionOrder ? "Subscription Plan Price" : "Grand Total",
+            totalAmount,
+          ),
         ],
       ),
     );
@@ -970,6 +1028,22 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _billTextRow(String t, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(t),
+          Text(
+            value,
+            style: TextStyle(color: valueColor, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 
