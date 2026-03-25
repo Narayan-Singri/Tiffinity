@@ -9,6 +9,7 @@ import 'package:Tiffinity/views/pages/admin_pages/order_details_page.dart';
 import 'package:Tiffinity/services/notification_service.dart';
 import 'package:Tiffinity/services/subscription_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:Tiffinity/services/menu_service.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -130,19 +131,32 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Future<void> _checkTomorrowMenuStatus(int messId) async {
     try {
       final tomorrow = DateTime.now().add(const Duration(days: 1));
-      final formattedDate = "${tomorrow.year}-${tomorrow.month.toString().padLeft(2, '0')}-${tomorrow.day.toString().padLeft(2, '0')}";
 
-      final menus = await SubscriptionService.getMenus(
+      // 1. Calculate the Week Start Date (Monday) for tomorrow
+      final weekday = tomorrow.weekday; // 1 = Monday, 7 = Sunday
+      final weekStart = tomorrow.subtract(Duration(days: weekday - 1));
+      final weekStartStr = "${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}";
+
+      // 2. Get the specific day name (e.g., 'thursday')
+      final dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      final tomorrowName = dayNames[weekday - 1];
+
+      // 3. Fetch the Weekly Menu for that specific week
+      final weeklyMenu = await MenuService.getWeeklyMenu(
         messId: messId,
-        startDate: formattedDate,
-        endDate: formattedDate,
+        weekStartDate: weekStartStr,
       );
 
-      if (menus.isNotEmpty) {
+      // 4. Check if ANY item in the menu is marked as available (1) for tomorrow
+      final hasItemsForTomorrow = weeklyMenu.any((item) => item.days[tomorrowName] == 1);
+
+      // If we found food for tomorrow, hide the warning and stop checking!
+      if (hasItemsForTomorrow) {
         if (mounted) setState(() => _showMenuWarning = false);
         return;
       }
 
+      // 5. If no food is scheduled, check if we have active subscribers who need food
       final plans = await SubscriptionService.getMessPlans(messId);
       final activePlans = plans.where((p) => p['is_active'] == 1 || p['is_active'] == '1').toList();
 
@@ -156,7 +170,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         if (totalSubscribers > 0 && mounted) {
           setState(() {
             _activeSubsTomorrow = totalSubscribers;
-            _showMenuWarning = true;
+            _showMenuWarning = true; // Show the warning!
           });
         }
       }
