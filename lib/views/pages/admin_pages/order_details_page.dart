@@ -14,14 +14,13 @@ import '../../../services/subscription_service.dart';
 class OrderDetailsPage extends StatefulWidget {
   final String orderId;
   final Map<String, dynamic> orderData;
-  final bool isSubscriptionOrder; // ✅ Add this flag
+  final bool isSubscriptionOrder;
 
   const OrderDetailsPage({
     super.key,
     required this.orderId,
     required this.orderData,
-    this.isSubscriptionOrder =
-        false, // ✅ Default to false so standard orders aren't affected
+    this.isSubscriptionOrder = false,
   });
 
   @override
@@ -35,6 +34,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   String _currentStatus = 'pending';
   late ConfettiController _confettiController;
   late AnimationController _pulseController;
+
+  // ✅ NEW: Smart Tracking Variable
+  // This tells us if we are looking at a Daily Food Delivery vs a Monthly Plan Purchase
+  bool _isParentPlan = false;
 
   // Auto-refresh timer
   bool _autoRefreshEnabled = true;
@@ -62,7 +65,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     super.dispose();
   }
 
-  // Auto-refresh every 15 seconds
   void _startAutoRefresh() {
     Future.delayed(const Duration(seconds: 15), () {
       if (_autoRefreshEnabled && mounted) {
@@ -72,24 +74,44 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     });
   }
 
+  // ✅ THE SMART FETCH LOGIC
   Future<void> _loadOrderDetails({bool silent = false}) async {
     if (!silent) setState(() => _isLoading = true);
 
     try {
-      // ✅ Choose the correct API call based on the flag
-      final order =
-          widget.isSubscriptionOrder
-              ? await OrderService.getSubscriptionOrderById(widget.orderId)
-              : await OrderService.getOrderById(widget.orderId);
+      Map<String, dynamic>? order;
+      bool parentPlanDetected = false;
+
+      // STEP 1: Always try fetching as a normal daily delivery first!
+      // This catches all ORD... AND your new SUB... daily tiffins.
+      try {
+        order = await OrderService.getOrderById(widget.orderId);
+      } catch (e) {
+        debugPrint('Not a normal delivery order, trying parent subscription endpoint...');
+      }
+
+      // STEP 2: Fallback. If it wasn't found in normal orders, it must be a Parent Plan purchase
+      if (order == null || order.isEmpty || order.containsKey('error')) {
+        try {
+          order = await OrderService.getSubscriptionOrderById(widget.orderId);
+          parentPlanDetected = true;
+        } catch (e) {
+          throw Exception("Could not locate this order in any database table.");
+        }
+      }
+
+      if (order == null || order.isEmpty) {
+        throw Exception("Order data is empty.");
+      }
 
       if (mounted) {
         setState(() {
           _orderDetails = order;
-          _currentStatus = order?['status'] ?? 'pending';
+          _currentStatus = order!['status'] ?? 'pending';
+          _isParentPlan = parentPlanDetected; // Save our discovery!
           _isLoading = false;
         });
 
-        // Show confetti if delivered
         if (_currentStatus == 'delivered') {
           _confettiController.play();
         }
@@ -113,7 +135,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   Future<void> _updateOrderStatus(String newStatus) async {
     HapticFeedback.mediumImpact();
 
-    // Show a quick loading dialog so the user knows it's working
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -123,13 +144,16 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     bool success = false;
 
     try {
-      // ✅ Check if it's a subscription order to use the correct service
-      if (widget.isSubscriptionOrder) {
+      // ✅ Use our smart tracker to route the API update!
+      if (_isParentPlan) {
+        // Parent plans use integer IDs in your DB
+        int safeId = int.tryParse(widget.orderId.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
         success = await SubscriptionService.updateSubscriptionStatus(
-          orderId: int.parse(widget.orderId),
+          orderId: safeId,
           status: newStatus,
         );
       } else {
+        // Daily tiffins use string IDs (ORD123, SUB123)
         success = await OrderService.updateOrderStatus(
           orderId: widget.orderId,
           status: newStatus,
@@ -145,7 +169,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       if (success) {
         setState(() => _currentStatus = newStatus);
 
-        // Show appropriate snackbar
         final snackbarConfig = _getSnackbarConfig(newStatus);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -234,26 +257,25 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     );
 
     if (reason != null && reason.isNotEmpty) {
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
         builder:
             (context) => const Center(
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text('Rejecting order...'),
-                    ],
-                  ),
-                ),
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Rejecting order...'),
+                ],
               ),
             ),
+          ),
+        ),
       );
 
       final success = await OrderService.rejectOrder(
@@ -262,13 +284,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       );
 
       if (mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
 
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Row(
-                children: const [
+              content: const Row(
+                children: [
                   Icon(Icons.cancel, color: Colors.white),
                   SizedBox(width: 12),
                   Text('Order Rejected'),
@@ -415,18 +437,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     }
 
     final items = _orderDetails!['items'] as List? ?? [];
-
-    final customer =
-        _orderDetails!['customer_details'] as Map<String, dynamic>?;
-
-    final partner =
-        _orderDetails!['delivery_partner_details'] as Map<String, dynamic>?;
-
+    final customer = _orderDetails!['customer_details'] as Map<String, dynamic>?;
+    final partner = _orderDetails!['delivery_partner_details'] as Map<String, dynamic>?;
     final statusColor = _getStatusColor(_currentStatus);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 27, 84, 78),
         title: const Text("Order Details"),
@@ -437,7 +453,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           ),
         ],
       ),
-
       body: Stack(
         children: [
           RefreshIndicator(
@@ -489,7 +504,6 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
 
   Widget _statusBadge() {
     final color = _getStatusColor(_currentStatus);
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -504,9 +518,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   }
 
   Widget _buildSwiggyHeader() {
-    final total =
-        double.tryParse(_orderDetails!['food_subtotal']?.toString() ?? '0') ??
-        0;
+    final total = double.tryParse(_orderDetails!['food_subtotal']?.toString() ?? _orderDetails!['total_amount']?.toString() ?? '0') ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -522,30 +534,21 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
             children: [
               Text(
                 "Order #${widget.orderId}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-
               _statusBadge(),
             ],
           ),
-
           const SizedBox(height: 8),
-
           Text(
             _getRelativeTime(_orderDetails!['created_at']?.toString()),
             style: const TextStyle(color: Colors.grey),
           ),
-
           const Divider(height: 24),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("Your Earnings", style: TextStyle(fontSize: 16)),
-
               Text(
                 _formatCurrency(total),
                 style: const TextStyle(
@@ -569,158 +572,14 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Container(
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            Container(height: 120, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
             const SizedBox(height: 16),
-            Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            Container(height: 100, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
             const SizedBox(height: 16),
-            Container(
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            Container(height: 200, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12))),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHeaderCard(Color statusColor) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [statusColor.withOpacity(0.1), Colors.white],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start, // ✅ ADDED
-              children: [
-                Expanded(
-                  // ✅ WRAP IN EXPANDED
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Order #${widget.orderId}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color.fromARGB(255, 27, 84, 78),
-                        ),
-                        maxLines: 1, // ✅ LIMIT TO 1 LINE
-                        overflow: TextOverflow.ellipsis, // ✅ TRUNCATE WITH ...
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _getRelativeTime(
-                          _orderDetails!['created_at']?.toString(),
-                        ),
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8), // ✅ SMALL SPACING
-                _buildPulsingStatusBadge(statusColor),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total Amount',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                Text(
-                  _formatCurrency(_orderDetails!['total_amount']),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color.fromARGB(255, 27, 84, 78),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.2, end: 0);
-  }
-
-  Widget _buildPulsingStatusBadge(Color statusColor) {
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, child) {
-        final isPulsing =
-            _currentStatus == 'pending' ||
-            _currentStatus == 'confirmed' ||
-            _currentStatus == 'out_for_delivery';
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: statusColor.withOpacity(
-              isPulsing ? 0.2 + (_pulseController.value * 0.1) : 0.2,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: statusColor, width: 2),
-            boxShadow:
-                isPulsing
-                    ? [
-                      BoxShadow(
-                        color: statusColor.withOpacity(0.4),
-                        blurRadius: 8 + (_pulseController.value * 4),
-                        spreadRadius: _pulseController.value * 2,
-                      ),
-                    ]
-                    : [],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _getStatusIcon(_currentStatus),
-                color: statusColor,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _currentStatus.toUpperCase().replaceAll('_', ' '),
-                style: TextStyle(
-                  color: statusColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -738,32 +597,17 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(
-                      255,
-                      27,
-                      84,
-                      78,
-                    ).withOpacity(0.1),
+                    color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.person,
-                    color: Color.fromARGB(255, 27, 84, 78),
-                  ),
+                  child: const Icon(Icons.person, color: Color.fromARGB(255, 27, 84, 78)),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Customer Details',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                const Text('Customer Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(height: 24),
-            _buildInfoRow(
-              Icons.person_outline,
-              'Name',
-              customerDetails['name'] ?? 'N/A',
-            ),
+            _buildInfoRow(Icons.person_outline, 'Name', customerDetails['name'] ?? 'N/A'),
             const SizedBox(height: 12),
             _buildInfoRowWithAction(
               icon: Icons.phone,
@@ -772,11 +616,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
               onTap: () => _makePhoneCall(customerDetails['phone'] ?? ''),
             ),
             const SizedBox(height: 12),
-            _buildInfoRow(
-              Icons.location_on_outlined,
-              'Delivery Address',
-              _orderDetails!['delivery_address'] ?? 'N/A',
-            ),
+            _buildInfoRow(Icons.location_on_outlined, 'Delivery Address', _orderDetails!['delivery_address'] ?? 'N/A'),
             if (_orderDetails!['special_instructions'] != null) ...[
               const SizedBox(height: 12),
               Container(
@@ -789,28 +629,15 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.amber,
-                      size: 20,
-                    ),
+                    const Icon(Icons.info_outline, color: Colors.amber, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Special Instructions',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
+                          const Text('Special Instructions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           const SizedBox(height: 4),
-                          Text(
-                            _orderDetails!['special_instructions'],
-                            style: const TextStyle(fontSize: 13),
-                          ),
+                          Text(_orderDetails!['special_instructions'], style: const TextStyle(fontSize: 13)),
                         ],
                       ),
                     ),
@@ -838,42 +665,18 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(
-                      255,
-                      27,
-                      84,
-                      78,
-                    ).withOpacity(0.1),
+                    color: const Color.fromARGB(255, 27, 84, 78).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.restaurant_menu,
-                    color: Color.fromARGB(255, 27, 84, 78),
-                  ),
+                  child: const Icon(Icons.restaurant_menu, color: Color.fromARGB(255, 27, 84, 78)),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Order Items',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                const Text('Order Items', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${items.length} items',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  child: Text('${items.length} items', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
                 ),
               ],
             ),
@@ -896,109 +699,52 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Veg/Non-veg indicator
           Container(
             padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: itemType == 'non-veg' ? Colors.red : Colors.green,
-                width: 2,
-              ),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: itemType == 'non-veg' ? Colors.red : Colors.green,
-                shape: BoxShape.circle,
-              ),
-            ),
+            decoration: BoxDecoration(border: Border.all(color: itemType == 'non-veg' ? Colors.red : Colors.green, width: 2), borderRadius: BorderRadius.circular(4)),
+            child: Container(width: 8, height: 8, decoration: BoxDecoration(color: itemType == 'non-veg' ? Colors.red : Colors.green, shape: BoxShape.circle)),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item['name'] ?? 'Unknown Item',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(item['name'] ?? 'Unknown Item', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
-                Text(
-                  'Qty: $quantity × ${_formatCurrency(price)}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
+                Text('Qty: $quantity × ${_formatCurrency(price)}', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
               ],
             ),
           ),
-          Text(
-            _formatCurrency(total),
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color.fromARGB(255, 27, 84, 78),
-            ),
-          ),
+          Text(_formatCurrency(total), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 27, 84, 78))),
         ],
       ),
     );
   }
 
   Widget _buildBillBreakdownCard() {
-    final subtotal =
-        double.tryParse(_orderDetails!['food_subtotal']?.toString() ?? '0') ??
-        0;
-
-    final delivery =
-        double.tryParse(_orderDetails!['delivery_fee']?.toString() ?? '0') ?? 0;
-
-    final tax =
-        double.tryParse(_orderDetails!['tax_amount']?.toString() ?? '0') ?? 0;
-
-    final platform =
-        double.tryParse(_orderDetails!['platform_fee']?.toString() ?? '0') ?? 0;
-
-    final totalAmount =
-        double.tryParse(_orderDetails!['total_amount']?.toString() ?? '0') ??
-        subtotal + delivery + platform + tax;
+    final subtotal = double.tryParse(_orderDetails!['food_subtotal']?.toString() ?? '0') ?? 0;
+    final delivery = double.tryParse(_orderDetails!['delivery_fee']?.toString() ?? '0') ?? 0;
+    final tax = double.tryParse(_orderDetails!['tax_amount']?.toString() ?? '0') ?? 0;
+    final platform = double.tryParse(_orderDetails!['platform_fee']?.toString() ?? '0') ?? 0;
+    final totalAmount = double.tryParse(_orderDetails!['total_amount']?.toString() ?? '0') ?? subtotal + delivery + platform + tax;
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Bill Details",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-
+          const Text("Bill Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 12),
-
           _billRow("Item Total", subtotal),
-
-          if (widget.isSubscriptionOrder)
+          if (_isParentPlan)
             _billTextRow("Delivery Fee", "Included in Plan", Colors.green)
           else
             _billRow("Delivery Fee", delivery),
-
           _billRow("Platform Fee", platform),
-
           _billRow("Taxes", tax),
-
           const Divider(),
-
-          _billTotalRow(
-            widget.isSubscriptionOrder ? "Subscription Plan Price" : "Grand Total",
-            totalAmount,
-          ),
+          _billTotalRow(_isParentPlan ? "Subscription Plan Price" : "Grand Total", totalAmount),
         ],
       ),
     );
@@ -1007,10 +753,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   Widget _billRow(String t, double v) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [Text(t), Text(_formatCurrency(v))],
-      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text(t), Text(_formatCurrency(v))]),
     );
   }
 
@@ -1019,14 +762,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(t, style: const TextStyle(fontWeight: FontWeight.bold)),
-        Text(
-          _formatCurrency(v),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: Color.fromARGB(255, 27, 84, 78),
-          ),
-        ),
+        Text(_formatCurrency(v), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color.fromARGB(255, 27, 84, 78))),
       ],
     );
   }
@@ -1036,13 +772,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(t),
-          Text(
-            value,
-            style: TextStyle(color: valueColor, fontWeight: FontWeight.w600),
-          ),
-        ],
+        children: [Text(t), Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w600))],
       ),
     );
   }
@@ -1060,20 +790,11 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.delivery_dining,
-                    color: Colors.orange,
-                  ),
+                  decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
+                  child: const Icon(Icons.delivery_dining, color: Colors.orange),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Delivery Partner',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
+                const Text('Delivery Partner', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
             const Divider(height: 24),
@@ -1084,11 +805,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   backgroundColor: Colors.orange.withOpacity(0.2),
                   child: Text(
                     partnerDetails['name']?.toString()[0].toUpperCase() ?? 'D',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.orange),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -1096,55 +813,30 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        partnerDetails['name'] ?? 'N/A',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text(partnerDetails['name'] ?? 'N/A', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           const Icon(Icons.star, color: Colors.amber, size: 16),
                           const SizedBox(width: 4),
-                          Text(
-                            '${partnerDetails['rating'] ?? 'N/A'}',
-                            style: const TextStyle(fontSize: 14),
-                          ),
+                          Text('${partnerDetails['rating'] ?? 'N/A'}', style: const TextStyle(fontSize: 14)),
                           const SizedBox(width: 12),
-                          Icon(
-                            Icons.directions_bike,
-                            color: Colors.grey[600],
-                            size: 16,
-                          ),
+                          Icon(Icons.directions_bike, color: Colors.grey[600], size: 16),
                           const SizedBox(width: 4),
-                          Text(
-                            partnerDetails['vehicle_type'] ?? 'N/A',
-                            style: const TextStyle(fontSize: 14),
-                          ),
+                          Text(partnerDetails['vehicle_type'] ?? 'N/A', style: const TextStyle(fontSize: 14)),
                         ],
                       ),
                       if (partnerDetails['vehicle_number'] != null) ...[
                         const SizedBox(height: 4),
-                        Text(
-                          partnerDetails['vehicle_number'],
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                        Text(partnerDetails['vehicle_number'], style: TextStyle(fontSize: 13, color: Colors.grey[600])),
                       ],
                     ],
                   ),
                 ),
                 IconButton(
-                  onPressed:
-                      () => _makePhoneCall(partnerDetails['phone'] ?? ''),
+                  onPressed: () => _makePhoneCall(partnerDetails['phone'] ?? ''),
                   icon: const Icon(Icons.phone, color: Colors.green),
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.green.withOpacity(0.1),
-                  ),
+                  style: IconButton.styleFrom(backgroundColor: Colors.green.withOpacity(0.1)),
                 ),
               ],
             ),
@@ -1155,16 +847,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
   }
 
   Widget _buildRejectionCard() {
-    final rejectionDetails =
-        _orderDetails!['rejection_details'] as Map<String, dynamic>? ?? {};
+    final rejectionDetails = _orderDetails!['rejection_details'] as Map<String, dynamic>? ?? {};
 
     return Card(
       elevation: 2,
       color: Colors.red.withOpacity(0.05),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.red.withOpacity(0.3)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.red.withOpacity(0.3))),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1174,34 +862,18 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), shape: BoxShape.circle),
                   child: const Icon(Icons.cancel, color: Colors.red),
                 ),
                 const SizedBox(width: 12),
-                const Text(
-                  'Order Rejected',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
+                const Text('Order Rejected', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red)),
               ],
             ),
             const Divider(height: 24),
-            Text(
-              'Reason: ${rejectionDetails['rejection_reason'] ?? 'No reason provided'}',
-              style: const TextStyle(fontSize: 15),
-            ),
+            Text('Reason: ${rejectionDetails['rejection_reason'] ?? 'No reason provided'}', style: const TextStyle(fontSize: 15)),
             if (rejectionDetails['rejected_at'] != null) ...[
               const SizedBox(height: 8),
-              Text(
-                'Rejected ${_getRelativeTime(rejectionDetails['rejected_at'].toString())}',
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-              ),
+              Text('Rejected ${_getRelativeTime(rejectionDetails['rejected_at'].toString())}', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
             ],
           ],
         ),
@@ -1219,18 +891,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-              ),
+              Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
               const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
             ],
           ),
         ),
@@ -1238,12 +901,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     );
   }
 
-  Widget _buildInfoRowWithAction({
-    required IconData icon,
-    required String label,
-    required String value,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildInfoRowWithAction({required IconData icon, required String label, required String value, required VoidCallback onTap}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1253,28 +911,16 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-              ),
+              Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
               const SizedBox(height: 2),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
             ],
           ),
         ),
         IconButton(
           onPressed: onTap,
           icon: const Icon(Icons.phone, color: Colors.green),
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.green.withOpacity(0.1),
-            padding: const EdgeInsets.all(8),
-          ),
+          style: IconButton.styleFrom(backgroundColor: Colors.green.withOpacity(0.1), padding: const EdgeInsets.all(8)),
         ),
       ],
     );
@@ -1285,36 +931,28 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -5))],
       ),
       child: SafeArea(child: _buildActionButtons()),
     );
   }
 
+  // ✅ SMART ACTION BUTTONS
   Widget _buildActionButtons() {
     switch (_currentStatus.toLowerCase()) {
       case 'pending':
-        // ✅ Check if it's a subscription order
-        if (widget.isSubscriptionOrder) {
+      // If it's a Monthly Parent Plan Purchase, show Activation
+        if (_isParentPlan) {
           return Row(
             children: [
               Expanded(
                 child: ElevatedButton(
-                  // ✅ Changed from 'accepted' to 'active'
                   onPressed: () => _updateOrderStatus('active'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 4,
                   ),
                   child: const Row(
@@ -1322,14 +960,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                     children: [
                       Icon(Icons.check_circle_outline),
                       SizedBox(width: 8),
-                      // ✅ Changed text to make it clear this activates the plan
-                      Text(
-                        'ACTIVATE SUBSCRIPTION',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text('ACTIVATE SUBSCRIPTION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -1338,7 +969,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           );
         }
 
-        // Standard behavior for normal orders
+        // If it's a Daily Tiffin (SUB...) OR a regular order, show Accept/Reject
         return Row(
           children: [
             Expanded(
@@ -1348,9 +979,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1371,9 +1000,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   elevation: 4,
                 ),
                 child: const Row(
@@ -1390,14 +1017,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         );
 
       case 'active':
-        if (widget.isSubscriptionOrder) {
-          // ✅ Removed the slider. Subscriptions now just show this informational card!
+        if (_isParentPlan) {
           return _buildStatusInfoCard(
             color: Colors.green,
             icon: Icons.autorenew,
             title: 'Subscription Active',
-            subtitle:
-                'Daily deliveries for this plan will automatically generate in your normal Orders list every morning.',
+            subtitle: 'Daily deliveries for this plan will automatically generate every morning.',
           );
         }
         return const SizedBox.shrink();
@@ -1407,8 +1032,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           color: Colors.blue,
           icon: Icons.pending_actions,
           title: 'Order Accepted',
-          subtitle:
-              'Waiting for delivery partner confirmation before marking ready.',
+          subtitle: 'Waiting for delivery partner confirmation before marking ready.',
         );
 
       case 'confirmed':
@@ -1417,22 +1041,13 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
               child: const Row(
                 children: [
                   Icon(Icons.check_circle, color: Colors.green),
                   SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      'Delivery partner confirmed. Mark ready when food is prepared.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                    child: Text('Delivery partner confirmed. Mark ready when food is prepared.', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                   ),
                 ],
               ),
@@ -1440,17 +1055,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
             const SizedBox(height: 12),
             SlideAction(
               text: 'Swipe to Mark Order Ready',
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
               innerColor: Colors.white,
               outerColor: Colors.green,
-              sliderButtonIcon: const Icon(
-                Icons.restaurant_menu,
-                color: Colors.green,
-              ),
+              sliderButtonIcon: const Icon(Icons.restaurant_menu, color: Colors.green),
               onSubmit: () {
                 _updateOrderStatus('ready');
                 return null;
@@ -1488,10 +1096,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
         return _buildStatusInfoCard(
           color: Colors.red,
           icon: Icons.cancel,
-          title:
-              _currentStatus.toLowerCase() == 'rejected'
-                  ? 'Order Rejected'
-                  : 'Order Cancelled',
+          title: _currentStatus.toLowerCase() == 'rejected' ? 'Order Rejected' : 'Order Cancelled',
           subtitle: 'Order flow is closed.',
         );
 
@@ -1500,19 +1105,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
     }
   }
 
-  Widget _buildStatusInfoCard({
-    required Color color,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  Widget _buildStatusInfoCard({required Color color, required IconData icon, required String title, required String subtitle}) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color),
-      ),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: color)),
       child: Row(
         children: [
           Icon(icon, color: color, size: 32),
@@ -1521,14 +1117,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
+                Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
                 const SizedBox(height: 4),
                 Text(subtitle, style: const TextStyle(fontSize: 13)),
               ],

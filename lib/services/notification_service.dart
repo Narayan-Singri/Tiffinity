@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'package:Tiffinity/services/api_service.dart';
 import 'package:Tiffinity/services/notification_navigation_helper.dart';
@@ -77,7 +77,7 @@ class NotificationService {
   // ===============================
 
   Future<void> _initFirebaseMessaging() async {
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
+     FirebaseMessaging messaging = FirebaseMessaging.instance;
 
     await messaging.requestPermission();
 
