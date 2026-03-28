@@ -137,40 +137,47 @@ class _AdminHomePageState extends State<AdminHomePage> {
       final weekStart = tomorrow.subtract(Duration(days: weekday - 1));
       final weekStartStr = "${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}";
 
-      // 2. Get the specific day name (e.g., 'thursday')
+      // 2. Get the specific day name
       final dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       final tomorrowName = dayNames[weekday - 1];
 
-      // 3. Fetch the Weekly Menu for that specific week
+      // 3. Fetch the Weekly Menu
       final weeklyMenu = await MenuService.getWeeklyMenu(
         messId: messId,
         weekStartDate: weekStartStr,
       );
 
-      // 4. Check if ANY item in the menu is marked as available (1) for tomorrow
+      // 4. Check if ANY item is available for tomorrow
       final hasItemsForTomorrow = weeklyMenu.any((item) => item.days[tomorrowName] == 1);
 
-      // If we found food for tomorrow, hide the warning and stop checking!
       if (hasItemsForTomorrow) {
         if (mounted) setState(() => _showMenuWarning = false);
         return;
       }
 
-      // 5. If no food is scheduled, check if we have active subscribers who need food
+      // 5. If no food is scheduled, check subscribers
       final plans = await SubscriptionService.getMessPlans(messId);
       final activePlans = plans.where((p) => p['is_active'] == 1 || p['is_active'] == '1').toList();
 
       if (activePlans.isNotEmpty) {
         int totalSubscribers = 0;
-        for (var plan in activePlans) {
-          final subs = await SubscriptionService.getPlanSubscribers(int.parse(plan['id'].toString()));
+
+        // 🔴 FIX: Execute all subscriber fetch calls concurrently instead of sequentially
+        final subscriberFutures = activePlans.map((plan) {
+          return SubscriptionService.getPlanSubscribers(int.parse(plan['id'].toString()));
+        });
+
+        // Wait for all API calls to finish at the same time
+        final allSubscribers = await Future.wait(subscriberFutures);
+
+        for (var subs in allSubscribers) {
           totalSubscribers += subs.length;
         }
 
         if (totalSubscribers > 0 && mounted) {
           setState(() {
             _activeSubsTomorrow = totalSubscribers;
-            _showMenuWarning = true; // Show the warning!
+            _showMenuWarning = true;
           });
         }
       }

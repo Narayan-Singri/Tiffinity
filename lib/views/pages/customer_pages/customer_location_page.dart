@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -109,8 +110,10 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
         return;
       }
 
+      // FIX: Added a 10-second timeout to prevent infinite hanging
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
       );
 
       List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -120,8 +123,7 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        String address =
-            '${place.street}, ${place.subLocality}, ${place.locality}';
+        String address = '${place.street}, ${place.subLocality}, ${place.locality}';
 
         setState(() {
           _currentPosition = position;
@@ -131,9 +133,7 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
             Marker(
               markerId: const MarkerId('current_location'),
               position: LatLng(position.latitude, position.longitude),
-              icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueGreen,
-              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
             ),
           );
         });
@@ -147,7 +147,12 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      _showError('Error getting location: $e');
+      // Specifically handle Timeout exceptions
+      if (e is TimeoutException) {
+        _showError('GPS signal too weak. Please enter address manually.');
+      } else {
+        _showError('Error getting location: $e');
+      }
     }
   }
 

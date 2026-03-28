@@ -162,23 +162,31 @@ class _AdminSubscriptionsPageState extends State<AdminSubscriptionsPage> {
       ),
     );
 
+    // ... (Keep the confirmation dialog and loading indicator code above this)
+
     try {
       int successCount = 0;
       int failCount = 0;
       String? lastError;
 
-      for (final planId in _selectedPlanIds) {
+      // 🔴 FIX: Concurrent API requests. Execute all deletions simultaneously.
+      final deletionFutures = _selectedPlanIds.map((planId) async {
         try {
-          final result = await SubscriptionService.deletePlan(planId);
-          if (result['status'] == 'success') {
-            successCount++;
-          } else {
-            failCount++;
-            lastError = result['message'] ?? 'Unknown error';
-          }
+          return await SubscriptionService.deletePlan(planId);
         } catch (e) {
+          return {'status': 'error', 'message': e.toString()};
+        }
+      });
+
+      // Wait for all deletions to complete
+      final results = await Future.wait(deletionFutures);
+
+      for (final result in results) {
+        if (result['status'] == 'success') {
+          successCount++;
+        } else {
           failCount++;
-          lastError = e.toString();
+          lastError = result['message'] ?? 'Unknown error';
         }
       }
 

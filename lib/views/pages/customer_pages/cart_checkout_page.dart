@@ -9,6 +9,7 @@ import 'package:Tiffinity/views/widgets/checkout_login_dialog.dart';
 import 'package:Tiffinity/views/widgets/glassmorphic_cart_item.dart';
 import 'package:Tiffinity/views/widgets/empty_cart_widget.dart';
 import 'package:Tiffinity/views/widgets/price_breakdown_card.dart';
+import 'customer_location_page.dart';
 import 'order_tracking_page.dart';
 
 class CartCheckoutPage extends StatefulWidget {
@@ -689,12 +690,12 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
   }
 
   Future<void> _placeOrder(
-    double totalAmount,
-    double subtotal,
-    double taxAmount,
-    double platformFee,
-    double distanceKm,
-  ) async {
+      double totalAmount,
+      double subtotal,
+      double taxAmount,
+      double platformFee,
+      double distanceKm,
+      ) async {
     final currentCart = _getCurrentMessCart();
     if (currentCart.isEmpty) return;
 
@@ -710,35 +711,49 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
       String deliveryAddress = 'Not provided';
       try {
         final addressResponse =
-            await ApiService.getRequest(
-                  'users/get_default_address.php?user_id=${currentUser['uid']}',
-                )
-                as Map<String, dynamic>;
+        await ApiService.getRequest(
+          'users/get_default_address.php?user_id=${currentUser['uid']}',
+        )
+        as Map<String, dynamic>;
 
         if (addressResponse['success'] == true &&
             addressResponse['address'] != null) {
           final addr = addressResponse['address'];
           deliveryAddress =
-              '${addr['room_no']}, ${addr['building']}, ${addr['area']}';
+          '${addr['room_no']}, ${addr['building']}, ${addr['area']}';
         } else {
+          // 🔴 FIX 1: Redirect to Location Page instead of blocking checkout
           if (mounted) {
             setState(() => _isProcessing = false);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Please select a delivery address first'),
-                backgroundColor: Colors.red,
+                content: Text('Please select a delivery address to continue'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CustomerLocationPage(userId: currentUser['uid'].toString()),
               ),
             );
           }
           return;
         }
       } catch (e) {
+        // 🔴 FIX 1 (Catch block): Redirect on network/parsing error
         if (mounted) {
           setState(() => _isProcessing = false);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please select a delivery address'),
-              backgroundColor: Colors.red,
+              content: Text('Please select a delivery address to continue'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => CustomerLocationPage(userId: currentUser['uid'].toString()),
             ),
           );
         }
@@ -746,24 +761,22 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
       }
 
       final orderItems =
-          currentCart.entries.map((entry) {
-            return {
-              'menu_item_id': int.parse(entry.key),
-              'quantity': entry.value.quantity,
-              'price': entry.value.price,
-            };
-          }).toList();
+      currentCart.entries.map((entry) {
+        return {
+          'menu_item_id': int.parse(entry.key),
+          'quantity': entry.value.quantity,
+          'price': entry.value.price,
+        };
+      }).toList();
 
       final result = await OrderService.createOrder(
         customerId: currentUser['uid'],
         messId: int.parse(widget.messId),
-
         totalAmount: totalAmount,
         subtotal: subtotal,
         tax: taxAmount,
         platformFee: platformFee,
         distanceKm: distanceKm,
-
         items: orderItems,
         deliveryAddress: deliveryAddress,
       );
@@ -773,10 +786,9 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
       if (result['message'] == 'Order created') {
         final orderId = result['order_id'];
 
-        final updatedCart = Map<String, CartItem>.from(cartNotifier.value);
-        currentCart.keys.forEach((key) => updatedCart.remove(key));
-        cartNotifier.value = updatedCart;
-        await CartHelper.saveCart(updatedCart);
+        // 🔴 FIX 2: Clear the ENTIRE cart to prevent cross-mess "Zombie" items
+        cartNotifier.value = {};
+        await CartHelper.saveCart({});
         await CartHelper.clearPendingMess();
 
         if (mounted) {

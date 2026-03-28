@@ -29,8 +29,10 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
   @override
   void initState() {
     super.initState();
-    _messId =
-        widget.order['mess_id'] as int? ?? widget.order['messId'] as int? ?? 1;
+    // FIX: Safely parse the mess ID to prevent type casting crashes if the backend sends a string.
+    final messIdRaw = widget.order['mess_id'] ?? widget.order['messId'];
+    _messId = int.tryParse(messIdRaw?.toString() ?? '') ?? 1;
+
     _loadMenuItems();
   }
 
@@ -164,7 +166,12 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
     final todayStr = DateFormat('yyyy-MM-dd').format(today);
     final tomorrowStr = DateFormat('yyyy-MM-dd').format(tomorrow);
 
+    // 🔴 NEW: Define a strict cutoff time for editing today's menu (e.g., 9:00 AM)
+    final int cutoffHour = 9;
+    final bool isPastCutoff = now.hour >= cutoffHour;
+
     print('🗓️ Current DateTime: $now');
+    print('⏰ Cutoff Time: $cutoffHour:00 (Past Cutoff? $isPastCutoff)');
     print('🗓️ Today (normalized): $todayStr');
     print('🗓️ Tomorrow: $tomorrowStr');
     print('🗓️ Available dates from backend: ${_itemsByDate.keys.toList()}');
@@ -174,18 +181,21 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
       _tomorrowDate = tomorrowStr;
       print('✅ Tomorrow\'s date found in backend data: $_tomorrowDate');
     }
-    // Priority 2: If tomorrow not available, use today's date as editable
-    else if (_itemsByDate.containsKey(todayStr)) {
+    // Priority 2: Use today ONLY IF it is before the cutoff time
+    else if (_itemsByDate.containsKey(todayStr) && !isPastCutoff) {
       _tomorrowDate = todayStr;
       print(
-        '⚠️ Tomorrow\'s date not found. Using today\'s date as editable: $_tomorrowDate',
+        '⚠️ Tomorrow not found. Using today as editable (Before Cutoff): $_tomorrowDate',
       );
     }
     // Priority 3: Find any future date
     else {
-      print(
-        '❌ Neither today nor tomorrow found. Looking for any future date...',
-      );
+      if (_itemsByDate.containsKey(todayStr) && isPastCutoff) {
+        print('❌ Today is available but past the $cutoffHour:00 cutoff time. Searching for future dates...');
+      } else {
+        print('❌ Neither today nor tomorrow found. Looking for any future date...');
+      }
+
       for (final dateStr in _itemsByDate.keys) {
         try {
           final itemDate = DateTime.parse(dateStr);
@@ -210,10 +220,13 @@ class _SubscriptionDetailPageState extends State<SubscriptionDetailPage> {
       }
 
       if (_tomorrowDate == null) {
-        print('❌ No future dates found. Using today\'s date if available.');
-        if (_itemsByDate.isNotEmpty) {
+        print('❌ No future dates found.');
+        // Fallback: Only allow fallback to older/latest dates if we aren't past the daily cutoff
+        if (_itemsByDate.isNotEmpty && !isPastCutoff) {
           _tomorrowDate = _itemsByDate.keys.last;
-          print('✅ Using latest available date: $_tomorrowDate');
+          print('✅ Using latest available date (Before Cutoff): $_tomorrowDate');
+        } else {
+          print('⛔ Cannot make any dates editable (past cutoff or no valid dates).');
         }
       }
     }

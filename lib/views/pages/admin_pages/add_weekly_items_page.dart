@@ -740,27 +740,28 @@ class _AddWeeklyItemsPageState extends State<AddWeeklyItemsPage> {
   }
 
   Future<void> _addSelectedItems() async {
-    final items =
-        _selectedItems.map((id) {
-          final days = _daySelections[id]!;
-          final menuItem = widget.allItems.firstWhere(
+    final items = _selectedItems.map((id) {
+      final days = _daySelections[id]!;
+      final menuItem = widget.allItems.firstWhere(
             (item) => int.parse(item['id'].toString()) == id,
-            orElse: () => {},
-          );
-          final price = menuItem['price']?.toString() ?? '0';
+        orElse: () => {},
+      );
 
-          return {
-            'menu_item_id': id,
-            'price': price,
-            'monday': days['monday'] == true ? 1 : null,
-            'tuesday': days['tuesday'] == true ? 1 : null,
-            'wednesday': days['wednesday'] == true ? 1 : null,
-            'thursday': days['thursday'] == true ? 1 : null,
-            'friday': days['friday'] == true ? 1 : null,
-            'saturday': days['saturday'] == true ? 1 : null,
-            'sunday': days['sunday'] == true ? 1 : null,
-          };
-        }).toList();
+      // 🔴 FIX: Safely parse price to prevent "null" string SQL errors
+      final price = (menuItem['price'] ?? 0).toString();
+
+      return {
+        'menu_item_id': id,
+        'price': price,
+        'monday': days['monday'] == true ? 1 : null,
+        'tuesday': days['tuesday'] == true ? 1 : null,
+        'wednesday': days['wednesday'] == true ? 1 : null,
+        'thursday': days['thursday'] == true ? 1 : null,
+        'friday': days['friday'] == true ? 1 : null,
+        'saturday': days['saturday'] == true ? 1 : null,
+        'sunday': days['sunday'] == true ? 1 : null,
+      };
+    }).toList();
 
     final success = await MenuService.addWeeklyMenu(
       messId: widget.messId,
