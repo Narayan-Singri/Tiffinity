@@ -31,6 +31,8 @@ dependencies:
   geocoding: ^2.1.1
   google_maps_flutter: ^2.5.0
   flutter_dotenv: ^6.0.0
+  flutter_map: ^6.1.0  # For the actual map
+  latlong2: ^0.9.0
 
   # KEEP for local notifications display
   firebase_core: ^2.30.0
