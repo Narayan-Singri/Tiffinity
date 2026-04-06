@@ -23,13 +23,13 @@ class LatLngTween extends Tween<LatLng> {
 class OrderLiveMap extends StatefulWidget {
   final String status;
   final Map? deliveryPartner;
-  final LatLng? destination; // 👈 NEW: The customer's drop-off location
+  final LatLng? destination;
 
   const OrderLiveMap({
     super.key,
     required this.status,
     this.deliveryPartner,
-    this.destination, // Pass the destination from your Order model!
+    this.destination,
   });
 
   @override
@@ -42,7 +42,7 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
   LatLng? _currentDriverLocation;
   LatLng? _previousDriverLocation;
 
-  List<LatLng> _routePoints = []; // 👈 NEW: Holds the road coordinates
+  List<LatLng> _routePoints = [];
   bool _isFetchingRoute = false;
 
   @override
@@ -67,7 +67,6 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
       if (lat != null && lng != null) {
         final newLocation = LatLng(lat, lng);
 
-        // Only fetch the route if the driver has moved significantly or it's the first time
         bool shouldFetchRoute = _routePoints.isEmpty || _previousDriverLocation == null;
 
         setState(() {
@@ -75,9 +74,16 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
           _currentDriverLocation = newLocation;
         });
 
-        _mapController.move(newLocation, 16.0);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            try {
+              _mapController.move(newLocation, 15.0);
+            } catch (e) {
+              debugPrint("Map not ready to move yet: $e");
+            }
+          }
+        });
 
-        // Fetch the road route
         if (shouldFetchRoute && widget.destination != null) {
           _fetchRoute(newLocation, widget.destination!);
         }
@@ -85,14 +91,12 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
     }
   }
 
-  // 👈 NEW: Function to ask OSRM for the road path
   Future<void> _fetchRoute(LatLng start, LatLng end) async {
     if (_isFetchingRoute) return;
 
     setState(() { _isFetchingRoute = true; });
 
     try {
-      // OSRM expects coordinates in Longitude,Latitude format
       final url = 'http://router.project-osrm.org/route/v1/driving/'
           '${start.longitude},${start.latitude};${end.longitude},${end.latitude}'
           '?geometries=geojson&overview=full';
@@ -105,7 +109,6 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
           final geometry = data['routes'][0]['geometry']['coordinates'] as List;
 
           setState(() {
-            // Convert OSRM GeoJSON [lng, lat] back to FlutterMap [lat, lng]
             _routePoints = geometry.map((coord) => LatLng(coord[1], coord[0])).toList();
           });
         }
@@ -120,6 +123,13 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
   @override
   Widget build(BuildContext context) {
     final normalizedStatus = widget.status.toLowerCase();
+
+    // 🌟 THE FIX 1: We create a master rule for when to show the tracking elements.
+    // Now, the bike and line will show up immediately when the order is accepted!
+    final bool showTracking = normalizedStatus == 'accepted' ||
+        normalizedStatus == 'confirmed' ||
+        normalizedStatus == 'ready' ||
+        normalizedStatus == 'out_for_delivery';
 
     if (_currentDriverLocation == null) {
       return Container(
@@ -158,28 +168,28 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
               userAgentPackageName: 'com.tiffinity.customer',
             ),
 
-            // 👈 NEW: THE ROUTE LINE (Draws before the markers so it sits underneath them)
-            if (_routePoints.isNotEmpty && normalizedStatus == 'out_for_delivery')
+            // THE ROUTE LINE
+            if (_routePoints.isNotEmpty && showTracking)
               PolylineLayer(
                 polylines: [
                   Polyline(
                     points: _routePoints,
                     strokeWidth: 4.0,
-                    color: Colors.blueAccent.withOpacity(0.8), // Beautiful Uber-like blue line
+                    color: Colors.blueAccent.withOpacity(0.8),
                     isDotted: false,
                   ),
                 ],
               ),
 
-            // THE DESTINATION MARKER (Customer's House)
-            if (widget.destination != null && normalizedStatus == 'out_for_delivery')
+            // THE DESTINATION MARKER
+            if (widget.destination != null && showTracking)
               MarkerLayer(
                 markers: [
                   Marker(
                     point: widget.destination!,
                     width: 40,
                     height: 40,
-                    alignment: Alignment.topCenter, // Pin points directly at the coordinate
+                    alignment: Alignment.topCenter,
                     child: const Icon(
                       Icons.location_on,
                       size: 40,
@@ -190,7 +200,7 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
               ),
 
             // THE ANIMATED DELIVERY BIKE
-            if (normalizedStatus == 'out_for_delivery')
+            if (showTracking)
               MarkerLayer(
                 markers: [
                   Marker(
@@ -206,7 +216,6 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
                         end: _currentDriverLocation!,
                       ),
                       builder: (context, animatedLocation, child) {
-                        // 👇 Wrapped the CircleAvatar in a Material widget to add the shadow!
                         return Material(
                           elevation: 4.0,
                           shape: const CircleBorder(),
@@ -245,42 +254,46 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
           ),
         ),
 
-        // STATUS MESSAGES
+        // 🌟 THE FIX 2: Sleek Floating Status Message
+        // Moved from the center of the screen to a beautiful floating badge at the top!
         if (normalizedStatus == 'confirmed' || normalizedStatus == 'ready' || normalizedStatus == 'accepted' || normalizedStatus == 'pending')
-          Center(
+          Positioned(
+            top: 30,
+            left: 0,
+            right: 0,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const CircleAvatar(
-                  backgroundColor: Colors.white,
-                  radius: 30,
-                  child: Icon(
-                    Icons.soup_kitchen,
-                    size: 30,
-                    color: Colors.orange,
-                  ),
-                ),
-                const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
+                        blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: const Text(
-                    "Mess is preparing your order...",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.black87,
-                    ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.soup_kitchen,
+                        size: 24,
+                        color: Colors.orange,
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        "Mess is preparing your order...",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
