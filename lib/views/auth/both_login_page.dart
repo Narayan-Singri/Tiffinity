@@ -46,7 +46,7 @@ class _BothLoginPageState extends State<BothLoginPage> {
         if (storedRole != widget.role) {
           _showError(
             "You are registered as a ${storedRole.toString().toUpperCase()}. "
-            "Please select ${storedRole.toString().toUpperCase()} role to login.",
+                "Please select ${storedRole.toString().toUpperCase()} role to login.",
           );
           return;
         }
@@ -94,7 +94,7 @@ class _BothLoginPageState extends State<BothLoginPage> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const AdminWidgetTree()),
-        (route) => false,
+            (route) => false,
       );
       return;
     }
@@ -104,24 +104,32 @@ class _BothLoginPageState extends State<BothLoginPage> {
       MaterialPageRoute(
         builder: (_) => CustomerLocationPage(userId: user['uid'].toString()),
       ),
-      (route) => false,
+          (route) => false,
     );
   }
 
+  // Modernized Error Handling (Floating SnackBar instead of Dialog)
   void _showError(String message) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Error"),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.redAccent.shade400,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.only(bottom: 24, left: 16, right: 16),
+        elevation: 6,
+      ),
     );
   }
 
@@ -130,166 +138,249 @@ class _BothLoginPageState extends State<BothLoginPage> {
     return Scaffold(
       body: Stack(
         children: [
+          // 1. Enhanced Gradient Background
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF005C52), Color(0xFF009688), Color(0xFFE9FFFA)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                stops: [0.0, 0.4, 1.0],
               ),
             ),
           ),
+
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  const SizedBox(height: 30),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 24,
-                          offset: const Offset(0, 12),
-                        ),
-                      ],
+            child: Column(
+              children: [
+                // Modern Back Button Alignment
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8.0, top: 8.0),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
                     ),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.role == 'admin'
-                              ? 'Mess Owner Login'
-                              : 'Welcome Back',
-                          style: const TextStyle(
-                            fontSize: 30,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF12403B),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Sign in to continue ordering your meals.',
-                          style: TextStyle(
-                            color: Colors.black.withOpacity(0.55),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        AuthField(
-                          hintText: "Email",
-                          icon: Icons.email_outlined,
-                          controller: emailController,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 14),
-                        AuthField(
-                          hintText: "Password",
-                          icon: Icons.lock_outline_rounded,
-                          controller: passwordController,
-                          isPassword: true,
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (_) => ForgotPasswordPage(
-                                        initialEmail:
-                                            emailController.text.trim(),
-                                      ),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: Color(0xFF00796B),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                        AuthGradientButton(
-                          text: _isLoading ? 'Loading...' : 'Sign in',
-                          onTap: _isLoading ? () {} : _handleLogin,
-                        ),
-                        const SizedBox(height: 14),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder:
-                                    (_) => EmailOtpLoginPage(role: widget.role),
+                        const SizedBox(height: 10),
+
+                        // 2. Entrance Animation for the Card
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 50.0, end: 0.0),
+                          duration: const Duration(milliseconds: 600),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(0, value),
+                              child: Opacity(
+                                opacity: 1 - (value / 50.0),
+                                child: child,
                               ),
                             );
                           },
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 52),
-                            side: const BorderSide(
-                              color: Color(0xFFB5E3DB),
-                              width: 1.5,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(28),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(32),
+                              boxShadow: [
+                                BoxShadow(
+                                  // Softer, tinted shadow instead of harsh black
+                                  color: const Color(0xFF005C52).withOpacity(0.15),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 12),
+                                ),
+                              ],
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.password_rounded,
-                            color: Color(0xFF00796B),
-                          ),
-                          label: const Text(
-                            'Login With Email OTP',
-                            style: TextStyle(
-                              color: Color(0xFF00796B),
-                              fontWeight: FontWeight.w700,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 3. Role-based Contextual Icon
+                                Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE9FFFA),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: const Color(0xFFB5E3DB), width: 1),
+                                  ),
+                                  child: Icon(
+                                    widget.role == 'admin'
+                                        ? Icons.storefront_rounded
+                                        : Icons.waving_hand_rounded,
+                                    color: const Color(0xFF00796B),
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+
+                                Text(
+                                  widget.role == 'admin'
+                                      ? 'Mess Owner Login'
+                                      : 'Welcome Back',
+                                  style: const TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF12403B),
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Sign in to continue ordering your meals.',
+                                  style: TextStyle(
+                                    color: Colors.black.withOpacity(0.55),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+
+                                AuthField(
+                                  hintText: "Email",
+                                  icon: Icons.email_outlined,
+                                  controller: emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                ),
+                                const SizedBox(height: 16),
+                                AuthField(
+                                  hintText: "Password",
+                                  icon: Icons.lock_outline_rounded,
+                                  controller: passwordController,
+                                  isPassword: true,
+                                ),
+
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                      splashFactory: NoSplash.splashFactory,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => ForgotPasswordPage(
+                                            initialEmail: emailController.text.trim(),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Forgot Password?',
+                                      style: TextStyle(
+                                        color: Color(0xFF00796B),
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 8),
+                                AuthGradientButton(
+                                  text: _isLoading ? 'Authenticating...' : 'Sign in',
+                                  onTap: _isLoading ? () {} : _handleLogin,
+                                ),
+                                const SizedBox(height: 16),
+
+                                // 4. Modern Soft Tinted Button for OTP
+                                TextButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EmailOtpLoginPage(role: widget.role),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: const Color(0xFFF0FDF8),
+                                    minimumSize: const Size(double.infinity, 54),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  icon: const Icon(
+                                    Icons.password_rounded,
+                                    color: Color(0xFF00796B),
+                                  ),
+                                  label: const Text(
+                                    'Login With Email OTP',
+                                    style: TextStyle(
+                                      color: Color(0xFF00796B),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
+
+                        const SizedBox(height: 30),
+
+                        // Bottom Signup Text
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BothSignupPage(role: widget.role),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: RichText(
+                              text: TextSpan(
+                                text: "Don't have an account? ",
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                children: const [
+                                  TextSpan(
+                                    text: 'Sign Up',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BothSignupPage(role: widget.role),
-                        ),
-                      );
-                    },
-                    child: RichText(
-                      text: TextSpan(
-                        text: "Don't have an account? ",
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleMedium?.copyWith(color: Colors.white),
-                        children: const [
-                          TextSpan(
-                            text: 'Sign Up',
-                            style: TextStyle(
-                              color: Color(0xFF013B33),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
+
+          // Optional: Overlay loading indicator to block interactions during auth
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.1),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF00796B),
+                ),
+              ),
+            ),
         ],
       ),
     );
