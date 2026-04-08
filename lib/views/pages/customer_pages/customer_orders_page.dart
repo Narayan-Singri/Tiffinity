@@ -184,8 +184,15 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage>
           ),
           title: const Text('My Orders'),
           elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
+          // --- UPDATED GREEN ROUNDED TOP BAR ---
+          backgroundColor: const Color(0xFF00695C),
+          foregroundColor: Colors.white,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(
+              bottom: Radius.circular(24),
+            ),
+          ),
+          // -------------------------------------
         ),
         body: Center(
           child: Column(
@@ -224,8 +231,15 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage>
         ),
         title: const Text('My Orders'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        // --- UPDATED GREEN ROUNDED TOP BAR ---
+        backgroundColor: const Color(0xFF00695C),
+        foregroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            bottom: Radius.circular(24),
+          ),
+        ),
+        // -------------------------------------
       ),
       body: RefreshIndicator(
         onRefresh: _loadOrders,
@@ -250,8 +264,8 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage>
                     MaterialPageRoute(
                       builder:
                           (context) => OrderTrackingPage(
-                            orderId: order['id'].toString(),
-                          ),
+                        orderId: order['id'].toString(),
+                      ),
                     ),
                   );
                 },
