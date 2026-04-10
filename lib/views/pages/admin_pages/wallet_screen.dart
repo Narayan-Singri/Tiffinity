@@ -50,6 +50,35 @@ class _WalletScreenState extends State<WalletScreen> {
     super.dispose();
   }
 
+  // ✅ NEW: Calculate Today's Earnings directly from the statements
+  double _getRealTodayEarnings(WalletDashboard dashboard) {
+    double today = 0.0;
+    final now = DateTime.now();
+
+    for (var entry in dashboard.statements) {
+      if (entry.isCredit && entry.createdAt != null) {
+        if (entry.createdAt!.year == now.year &&
+            entry.createdAt!.month == now.month &&
+            entry.createdAt!.day == now.day) {
+          today += entry.amount;
+        }
+      }
+    }
+    return today;
+  }
+
+  // ✅ NEW: Calculate Total Earnings directly from the statements
+  double _getRealTotalEarnings(WalletDashboard dashboard) {
+    double total = 0.0;
+    for (var entry in dashboard.statements) {
+      if (entry.isCredit) {
+        total += entry.amount;
+      }
+    }
+    // Fallback to balance if no statements exist yet
+    return total > 0 ? total : dashboard.overview.balance;
+  }
+
   Future<void> _openWithdrawFlow() async {
     if (_controller.dashboard == null) {
       return;
@@ -120,26 +149,26 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
                     child:
-                        _controller.isLoading && dashboard == null
-                            ? _buildLoadingState()
-                            : dashboard == null
-                            ? _buildErrorState()
-                            : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildBalanceHero(dashboard),
-                                const SizedBox(height: 18),
-                                _buildQuickActions(),
-                                const SizedBox(height: 18),
-                                _buildStatsGrid(dashboard),
-                                const SizedBox(height: 18),
-                                _buildHighlightsCard(dashboard),
-                                const SizedBox(height: 18),
-                                _buildRecentActivity(dashboard),
-                                const SizedBox(height: 18),
-                                _buildWithdrawalPreview(dashboard),
-                              ],
-                            ),
+                    _controller.isLoading && dashboard == null
+                        ? _buildLoadingState()
+                        : dashboard == null
+                        ? _buildErrorState()
+                        : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildBalanceHero(dashboard),
+                        const SizedBox(height: 18),
+                        _buildQuickActions(),
+                        const SizedBox(height: 18),
+                        _buildStatsGrid(dashboard),
+                        const SizedBox(height: 18),
+                        _buildHighlightsCard(dashboard),
+                        const SizedBox(height: 18),
+                        _buildRecentActivity(dashboard),
+                        const SizedBox(height: 18),
+                        _buildWithdrawalPreview(dashboard),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -154,7 +183,7 @@ class _WalletScreenState extends State<WalletScreen> {
     return Column(
       children: List.generate(
         5,
-        (index) => Container(
+            (index) => Container(
           margin: EdgeInsets.only(bottom: index == 4 ? 0 : 16),
           height: index == 0 ? 220 : 110,
           decoration: BoxDecoration(
@@ -365,12 +394,16 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Widget _buildStatsGrid(WalletDashboard dashboard) {
+    // ✅ Calculates accurate total based on statements
+    final realTodayEarnings = _getRealTodayEarnings(dashboard);
+    final realTotalEarnings = _getRealTotalEarnings(dashboard);
+
     return Row(
       children: [
         Expanded(
           child: _StatCard(
             title: 'Today\'s earning',
-            value: _currency.format(dashboard.todayEarning),
+            value: _currency.format(realTodayEarnings),
             icon: Icons.wb_sunny_outlined,
             color: _warningColor,
           ),
@@ -379,7 +412,7 @@ class _WalletScreenState extends State<WalletScreen> {
         Expanded(
           child: _StatCard(
             title: 'Total earning',
-            value: _currency.format(dashboard.totalEarning),
+            value: _currency.format(realTotalEarnings),
             icon: Icons.trending_up_rounded,
             color: _successColor,
           ),
@@ -425,36 +458,36 @@ class _WalletScreenState extends State<WalletScreen> {
       actionLabel: dashboard.statements.isEmpty ? null : 'View all',
       onAction: dashboard.statements.isEmpty ? null : _openHistory,
       child:
-          items.isEmpty
-              ? const _EmptyState(
-                title: 'No earnings yet',
-                subtitle:
-                    'Settlements from the statement API will appear here.',
-              )
-              : Column(
-                children:
-                    items
-                        .map(
-                          (entry) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _TransactionTile(
-                              title: entry.title,
-                              subtitle:
-                                  entry.createdAt == null
-                                      ? 'Date unavailable'
-                                      : _dateFormat.format(entry.createdAt!),
-                              amount: _currency.format(entry.amount),
-                              typeLabel: entry.isCredit ? 'Credit' : 'Debit',
-                              isCredit: entry.isCredit,
-                              balanceLabel:
-                                  'Balance ${_currency.format(entry.balanceAfter)}',
-                              successColor: _successColor,
-                              debitColor: _warningColor,
-                            ),
-                          ),
-                        )
-                        .toList(),
-              ),
+      items.isEmpty
+          ? const _EmptyState(
+        title: 'No earnings yet',
+        subtitle:
+        'Settlements from the statement API will appear here.',
+      )
+          : Column(
+        children:
+        items
+            .map(
+              (entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _TransactionTile(
+              title: entry.title,
+              subtitle:
+              entry.createdAt == null
+                  ? 'Date unavailable'
+                  : _dateFormat.format(entry.createdAt!),
+              amount: _currency.format(entry.amount),
+              typeLabel: entry.isCredit ? 'Credit' : 'Debit',
+              isCredit: entry.isCredit,
+              balanceLabel:
+              'Balance ${_currency.format(entry.balanceAfter)}',
+              successColor: _successColor,
+              debitColor: _warningColor,
+            ),
+          ),
+        )
+            .toList(),
+      ),
     );
   }
 
@@ -466,33 +499,33 @@ class _WalletScreenState extends State<WalletScreen> {
       actionLabel: 'View all',
       onAction: _openWithdrawHistory,
       child:
-          items.isEmpty
-              ? const _EmptyState(
-                title: 'No withdrawal requests yet',
-                subtitle:
-                    'Once a payout request is created, it will show up here.',
-              )
-              : Column(
-                children:
-                    items
-                        .map(
-                          (entry) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _WithdrawalTile(
-                              amount: _currency.format(entry.amount),
-                              status: entry.status,
-                              date:
-                                  entry.createdAt == null
-                                      ? 'Date unavailable'
-                                      : _dateFormat.format(entry.createdAt!),
-                              primaryColor: _primaryColor,
-                              successColor: _successColor,
-                              warningColor: _warningColor,
-                            ),
-                          ),
-                        )
-                        .toList(),
-              ),
+      items.isEmpty
+          ? const _EmptyState(
+        title: 'No withdrawal requests yet',
+        subtitle:
+        'Once a payout request is created, it will show up here.',
+      )
+          : Column(
+        children:
+        items
+            .map(
+              (entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _WithdrawalTile(
+              amount: _currency.format(entry.amount),
+              status: entry.status,
+              date:
+              entry.createdAt == null
+                  ? 'Date unavailable'
+                  : _dateFormat.format(entry.createdAt!),
+              primaryColor: _primaryColor,
+              successColor: _successColor,
+              warningColor: _warningColor,
+            ),
+          ),
+        )
+            .toList(),
+      ),
     );
   }
 }
@@ -663,7 +696,7 @@ class _ActionButton extends StatelessWidget {
             gradient: background,
             borderRadius: BorderRadius.circular(22),
             border:
-                borderColor == null ? null : Border.all(color: borderColor!),
+            borderColor == null ? null : Border.all(color: borderColor!),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.04),
@@ -678,9 +711,9 @@ class _ActionButton extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color:
-                      background == null
-                          ? const Color(0xFFEAF6F3)
-                          : Colors.white.withOpacity(0.16),
+                  background == null
+                      ? const Color(0xFFEAF6F3)
+                      : Colors.white.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: iconColor, size: 22),
@@ -696,7 +729,7 @@ class _ActionButton extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color:
-                            background == null ? Colors.black87 : Colors.white,
+                        background == null ? Colors.black87 : Colors.white,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -705,9 +738,9 @@ class _ActionButton extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         color:
-                            background == null
-                                ? Colors.grey.shade600
-                                : Colors.white.withOpacity(0.76),
+                        background == null
+                            ? Colors.grey.shade600
+                            : Colors.white.withOpacity(0.76),
                       ),
                     ),
                   ],
@@ -950,11 +983,11 @@ class _WithdrawalTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalizedStatus = status.toLowerCase();
     final accent =
-        normalizedStatus == 'approved'
-            ? successColor
-            : normalizedStatus == 'rejected'
-            ? Colors.red.shade600
-            : warningColor;
+    normalizedStatus == 'approved'
+        ? successColor
+        : normalizedStatus == 'rejected'
+        ? Colors.red.shade600
+        : warningColor;
 
     return Container(
       padding: const EdgeInsets.all(14),

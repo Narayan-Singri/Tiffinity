@@ -14,7 +14,9 @@ import 'package:intl/intl.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_location_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'wallet_screen.dart';
+// ✅ FIXED: Using absolute paths so Flutter can find these screens!
+import 'package:Tiffinity/views/pages/admin_pages/wallet_screen.dart';
+import 'package:Tiffinity/views/pages/admin_pages/earnings_details_page.dart';
 
 class AdminProfilePage extends StatefulWidget {
   const AdminProfilePage({super.key});
@@ -117,7 +119,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           _userData = user;
           _messData = mess;
           _originalMessData =
-              mess != null ? Map<String, dynamic>.from(mess) : null;
+          mess != null ? Map<String, dynamic>.from(mess) : null;
           _originalUserData = Map<String, dynamic>.from(user);
           _isLoading = false;
         });
@@ -181,7 +183,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       if (pincode.isNotEmpty) locationParts.add(pincode);
 
       _messLocation =
-          locationParts.isNotEmpty ? locationParts.join(', ') : 'Location set';
+      locationParts.isNotEmpty ? locationParts.join(', ') : 'Location set';
     }
   }
 
@@ -199,57 +201,57 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       context: context,
       builder:
           (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            SizedBox(width: 8),
+            Text(
+              'Discard Changes?',
+              style: TextStyle(fontWeight: FontWeight.w700),
             ),
-            title: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                SizedBox(width: 8),
-                Text(
-                  'Discard Changes?',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ],
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to discard all changes?',
+        ),
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'No',
+              style: TextStyle(color: Colors.grey.shade700),
             ),
-            content: const Text(
-              'Are you sure you want to discard all changes?',
-            ),
-            actionsPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'No',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red.shade600,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _isEditMode = false;
-                    _messData =
-                        _originalMessData != null
-                            ? Map<String, dynamic>.from(_originalMessData!)
-                            : null;
-                    _userData = Map<String, dynamic>.from(_originalUserData!);
-                    _populateControllers();
-                  });
-                },
-                child: const Text('Yes, Discard'),
-              ),
-            ],
           ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _isEditMode = false;
+                _messData =
+                _originalMessData != null
+                    ? Map<String, dynamic>.from(_originalMessData!)
+                    : null;
+                _userData = Map<String, dynamic>.from(_originalUserData!);
+                _populateControllers();
+              });
+            },
+            child: const Text('Yes, Discard'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -279,13 +281,13 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         'phone': _messPhoneController.text.trim(),
         'address': _addressController.text.trim(),
         'open_time':
-            _openingTime != null
-                ? '${_openingTime!.hour.toString().padLeft(2, '0')}:${_openingTime!.minute.toString().padLeft(2, '0')}:00'
-                : '',
+        _openingTime != null
+            ? '${_openingTime!.hour.toString().padLeft(2, '0')}:${_openingTime!.minute.toString().padLeft(2, '0')}:00'
+            : '',
         'close_time':
-            _closingTime != null
-                ? '${_closingTime!.hour.toString().padLeft(2, '0')}:${_closingTime!.minute.toString().padLeft(2, '0')}:00'
-                : '',
+        _closingTime != null
+            ? '${_closingTime!.hour.toString().padLeft(2, '0')}:${_closingTime!.minute.toString().padLeft(2, '0')}:00'
+            : '',
       });
 
       await ApiService.postForm('users/update_user_details.php', {
@@ -368,71 +370,71 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       ),
       builder:
           (context) => Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor.withOpacity(0.98),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 20,
-                ).copyWith(bottom: 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[400],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Update Mess Photo',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: _primaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    ListTile(
-                      leading: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: _primaryColor.withOpacity(0.08),
-                        child: Icon(Icons.camera_alt, color: _primaryColor),
-                      ),
-                      title: const Text('Take Photo'),
-                      onTap: () => _pickAndUploadImage(ImageSource.camera),
-                    ),
-                    ListTile(
-                      leading: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: _primaryColor.withOpacity(0.08),
-                        child: Icon(Icons.photo_library, color: _primaryColor),
-                      ),
-                      title: const Text('Choose from Gallery'),
-                      onTap: () => _pickAndUploadImage(ImageSource.gallery),
-                    ),
-                    ListTile(
-                      leading: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.red.withOpacity(0.06),
-                        child: const Icon(Icons.close, color: Colors.red),
-                      ),
-                      title: const Text('Cancel'),
-                      onTap: () => Navigator.pop(context),
-                    ),
-                  ],
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor.withOpacity(0.98),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(24),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 20,
+            ).copyWith(bottom: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[400],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                Text(
+                  'Update Mess Photo',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  leading: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: _primaryColor.withOpacity(0.08),
+                    child: Icon(Icons.camera_alt, color: _primaryColor),
+                  ),
+                  title: const Text('Take Photo'),
+                  onTap: () => _pickAndUploadImage(ImageSource.camera),
+                ),
+                ListTile(
+                  leading: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: _primaryColor.withOpacity(0.08),
+                    child: Icon(Icons.photo_library, color: _primaryColor),
+                  ),
+                  title: const Text('Choose from Gallery'),
+                  onTap: () => _pickAndUploadImage(ImageSource.gallery),
+                ),
+                ListTile(
+                  leading: CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.red.withOpacity(0.06),
+                    child: const Icon(Icons.close, color: Colors.red),
+                  ),
+                  title: const Text('Cancel'),
+                  onTap: () => Navigator.pop(context),
+                ),
+              ],
             ),
           ),
+        ),
+      ),
     );
   }
 
@@ -440,9 +442,9 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime:
-          isOpeningTime
-              ? (_openingTime ?? TimeOfDay.now())
-              : (_closingTime ?? TimeOfDay.now()),
+      isOpeningTime
+          ? (_openingTime ?? TimeOfDay.now())
+          : (_closingTime ?? TimeOfDay.now()),
     );
     if (picked != null) {
       setState(() {
@@ -460,7 +462,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       SnackBar(
         content: Text(message),
         backgroundColor:
-            isError ? Colors.red : const Color.fromARGB(255, 27, 84, 78),
+        isError ? Colors.red : const Color.fromARGB(255, 27, 84, 78),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -468,6 +470,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     );
   }
 
+  // ✅ FULLY FIXED EARNINGS PARSER
   Future<void> _loadWallet() async {
     if (_userData == null) return;
 
@@ -478,7 +481,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         "owner_type": "mess",
       });
 
-      /// statement API (same as wallet screen)
+      /// statement API
       final statementRes = await ApiService.postForm(
         'transactions/statement.php',
         {"owner_id": _userData!['uid'], "owner_type": "mess"},
@@ -486,13 +489,22 @@ class _AdminProfilePageState extends State<AdminProfilePage>
 
       double today = 0;
 
-      if (statementRes["data"] != null) {
-        final list = statementRes["data"] as List;
+      // Extract from the "statements" array instead of "data"
+      final dynamic sourceList = statementRes["statements"] ?? statementRes["data"];
 
+      if (sourceList != null && sourceList is List) {
         final todayDate = DateTime.now();
+        // Custom parser to match PHP output "10 Apr 2026, 02:06 PM"
+        final DateFormat statementDateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
-        for (var item in list) {
-          final date = DateTime.tryParse(item["created_at"]);
+        for (var item in sourceList) {
+          DateTime? date;
+          try {
+            date = statementDateFormat.parse(item["created_at"].toString());
+          } catch (e) {
+            // Fallback just in case
+            date = DateTime.tryParse(item["created_at"].toString());
+          }
 
           if (date != null &&
               date.year == todayDate.year &&
@@ -503,15 +515,14 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         }
       }
 
-      setState(() {
-        _walletBalance = double.tryParse(res["balance"].toString()) ?? 0;
-
-        _walletAvailable = double.tryParse(res["available"].toString()) ?? 0;
-
-        _walletLocked = double.tryParse(res["locked_balance"].toString()) ?? 0;
-
-        _todayEarning = today;
-      });
+      if (mounted) {
+        setState(() {
+          _walletBalance = double.tryParse(res["balance"].toString()) ?? 0;
+          _walletAvailable = double.tryParse(res["available"].toString()) ?? 0;
+          _walletLocked = double.tryParse(res["locked_balance"].toString()) ?? 0;
+          _todayEarning = today; // ✅ Properly calculated now!
+        });
+      }
     } catch (e) {
       debugPrint("Wallet load error $e");
     }
@@ -522,41 +533,41 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       context: context,
       builder:
           (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Logout'),
+          ],
+        ),
+        content: const Text('Are you sure you want to logout?'),
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey.shade700),
             ),
-            title: const Row(
-              children: [
-                Icon(Icons.logout, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Logout'),
-              ],
-            ),
-            content: const Text('Are you sure you want to logout?'),
-            actionsPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey.shade700),
-                ),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.red.shade600,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Logout'),
-              ),
-            ],
           ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
     );
 
     if (confirm == true && mounted) {
@@ -567,7 +578,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const WelcomePage()),
-            (route) => false,
+                (route) => false,
           );
         }
       } catch (e) {
@@ -803,7 +814,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   Widget _buildMessImageSection() {
     final hasImage =
         _messData?['image_url'] != null &&
-        _messData!['image_url'].toString().isNotEmpty;
+            _messData!['image_url'].toString().isNotEmpty;
 
     return Stack(
       alignment: Alignment.center,
@@ -812,9 +823,9 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           tag: 'mess_image',
           child: GestureDetector(
             onTap:
-                hasImage
-                    ? () => _showFullImage(context, _messData!['image_url'])
-                    : null,
+            hasImage
+                ? () => _showFullImage(context, _messData!['image_url'])
+                : null,
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               height: 190,
@@ -844,15 +855,15 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   children: [
                     hasImage
                         ? CachedNetworkImage(
-                          imageUrl: _messData!['image_url'],
-                          fit: BoxFit.cover,
-                          placeholder:
-                              (context, url) => const Center(
-                                child: CircularProgressIndicator(),
-                              ),
-                          errorWidget:
-                              (context, url, error) => _buildPlaceholder(),
-                        )
+                      imageUrl: _messData!['image_url'],
+                      fit: BoxFit.cover,
+                      placeholder:
+                          (context, url) => const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                      errorWidget:
+                          (context, url, error) => _buildPlaceholder(),
+                    )
                         : _buildPlaceholder(),
                     Positioned(
                       left: 0,
@@ -1007,12 +1018,12 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           const SizedBox(width: 8),
           Chip(
             backgroundColor:
-                _isEditMode
-                    ? Colors.orange.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
+            _isEditMode
+                ? Colors.orange.withOpacity(0.1)
+                : Colors.grey.withOpacity(0.1),
             side: BorderSide(
               color:
-                  _isEditMode ? Colors.orange.shade200 : Colors.grey.shade200,
+              _isEditMode ? Colors.orange.shade200 : Colors.grey.shade200,
             ),
             label: Text(
               _isEditMode ? 'Edit mode enabled' : 'View mode',
@@ -1066,16 +1077,16 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       context: context,
       builder:
           (context) => Dialog(
-            backgroundColor: Colors.black87,
-            insetPadding: const EdgeInsets.all(16),
-            child: Hero(
-              tag: 'mess_image',
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.contain,
-              ),
-            ),
+        backgroundColor: Colors.black87,
+        insetPadding: const EdgeInsets.all(16),
+        child: Hero(
+          tag: 'mess_image',
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.contain,
           ),
+        ),
+      ),
     );
   }
 
@@ -1146,11 +1157,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
               value: _messTypeController.text,
               items: const ['veg', 'non-veg', 'veg | non-veg'],
               onChanged:
-                  _isEditMode
-                      ? (val) {
-                        setState(() => _messTypeController.text = val!);
-                      }
-                      : null,
+              _isEditMode
+                  ? (val) {
+                setState(() => _messTypeController.text = val!);
+              }
+                  : null,
             ),
             const SizedBox(height: 14),
             _buildEditableField(
@@ -1257,11 +1268,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
               icon: Icons.calendar_today,
               label: 'Registered Since',
               value:
-                  _userData?['created_at'] != null
-                      ? DateFormat(
-                        'dd MMM yyyy',
-                      ).format(DateTime.parse(_userData!['created_at']))
-                      : 'N/A',
+              _userData?['created_at'] != null
+                  ? DateFormat(
+                'dd MMM yyyy',
+              ).format(DateTime.parse(_userData!['created_at']))
+                  : 'N/A',
             ),
             const SizedBox(height: 8),
           ],
@@ -1321,9 +1332,9 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                     MaterialPageRoute(
                       builder:
                           (context) => AdminLocationPage(
-                            messId: int.parse(messId.toString()),
-                            ownerName: _userData?['name'] ?? 'Owner',
-                          ),
+                        messId: int.parse(messId.toString()),
+                        ownerName: _userData?['name'] ?? 'Owner',
+                      ),
                     ),
                   );
 
@@ -1376,9 +1387,9 @@ class _AdminProfilePageState extends State<AdminProfilePage>
             MaterialPageRoute(
               builder:
                   (context) => WalletScreen(
-                    ownerId: _userData!['uid'],
-                    ownerType: 'mess',
-                  ),
+                ownerId: _userData!['uid'],
+                ownerType: 'mess',
+              ),
             ),
           );
         },
@@ -1597,23 +1608,23 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                 elevation: 0,
               ),
               child:
-                  _isSaving
-                      ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                      : const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
+              _isSaving
+                  ? const SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+                  : const Text(
+                'Save Changes',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ),
@@ -1694,11 +1705,11 @@ class _AdminProfilePageState extends State<AdminProfilePage>
         DropdownButtonFormField<String>(
           value: value,
           items:
-              items
-                  .map(
-                    (item) => DropdownMenuItem(value: item, child: Text(item)),
-                  )
-                  .toList(),
+          items
+              .map(
+                (item) => DropdownMenuItem(value: item, child: Text(item)),
+          )
+              .toList(),
           onChanged: onChanged,
           decoration: _inputDecoration(enabled: onChanged != null),
         ),

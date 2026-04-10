@@ -10,6 +10,8 @@ import 'package:Tiffinity/services/notification_service.dart';
 import 'package:Tiffinity/services/subscription_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Tiffinity/services/menu_service.dart';
+import 'package:Tiffinity/services/api_service.dart';
+import 'package:intl/intl.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -30,6 +32,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
   // Warning Banner Variables
   bool _showMenuWarning = false;
   int _activeSubsTomorrow = 0;
+
+  // ✅ NEW: True Earnings variable directly from Wallet
+  double _todayEarnings = 0.0;
 
   final List<String> _statusFilters = [
     'All',
@@ -68,11 +73,55 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return false;
   }
 
+  // ✅ NEW: Fetch true wallet earnings directly from statements so it matches the Wallet Page exactly
+  Future<void> _fetchTrueEarnings(String ownerId) async {
+    try {
+      final statementRes = await ApiService.postForm(
+        'transactions/statement.php',
+        {"owner_id": ownerId, "owner_type": "mess"},
+      );
+
+      double today = 0;
+      final dynamic sourceList = statementRes["statements"] ?? statementRes["data"];
+
+      if (sourceList != null && sourceList is List) {
+        final todayDate = DateTime.now();
+        final DateFormat statementDateFormat = DateFormat('dd MMM yyyy, hh:mm a');
+
+        for (var item in sourceList) {
+          DateTime? date;
+          try {
+            date = statementDateFormat.parse(item["created_at"].toString());
+          } catch (e) {
+            date = DateTime.tryParse(item["created_at"].toString());
+          }
+
+          if (date != null &&
+              date.year == todayDate.year &&
+              date.month == todayDate.month &&
+              date.day == todayDate.day) {
+            today += double.tryParse(item["credit"].toString()) ?? 0;
+          }
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _todayEarnings = today;
+        });
+      }
+    } catch (e) {
+      debugPrint("True earnings error: $e");
+    }
+  }
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
       final currentUser = await AuthService.currentUser;
       if (currentUser == null) return;
+
+      // ✅ Fetch True Wallet Earnings
+      await _fetchTrueEarnings(currentUser['uid']);
 
       final mess = await MessService.getMessByOwner(currentUser['uid']);
       if (mess != null) {
@@ -98,7 +147,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
             _isLoading = false;
           });
 
-          // Check for tomorrow's menu warning
           _checkTomorrowMenuStatus(messId);
 
           if (this._orders.isNotEmpty) {
@@ -131,23 +179,18 @@ class _AdminHomePageState extends State<AdminHomePage> {
   Future<void> _checkTomorrowMenuStatus(int messId) async {
     try {
       final tomorrow = DateTime.now().add(const Duration(days: 1));
-
-      // 1. Calculate the Week Start Date (Monday) for tomorrow
-      final weekday = tomorrow.weekday; // 1 = Monday, 7 = Sunday
+      final weekday = tomorrow.weekday;
       final weekStart = tomorrow.subtract(Duration(days: weekday - 1));
       final weekStartStr = "${weekStart.year}-${weekStart.month.toString().padLeft(2, '0')}-${weekStart.day.toString().padLeft(2, '0')}";
 
-      // 2. Get the specific day name
       final dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       final tomorrowName = dayNames[weekday - 1];
 
-      // 3. Fetch the Weekly Menu
       final weeklyMenu = await MenuService.getWeeklyMenu(
         messId: messId,
         weekStartDate: weekStartStr,
       );
 
-      // 4. Check if ANY item is available for tomorrow
       final hasItemsForTomorrow = weeklyMenu.any((item) => item.days[tomorrowName] == 1);
 
       if (hasItemsForTomorrow) {
@@ -155,19 +198,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
         return;
       }
 
-      // 5. If no food is scheduled, check subscribers
       final plans = await SubscriptionService.getMessPlans(messId);
       final activePlans = plans.where((p) => p['is_active'] == 1 || p['is_active'] == '1').toList();
 
       if (activePlans.isNotEmpty) {
         int totalSubscribers = 0;
-
-        // 🔴 FIX: Execute all subscriber fetch calls concurrently instead of sequentially
         final subscriberFutures = activePlans.map((plan) {
           return SubscriptionService.getPlanSubscribers(int.parse(plan['id'].toString()));
         });
-
-        // Wait for all API calls to finish at the same time
         final allSubscribers = await Future.wait(subscriberFutures);
 
         for (var subs in allSubscribers) {
@@ -217,51 +255,33 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // --- UI Helpers ---
-
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'pending':
-        return const Color(0xFFFF9800);
+      case 'pending': return const Color(0xFFFF9800);
       case 'accepted':
-      case 'active':
-        return const Color(0xFF2196F3);
-      case 'confirmed':
-        return const Color(0xFF4CAF50);
-      case 'ready':
-        return const Color(0xFF9C27B0);
-      case 'out_for_delivery':
-        return const Color(0xFFFF5722);
-      case 'delivered':
-        return const Color(0xFF4CAF50);
+      case 'active': return const Color(0xFF2196F3);
+      case 'confirmed': return const Color(0xFF4CAF50);
+      case 'ready': return const Color(0xFF9C27B0);
+      case 'out_for_delivery': return const Color(0xFFFF5722);
+      case 'delivered': return const Color(0xFF4CAF50);
       case 'cancelled':
-      case 'rejected':
-        return const Color(0xFFF44336);
-      default:
-        return Colors.grey;
+      case 'rejected': return const Color(0xFFF44336);
+      default: return Colors.grey;
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'pending':
-        return Icons.schedule;
+      case 'pending': return Icons.schedule;
       case 'accepted':
-      case 'active':
-        return Icons.thumb_up_alt_outlined;
-      case 'confirmed':
-        return Icons.check_circle_outline;
-      case 'ready':
-        return Icons.shopping_bag_outlined;
-      case 'out_for_delivery':
-        return Icons.delivery_dining;
-      case 'delivered':
-        return Icons.check_circle;
+      case 'active': return Icons.thumb_up_alt_outlined;
+      case 'confirmed': return Icons.check_circle_outline;
+      case 'ready': return Icons.shopping_bag_outlined;
+      case 'out_for_delivery': return Icons.delivery_dining;
+      case 'delivered': return Icons.check_circle;
       case 'cancelled':
-      case 'rejected':
-        return Icons.cancel;
-      default:
-        return Icons.info_outline;
+      case 'rejected': return Icons.cancel;
+      default: return Icons.info_outline;
     }
   }
 
@@ -283,16 +303,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
     }
   }
 
-  // --- Build Methods ---
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(
-            color: Color.fromARGB(255, 27, 84, 78),
-          ),
+          child: CircularProgressIndicator(color: Color.fromARGB(255, 27, 84, 78)),
         ),
       );
     }
@@ -378,7 +394,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
         onRefresh: _loadData,
         child: CustomScrollView(
           slivers: [
-            // Professional App Bar
             SliverAppBar(
               expandedHeight: 140.0,
               floating: false,
@@ -396,27 +411,17 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
                 title: Text(
                   messName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
                 ),
                 background: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(60),
-                    bottomRight: Radius.circular(60),
-                  ),
+                  borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(60), bottomRight: Radius.circular(60)),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
                       Container(
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              Color.fromARGB(255, 18, 65, 60),
-                              Color.fromARGB(255, 27, 84, 78)
-                            ],
+                            colors: [Color.fromARGB(255, 18, 65, 60), Color.fromARGB(255, 27, 84, 78)],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -425,11 +430,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       Positioned(
                         right: -20,
                         top: 10,
-                        child: Icon(
-                          Icons.soup_kitchen,
-                          size: 130,
-                          color: Colors.white.withOpacity(0.06),
-                        ),
+                        child: Icon(Icons.soup_kitchen, size: 130, color: Colors.white.withOpacity(0.06)),
                       ),
                     ],
                   ),
@@ -449,8 +450,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ),
               ],
             ),
-
-            // Dashboard Content
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -458,17 +457,17 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildStatusToggle(isOnline),
+                    const SizedBox(height: 16),
+
+                    // ✅ Passes true wallet earnings directly to UI
+                    _buildTodayEarningsCard(_todayEarnings),
 
                     if (_showMenuWarning) ...[
                       const SizedBox(height: 16),
                       _buildWarningBanner(),
                     ],
-
                     const SizedBox(height: 24),
-                    const Text(
-                      'Dashboard',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
-                    ),
+                    const Text('Dashboard', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
                     const SizedBox(height: 16),
                     _buildMetricsGrid(),
                     const SizedBox(height: 24),
@@ -480,8 +479,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ),
               ),
             ),
-
-            // Orders List
             if (_orders.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
@@ -510,6 +507,55 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
+  Widget _buildTodayEarningsCard(double earnings) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade600, Colors.green.shade400],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Today's Earnings",
+                style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "₹${earnings.toStringAsFixed(2)}",
+                style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 32),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildWarningBanner() {
     return GestureDetector(
       onTap: () {
@@ -525,21 +571,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.red.shade200, width: 1.5),
           boxShadow: [
-            BoxShadow(
-              color: Colors.red.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
+            BoxShadow(color: Colors.red.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.red.shade100,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: Colors.red.shade100, shape: BoxShape.circle),
               child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 28),
             ),
             const SizedBox(width: 16),
@@ -547,22 +586,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Missing Menu for Tomorrow",
-                    style: TextStyle(
-                      color: Colors.red.shade800,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
+                  Text("Missing Menu for Tomorrow", style: TextStyle(color: Colors.red.shade800, fontWeight: FontWeight.bold, fontSize: 15)),
                   const SizedBox(height: 4),
-                  Text(
-                    "You have $_activeSubsTomorrow active subscribers expecting food, but no menu is scheduled. Tap to add items.",
-                    style: TextStyle(
-                      color: Colors.red.shade900,
-                      fontSize: 13,
-                    ),
-                  ),
+                  Text("You have $_activeSubsTomorrow active subscribers expecting food, but no menu is scheduled. Tap to add items.", style: TextStyle(color: Colors.red.shade900, fontSize: 13)),
                 ],
               ),
             ),
@@ -581,53 +607,24 @@ class _AdminHomePageState extends State<AdminHomePage> {
       decoration: BoxDecoration(
         color: isOnline ? Colors.white : Colors.red.shade50,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isOnline ? Colors.green.shade200 : Colors.red.shade200,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isOnline ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: isOnline ? Colors.green.shade200 : Colors.red.shade200, width: 1.5),
+        boxShadow: [BoxShadow(color: isOnline ? Colors.green.withOpacity(0.05) : Colors.red.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isOnline ? Colors.green.shade100 : Colors.red.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isOnline ? Icons.storefront : Icons.store_mall_directory,
-              color: isOnline ? Colors.green.shade700 : Colors.red.shade700,
-              size: 28,
-            ),
+            decoration: BoxDecoration(color: isOnline ? Colors.green.shade100 : Colors.red.shade100, shape: BoxShape.circle),
+            child: Icon(isOnline ? Icons.storefront : Icons.store_mall_directory, color: isOnline ? Colors.green.shade700 : Colors.red.shade700, size: 28),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isOnline ? "Mess is Open" : "Mess is Closed",
-                  style: TextStyle(
-                    color: isOnline ? Colors.green.shade800 : Colors.red.shade800,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(isOnline ? "Mess is Open" : "Mess is Closed", style: TextStyle(color: isOnline ? Colors.green.shade800 : Colors.red.shade800, fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(
-                  isOnline ? "Accepting new orders" : "Currently not accepting orders",
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: 13,
-                  ),
-                ),
+                Text(isOnline ? "Accepting new orders" : "Currently not accepting orders", style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
               ],
             ),
           ),
@@ -688,9 +685,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 4)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -700,15 +695,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
             child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(height: 12),
-          Text(
-            count,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-          ),
+          Text(count, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
           const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -803,7 +792,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // --- THE NEW, PREMIUM ORDER CARD DESIGN ---
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final status = order['status'] ?? 'pending';
     final customerId = order['customer_id'];
@@ -821,8 +809,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20), // More rounded, modern corners
-        // Subtle outline based on type
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isSubscription ? Colors.purple.shade200 : Colors.grey.shade100,
           width: isSubscription ? 1.5 : 1,
@@ -837,7 +824,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20), // Keeps header inside borders
+        borderRadius: BorderRadius.circular(20),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -848,16 +835,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   builder: (context) => OrderDetailsPage(
                     orderId: order['id'].toString(),
                     orderData: order,
-                    isSubscriptionOrder: isSubscription, // ✅ CRITICAL FIX: Pass the flag here
+                    isSubscriptionOrder: isSubscription,
                   ),
                 ),
               ).then((_) => _loadData());
             },
-            child: Column( // Use a column to easily stack the premium header on top
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                // --- PREMIUM SUBSCRIPTION TICKET HEADER ---
                 if (isSubscription)
                   Container(
                     width: double.infinity,
@@ -875,48 +860,27 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         const SizedBox(width: 6),
                         const Text(
                           "ACTIVE SUBSCRIPTION",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
+                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8),
                         ),
                         const Spacer(),
-                        Text(
-                          formattedTime,
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        Text(formattedTime, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
-
-                // --- MAIN CARD BODY ---
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Circular Icon Status Box (More modern than square)
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: isSubscription ? Colors.purple.shade50 : statusColor.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          isSubscription ? Icons.local_dining : statusIcon,
-                          color: isSubscription ? Colors.purple.shade600 : statusColor,
-                          size: 26,
-                        ),
+                        child: Icon(isSubscription ? Icons.local_dining : statusIcon, color: isSubscription ? Colors.purple.shade600 : statusColor, size: 26),
                       ),
                       const SizedBox(width: 16),
-
-                      // Order Details
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -926,43 +890,15 @@ class _AdminHomePageState extends State<AdminHomePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    "Order #${order['id'] ?? ''}",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800,
-                                      color: isSubscription ? Colors.purple.shade900 : Colors.black87,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                  child: Text("Order #${order['id'] ?? ''}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: isSubscription ? Colors.purple.shade900 : Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 ),
-                                // Show time here only if it's NOT a subscription (since subs have it in the header)
                                 if (!isSubscription)
-                                  Text(
-                                    formattedTime,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                  ),
+                                  Text(formattedTime, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade500)),
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              customerName,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            Text(customerName, style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 8),
-
-                            // Modern Status Pill with Dot Indicator
                             Row(
                               children: [
                                 Container(
@@ -977,15 +913,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                                     children: [
                                       Icon(Icons.circle, color: statusColor, size: 8),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        status.replaceAll('_', ' ').toUpperCase(),
-                                        style: TextStyle(
-                                          color: statusColor,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 10,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
+                                      Text(status.replaceAll('_', ' ').toUpperCase(), style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5)),
                                     ],
                                   ),
                                 ),
@@ -995,13 +923,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Modern Action Arrow
                       Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                        decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10)),
                         child: Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 14),
                       ),
                     ],

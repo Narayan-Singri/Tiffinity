@@ -16,7 +16,9 @@ class _EarningsDetailsPageState extends State<EarningsDetailsPage>
   late TabController _tabController;
   DateTimeRange? _dateRange;
   bool _isLoading = false;
+
   List<Map<String, dynamic>> _allOrders = [];
+  List<Map<String, dynamic>> _filteredOrders = []; // ✅ Added to strictly hold filtered orders
   double _totalCompletedAmount = 0;
 
   final _dateFormat = DateFormat('dd MMM yyyy');
@@ -31,6 +33,7 @@ class _EarningsDetailsPageState extends State<EarningsDetailsPage>
     _tabController = TabController(length: 2, vsync: this);
 
     final now = DateTime.now();
+    // Default to Today
     _dateRange = DateTimeRange(
       start: DateTime(now.year, now.month, now.day),
       end: DateTime(now.year, now.month, now.day),
@@ -39,460 +42,316 @@ class _EarningsDetailsPageState extends State<EarningsDetailsPage>
     _loadOrders();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  Future<void> _loadOrders() async {
+    setState(() => _isLoading = true);
+    try {
+      final orders = await OrderService.getMessOrders(int.parse(widget.messId));
+      if (mounted) {
+        setState(() {
+          _allOrders = List<Map<String, dynamic>>.from(orders);
+          _isLoading = false;
+        });
+        _applyFilters(); // ✅ Call our new strict filter logic
+      }
+    } catch (e) {
+      debugPrint("Error loading earnings: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ✅ New method that strictly filters list AND total by the Date Range
+  void _applyFilters() {
+    if (_dateRange == null) return;
+
+    // Start of the day (00:00:00)
+    DateTime start = DateTime(_dateRange!.start.year, _dateRange!.start.month, _dateRange!.start.day);
+    // End of the day (23:59:59)
+    DateTime end = DateTime(_dateRange!.end.year, _dateRange!.end.month, _dateRange!.end.day, 23, 59, 59);
+
+    double total = 0;
+    List<Map<String, dynamic>> filtered = [];
+
+    for (var order in _allOrders) {
+      if (order['status']?.toString().toLowerCase() == 'delivered') {
+
+        // Grab updated_at, fallback to created_at
+        String dateString = order['updated_at']?.toString() ?? order['created_at']?.toString() ?? '';
+
+        if (dateString.isNotEmpty) {
+          try {
+            DateTime orderDate = DateTime.parse(dateString);
+
+            // Strictly check if the delivery happened inside the selected date boundary
+            if (orderDate.isAfter(start.subtract(const Duration(seconds: 1))) &&
+                orderDate.isBefore(end.add(const Duration(seconds: 1)))) {
+              filtered.add(order);
+              total += double.tryParse(order['total_amount']?.toString() ?? '0') ?? 0.0;
+            }
+          } catch (e) {
+            debugPrint("Date parse error: $e");
+          }
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _filteredOrders = filtered;
+        _totalCompletedAmount = total;
+      });
+    }
   }
 
   Future<void> _pickDateRange() async {
-    final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 1),
       initialDateRange: _dateRange,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
               primary: primaryColor,
               onPrimary: Colors.white,
-              onSurface: primaryColor,
+              surface: Colors.white,
+              onSurface: Colors.black,
             ),
           ),
           child: child!,
         );
       },
     );
-    if (picked != null) {
-      setState(() => _dateRange = picked);
-      _loadOrders();
-    }
-  }
 
-  Future<void> _loadOrders() async {
-    if (_dateRange == null) return;
-
-    setState(() {
-      _isLoading = true;
-      _allOrders = [];
-      _totalCompletedAmount = 0;
-    });
-
-    try {
-      final orders =
-      await OrderService.getMessOrders(int.parse(widget.messId));
-
-      final start = DateTime(
-        _dateRange!.start.year,
-        _dateRange!.start.month,
-        _dateRange!.start.day,
-      );
-      final end = DateTime(
-        _dateRange!.end.year,
-        _dateRange!.end.month,
-        _dateRange!.end.day,
-        23,
-        59,
-        59,
-      );
-
-      double total = 0;
-      final List<Map<String, dynamic>> filtered = [];
-
-      for (final raw in orders) {
-        final o = Map<String, dynamic>.from(raw);
-
-        final createdAtStr = o['created_at']?.toString() ?? '';
-        DateTime created;
-        try {
-          created = DateTime.parse(createdAtStr);
-        } catch (_) {
-          continue;
-        }
-
-        if (created.isBefore(start) || created.isAfter(end)) continue;
-
-        final status = (o['status'] ?? '').toString().toLowerCase();
-        if (status == 'delivered') {
-          final amount =
-              double.tryParse(o['total_amount']?.toString() ?? '0') ?? 0;
-          total += amount;
-        }
-
-        filtered.add(o);
-      }
-
+    if (picked != null && picked != _dateRange) {
       setState(() {
-        _allOrders = filtered;
-        _totalCompletedAmount = total;
-        _isLoading = false;
+        _dateRange = picked;
       });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to load earnings: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final dt = DateTime.parse(dateStr);
-      return _dateFormat.format(dt);
-    } catch (_) {
-      return dateStr;
+      _applyFilters(); // ✅ Re-apply filters when the date changes!
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final completedOrders = _allOrders
-        .where((o) => (o['status'] ?? '').toString().toLowerCase() == 'delivered')
-        .toList();
-
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
-        elevation: 0,
+        title: const Text('Earnings & Settlements'),
         backgroundColor: primaryColor,
-        title: const Text(
-          'Earnings',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(120),
-          child: Container(
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: Column(
+        children: [
+          // Top Summary Card
+          Container(
             color: primaryColor,
-            padding: const EdgeInsets.only(bottom: 8),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Date range',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _dateRange == null
-                                  ? 'Select range'
-                                  : '${_dateFormat.format(_dateRange!.start)} - ${_dateFormat.format(_dateRange!.end)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Completed earning: ₹${_totalCompletedAmount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: _pickDateRange,
-                        style: TextButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          visualDensity: VisualDensity.compact,
-                          side: const BorderSide(color: Colors.white24),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.date_range_rounded, size: 18),
-                        label: const Text(
-                          'Filter',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
+                Text(
+                  'Total Completed Value',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                // Flat tabs, underline indicator
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: TabBar(
-                    controller: _tabController,
-                    indicatorColor: Colors.white,
-                    indicatorWeight: 3,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.white70,
-                    labelStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                const SizedBox(height: 8),
+                Text(
+                  'Rs ${_totalCompletedAmount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _pickDateRange,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
                     ),
-                    tabs: const [
-                      Tab(text: 'Transactions'),
-                      Tab(text: 'Completed'),
-                    ],
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_month,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _dateRange == null
+                              ? 'Select Date Range'
+                              : '${_dateFormat.format(_dateRange!.start)} - ${_dateFormat.format(_dateRange!.end)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
 
-      ),
-
-      body: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Container(
-          color: bgColor,
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : TabBarView(
-            controller: _tabController,
-            children: [
-              _buildTransactionsList(_allOrders),
-              _buildCompletedList(completedOrders),
-            ],
+          // Tabs
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: primaryColor,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: primaryColor,
+              indicatorWeight: 3,
+              tabs: const [
+                Tab(text: 'Completed Orders'),
+                Tab(text: 'Settlements'),
+              ],
+            ),
           ),
-        ),
+
+          // Tab Views
+          Expanded(
+            child:
+            _isLoading
+                ? Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            )
+                : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildOrdersList(),
+                _buildSettlementsList(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-
-  Widget _buildTransactionsList(List<Map<String, dynamic>> orders) {
-    if (orders.isEmpty) {
+  Widget _buildOrdersList() {
+    if (_filteredOrders.isEmpty) { // ✅ Use strictly filtered orders here
       return _buildEmptyState(
-        icon: Icons.receipt_long_rounded,
-        title: 'No transactions',
-        subtitle: 'No orders in this date range yet.',
+        icon: Icons.receipt_long,
+        title: 'No Completed Orders',
+        subtitle: 'You have no delivered orders for the selected date range.',
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      itemCount: orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final o = orders[index];
-        final id = o['id']?.toString() ?? '-';
-        final status = o['status']?.toString() ?? '';
-        final amount =
-            double.tryParse(o['total_amount']?.toString() ?? '0') ?? 0;
-        final paymentMethod = o['payment_method']?.toString() ?? '';
-        final createdAt = o['created_at']?.toString() ?? '';
+    return RefreshIndicator(
+      onRefresh: _loadOrders,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _filteredOrders.length, // ✅ Use strictly filtered orders
+        itemBuilder: (context, index) {
+          final order = _filteredOrders[index]; // ✅ Use strictly filtered orders
+          return _buildOrderCard(order);
+        },
+      ),
+    );
+  }
 
-        final isDelivered =
-            status.toLowerCase() == 'delivered';
+  Widget _buildSettlementsList() {
+    return _buildEmptyState(
+      icon: Icons.account_balance_wallet,
+      title: 'No Settlements Found',
+      subtitle:
+      'Your payouts will appear here once transferred to your bank account.',
+    );
+  }
 
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    // Parse order date safely
+    final rawDate = order['updated_at']?.toString() ?? order['created_at']?.toString() ?? '';
+    String displayDate = 'N/A';
+    String displayTime = '';
+
+    if (rawDate.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(rawDate);
+        displayDate = _dateFormat.format(dt);
+        displayTime = DateFormat('hh:mm a').format(dt);
+      } catch (_) {}
+    }
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Order #${order['id']}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
-                child: Icon(
-                  Icons.payment_rounded,
+                Text(
+                  'Rs ${order['total_amount']}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: accentColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayDate,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      displayTime,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+                _buildStatusChip(
+                  label: order['status'] ?? 'Completed',
                   color: primaryColor,
-                  size: 22,
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Order #$id',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatDate(createdAt),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        _buildStatusChip(
-                          label: status,
-                          color: isDelivered
-                              ? Colors.green
-                              : Colors.orange,
-                        ),
-                        const SizedBox(width: 6),
-                        _buildStatusChip(
-                          label: paymentMethod,
-                          color: Colors.blueGrey,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '₹${amount.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    isDelivered ? 'Settled' : 'In progress',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color:
-                      isDelivered ? Colors.green : Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCompletedList(List<Map<String, dynamic>> orders) {
-    if (orders.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.check_circle_outline_rounded,
-        title: 'No completed orders',
-        subtitle: 'Delivered orders will appear here.',
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      itemCount: orders.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final o = orders[index];
-        final id = o['id']?.toString() ?? '-';
-        final amount =
-            double.tryParse(o['total_amount']?.toString() ?? '0') ?? 0;
-        final deliveredAt = o['delivered_at']?.toString() ?? '';
-        final address = o['delivery_address']?.toString() ?? '';
-
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: Colors.green,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Order #$id',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatDate(
-                        deliveredAt.isNotEmpty
-                            ? deliveredAt
-                            : o['created_at']?.toString() ?? '',
-                      ),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      address,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '₹${amount.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -505,11 +364,11 @@ class _EarningsDetailsPageState extends State<EarningsDetailsPage>
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        label,
+        label.toUpperCase(),
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           color: color,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -540,8 +399,9 @@ class _EarningsDetailsPageState extends State<EarningsDetailsPage>
               subtitle,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade600,
+                fontSize: 13,
+                color: Colors.grey.shade500,
+                height: 1.4,
               ),
             ),
           ],
