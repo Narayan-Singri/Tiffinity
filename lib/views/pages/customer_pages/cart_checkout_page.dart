@@ -64,7 +64,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
   Map<String, CartItem> _getCurrentMessCart() {
     return Map.fromEntries(
       cartNotifier.value.entries.where(
-        (entry) => entry.value.messId == widget.messId,
+            (entry) => entry.value.messId == widget.messId,
       ),
     );
   }
@@ -99,7 +99,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
 
                 final subtotal = messCart.values.fold(
                   0.0,
-                  (sum, item) => sum + item.totalPrice,
+                      (sum, item) => sum + item.totalPrice,
                 );
                 final distanceKm = 2.0; // TODO from API later
 
@@ -196,7 +196,7 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
             // Middle Right Accent Blob
             Positioned(
               top:
-                  MediaQuery.of(context).size.height * 0.4 +
+              MediaQuery.of(context).size.height * 0.4 +
                   (30 * _backgroundController.value),
               right: -80,
               child: _blob(
@@ -501,12 +501,12 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
 
   // Floating Pill-Shaped Checkout Button (UPDATED)
   Widget _buildFloatingCheckoutButton(
-    double totalAmount,
-    double subtotal,
-    double taxAmount,
-    double platformFee,
-    double distanceKm,
-  ) {
+      double totalAmount,
+      double subtotal,
+      double taxAmount,
+      double platformFee,
+      double distanceKm,
+      ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: BoxDecoration(
@@ -541,90 +541,90 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
           color: Colors.transparent,
           child: InkWell(
             onTap:
-                _isProcessing
-                    ? null
-                    : () => _proceedToCheckout(
-                      totalAmount,
-                      subtotal,
-                      taxAmount,
-                      platformFee,
-                      distanceKm,
-                    ),
+            _isProcessing
+                ? null
+                : () => _proceedToCheckout(
+              totalAmount,
+              subtotal,
+              taxAmount,
+              platformFee,
+              distanceKm,
+            ),
             borderRadius: BorderRadius.circular(50),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
               child:
-                  _isProcessing
-                      ? const Center(
-                        child: SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
+              _isProcessing
+                  ? const Center(
+                child: SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.white,
+                    ),
+                  ),
+                ),
+              )
+                  : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.25),
+                          shape: BoxShape.circle,
                         ),
-                      )
-                      : Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: const Icon(
+                          Icons.shopping_bag_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.25),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.shopping_bag_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '₹${totalAmount.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Proceed to Checkout',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.95),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.arrow_forward_rounded,
+                          Text(
+                            '₹${totalAmount.toStringAsFixed(0)}',
+                            style: const TextStyle(
                               color: Colors.white,
-                              size: 20,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            'Proceed to Checkout',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.95),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ],
                       ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -657,12 +657,12 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
   }
 
   void _proceedToCheckout(
-    double totalAmount,
-    double subtotal,
-    double taxAmount,
-    double platformFee,
-    double distanceKm,
-  ) async {
+      double totalAmount,
+      double subtotal,
+      double taxAmount,
+      double platformFee,
+      double distanceKm,
+      ) async {
     final currentCart = _getCurrentMessCart();
     if (currentCart.isEmpty) return;
 
@@ -673,9 +673,9 @@ class _CartCheckoutPageState extends State<CartCheckoutPage>
         context: context,
         builder:
             (context) => CheckoutLoginDialog(
-              messId: widget.messId,
-              messName: widget.messName,
-            ),
+          messId: widget.messId,
+          messName: widget.messName,
+        ),
       );
       return;
     }

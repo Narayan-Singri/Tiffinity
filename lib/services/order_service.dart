@@ -52,8 +52,8 @@ class OrderService {
 
   // ✅ Get SUBSCRIPTION order by ID (Updated to safely handle Lists and Maps)
   static Future<Map<String, dynamic>?> getSubscriptionOrderById(
-    String orderId,
-  ) async {
+      String orderId,
+      ) async {
     try {
       final response = await ApiService.getRequest(
         'subscriptions/get_subscription_order.php?id=$orderId',
@@ -91,8 +91,8 @@ class OrderService {
 
   // ✅ Get all orders for a customer
   static Future<List<Map<String, dynamic>>> getCustomerOrders(
-    String customerId,
-  ) async {
+      String customerId,
+      ) async {
     try {
       final data = await ApiService.getRequest(
         'orders/get_customer_orders.php?customer_id=$customerId',
