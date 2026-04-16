@@ -14,9 +14,10 @@ import 'package:intl/intl.dart';
 import 'package:Tiffinity/views/pages/admin_pages/admin_location_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ✅ FIXED: Using absolute paths so Flutter can find these screens!
 import 'package:Tiffinity/views/pages/admin_pages/wallet_screen.dart';
 import 'package:Tiffinity/views/pages/admin_pages/earnings_details_page.dart';
+// 👇 NEW IMPORT FOR ANALYTICS SCREEN 👇
+import 'package:Tiffinity/views/pages/admin_pages/mess_analytics_screen.dart';
 
 class AdminProfilePage extends StatefulWidget {
   const AdminProfilePage({super.key});
@@ -64,7 +65,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   // Image picker
   final ImagePicker _picker = ImagePicker();
 
-  // ✅ Standardized Brand Colors
+  // Standardized Brand Colors
   Color get _primaryColor => const Color.fromARGB(255, 27, 84, 78);
   Color get _accentColor => Colors.orange;
 
@@ -143,7 +144,6 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       _messPhoneController.text = _messData!['phone'] ?? '';
       _addressController.text = _messData!['address'] ?? '';
 
-      // Parse times
       if (_messData!['open_time'] != null) {
         final parts = _messData!['open_time'].toString().split(':');
         if (parts.length >= 2) {
@@ -470,18 +470,15 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     );
   }
 
-  // ✅ FULLY FIXED EARNINGS PARSER
   Future<void> _loadWallet() async {
     if (_userData == null) return;
 
     try {
-      /// balance API
       final res = await ApiService.postForm('transactions/wallet_balance.php', {
         "owner_id": _userData!['uid'],
         "owner_type": "mess",
       });
 
-      /// statement API
       final statementRes = await ApiService.postForm(
         'transactions/statement.php',
         {"owner_id": _userData!['uid'], "owner_type": "mess"},
@@ -489,12 +486,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
 
       double today = 0;
 
-      // Extract from the "statements" array instead of "data"
       final dynamic sourceList = statementRes["statements"] ?? statementRes["data"];
 
       if (sourceList != null && sourceList is List) {
         final todayDate = DateTime.now();
-        // Custom parser to match PHP output "10 Apr 2026, 02:06 PM"
         final DateFormat statementDateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
         for (var item in sourceList) {
@@ -502,7 +497,6 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           try {
             date = statementDateFormat.parse(item["created_at"].toString());
           } catch (e) {
-            // Fallback just in case
             date = DateTime.tryParse(item["created_at"].toString());
           }
 
@@ -520,7 +514,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
           _walletBalance = double.tryParse(res["balance"].toString()) ?? 0;
           _walletAvailable = double.tryParse(res["available"].toString()) ?? 0;
           _walletLocked = double.tryParse(res["locked_balance"].toString()) ?? 0;
-          _todayEarning = today; // ✅ Properly calculated now!
+          _todayEarning = today;
         });
       }
     } catch (e) {
@@ -657,6 +651,9 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                         const SizedBox(height: 16),
                         if (!_isEditMode) _buildEarningSummaryCard(),
                         const SizedBox(height: 16),
+                        // 👇 NEW ANALYTICS ENTRY POINT ADDED HERE 👇
+                        if (!_isEditMode) _buildAnalyticsCard(),
+                        const SizedBox(height: 16),
                         if (!_isEditMode) _buildResetPasswordButton(),
                         const SizedBox(height: 16),
                         if (!_isEditMode) _buildLogoutButton(),
@@ -715,9 +712,6 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     );
   }
 
-  // ============================================
-  // APP BAR (Professional Rounded Design)
-  // ============================================
   Widget _buildAppBar() {
     return SliverAppBar(
       expandedHeight: 140.0,
@@ -794,7 +788,6 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                   ),
                 ),
               ),
-              // Premium subtle watermark
               Positioned(
                 right: -20,
                 top: 10,
@@ -1515,6 +1508,87 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 👇 NEW ANALYTICS CARD WIDGET 👇
+  Widget _buildAnalyticsCard() {
+    if (_messData == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.blue.shade100, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MessAnalyticsScreen(
+                  messId: _messData!['id'].toString(),
+                ),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.analytics_rounded, color: Colors.blue, size: 28),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Order Analytics',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'View daily orders and revenue',
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.arrow_forward_ios, color: Colors.blue, size: 16),
+                ),
+              ],
+            ),
           ),
         ),
       ),
