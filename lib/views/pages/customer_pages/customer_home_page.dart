@@ -155,6 +155,7 @@ class _CustomerHomePageState extends State<CustomerHomePage> {
           slivers: [
             // 1. Modern App Bar
             SliverAppBar(
+              automaticallyImplyLeading: false, // ✅ Added this to completely hide the back button
               floating: true,
               pinned: true,
               backgroundColor: _primaryColor,

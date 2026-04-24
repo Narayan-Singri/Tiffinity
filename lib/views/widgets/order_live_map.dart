@@ -1,24 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http;
+import 'dart:async';
 import 'dart:convert';
-
-// ==========================================
-// CUSTOM TWEEN FOR SMOOTH MAP ANIMATIONS
-// ==========================================
-class LatLngTween extends Tween<LatLng> {
-  LatLngTween({required LatLng begin, required LatLng end})
-      : super(begin: begin, end: end);
-
-  @override
-  LatLng lerp(double t) {
-    if (begin == null || end == null) return begin ?? const LatLng(0, 0);
-    final lat = begin!.latitude + (end!.latitude - begin!.latitude) * t;
-    final lng = begin!.longitude + (end!.longitude - begin!.longitude) * t;
-    return LatLng(lat, lng);
-  }
-}
+import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
 
 class OrderLiveMap extends StatefulWidget {
   final String status;
@@ -37,11 +21,9 @@ class OrderLiveMap extends StatefulWidget {
 }
 
 class _OrderLiveMapState extends State<OrderLiveMap> {
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
 
   LatLng? _currentDriverLocation;
-  LatLng? _previousDriverLocation;
-
   List<LatLng> _routePoints = [];
   bool _isFetchingRoute = false;
 
@@ -67,23 +49,20 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
       if (lat != null && lng != null) {
         final newLocation = LatLng(lat, lng);
 
-        bool shouldFetchRoute = _routePoints.isEmpty || _previousDriverLocation == null;
+        bool shouldFetchRoute = _routePoints.isEmpty || _currentDriverLocation == null;
 
         setState(() {
-          _previousDriverLocation = _currentDriverLocation ?? newLocation;
           _currentDriverLocation = newLocation;
         });
 
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            try {
-              _mapController.move(newLocation, 15.0);
-            } catch (e) {
-              debugPrint("Map not ready to move yet: $e");
-            }
-          }
-        });
+        // Animate camera smoothly to the new location
+        if (_mapController != null) {
+          _mapController!.animateCamera(
+            CameraUpdate.newLatLng(newLocation),
+          );
+        }
 
+        // Fetch route if we have a destination and haven't fetched it yet
         if (shouldFetchRoute && widget.destination != null) {
           _fetchRoute(newLocation, widget.destination!);
         }
@@ -97,6 +76,7 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
     setState(() { _isFetchingRoute = true; });
 
     try {
+      // Kept your free OSRM routing logic!
       final url = 'http://router.project-osrm.org/route/v1/driving/'
           '${start.longitude},${start.latitude};${end.longitude},${end.latitude}'
           '?geometries=geojson&overview=full';
@@ -116,7 +96,9 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
     } catch (e) {
       debugPrint("Error fetching route: $e");
     } finally {
-      setState(() { _isFetchingRoute = false; });
+      if (mounted) {
+        setState(() { _isFetchingRoute = false; });
+      }
     }
   }
 
@@ -124,8 +106,7 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
   Widget build(BuildContext context) {
     final normalizedStatus = widget.status.toLowerCase();
 
-    // 🌟 THE FIX 1: We create a master rule for when to show the tracking elements.
-    // Now, the bike and line will show up immediately when the order is accepted!
+    // Show tracking elements when accepted, confirmed, ready, or out_for_delivery
     final bool showTracking = normalizedStatus == 'accepted' ||
         normalizedStatus == 'confirmed' ||
         normalizedStatus == 'ready' ||
@@ -150,91 +131,64 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
       );
     }
 
+    // Build Markers Set
+    final Set<Marker> markers = {};
+
+    if (showTracking) {
+      // Driver Marker (Orange)
+      markers.add(
+        Marker(
+          markerId: const MarkerId('driver_marker'),
+          position: _currentDriverLocation!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          infoWindow: const InfoWindow(title: "Delivery Partner"),
+        ),
+      );
+
+      // Destination Marker (Red)
+      if (widget.destination != null) {
+        markers.add(
+          Marker(
+            markerId: const MarkerId('destination_marker'),
+            position: widget.destination!,
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+            infoWindow: const InfoWindow(title: "Delivery Location"),
+          ),
+        );
+      }
+    }
+
+    // Build Polylines Set
+    final Set<Polyline> polylines = {};
+
+    if (_routePoints.isNotEmpty && showTracking) {
+      polylines.add(
+        Polyline(
+          polylineId: const PolylineId('route_line'),
+          points: _routePoints,
+          color: Colors.blueAccent.withOpacity(0.8),
+          width: 4,
+        ),
+      );
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: _currentDriverLocation!,
-            initialZoom: 15.0,
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-            ),
+        GoogleMap(
+          initialCameraPosition: CameraPosition(
+            target: _currentDriverLocation!,
+            zoom: 15.0,
           ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.tiffinity.customer',
-            ),
-
-            // THE ROUTE LINE
-            if (_routePoints.isNotEmpty && showTracking)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: _routePoints,
-                    strokeWidth: 4.0,
-                    color: Colors.blueAccent.withOpacity(0.8),
-                    isDotted: false,
-                  ),
-                ],
-              ),
-
-            // THE DESTINATION MARKER
-            if (widget.destination != null && showTracking)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: widget.destination!,
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.topCenter,
-                    child: const Icon(
-                      Icons.location_on,
-                      size: 40,
-                      color: Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-
-            // THE ANIMATED DELIVERY BIKE
-            if (showTracking)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: _currentDriverLocation!,
-                    width: 60,
-                    height: 60,
-                    alignment: Alignment.center,
-                    child: TweenAnimationBuilder<LatLng>(
-                      duration: const Duration(milliseconds: 1200),
-                      curve: Curves.easeInOut,
-                      tween: LatLngTween(
-                        begin: _previousDriverLocation!,
-                        end: _currentDriverLocation!,
-                      ),
-                      builder: (context, animatedLocation, child) {
-                        return Material(
-                          elevation: 4.0,
-                          shape: const CircleBorder(),
-                          child: const CircleAvatar(
-                            backgroundColor: Colors.white,
-                            radius: 20,
-                            child: Icon(
-                              Icons.delivery_dining,
-                              size: 24,
-                              color: Color.fromARGB(255, 27, 84, 78),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-          ],
+          onMapCreated: (GoogleMapController controller) {
+            _mapController = controller;
+          },
+          markers: markers,
+          polylines: polylines,
+          myLocationEnabled: false,
+          zoomControlsEnabled: false, // Hiding controls for a cleaner look
+          mapToolbarEnabled: false,
+          compassEnabled: false,
         ),
 
         // SHADOW GRADIENT
@@ -254,9 +208,11 @@ class _OrderLiveMapState extends State<OrderLiveMap> {
           ),
         ),
 
-        // 🌟 THE FIX 2: Sleek Floating Status Message
-        // Moved from the center of the screen to a beautiful floating badge at the top!
-        if (normalizedStatus == 'confirmed' || normalizedStatus == 'ready' || normalizedStatus == 'accepted' || normalizedStatus == 'pending')
+        // Floating Status Message
+        if (normalizedStatus == 'confirmed' ||
+            normalizedStatus == 'ready' ||
+            normalizedStatus == 'accepted' ||
+            normalizedStatus == 'pending')
           Positioned(
             top: 30,
             left: 0,

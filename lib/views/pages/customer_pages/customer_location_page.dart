@@ -37,17 +37,17 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
   Future<void> _loadSavedAddresses() async {
     try {
       final response =
-          await ApiService.getRequest(
-                'users/get_user_addresses.php?user_id=${widget.userId}',
-              )
-              as Map<String, dynamic>; // ✅ Fixed
+      await ApiService.getRequest(
+        'users/get_user_addresses.php?user_id=${widget.userId}',
+      )
+      as Map<String, dynamic>;
 
       if (response['success'] == true && response['addresses'] != null) {
         setState(() {
           _savedAddresses =
               (response['addresses'] as List)
                   .map((e) => Map<String, dynamic>.from(e as Map))
-                  .toList(); // ✅ Fixed type conversion
+                  .toList();
           _showSavedAddresses = _savedAddresses.isNotEmpty;
         });
 
@@ -174,15 +174,107 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
       backgroundColor: Colors.transparent,
       builder:
           (context) => CustomerAddressForm(
-            userId: widget.userId,
-            latitude: _currentPosition!.latitude,
-            longitude: _currentPosition!.longitude,
-            detectedAddress: _currentAddress,
-            onSaved: (address) {
-              _showDeliveringAnimation(address);
-            },
-          ),
+        userId: widget.userId,
+        latitude: _currentPosition!.latitude,
+        longitude: _currentPosition!.longitude,
+        detectedAddress: _currentAddress,
+        onSaved: (address) {
+          _showDeliveringAnimation(address);
+        },
+      ),
     );
+  }
+
+  // ✅ Open the form pre-filled for editing
+  void _editAddress(Map<String, dynamic> address) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CustomerAddressForm(
+        userId: widget.userId,
+        latitude: double.tryParse(address['latitude'].toString()) ?? 19.0760,
+        longitude: double.tryParse(address['longitude'].toString()) ?? 72.8777,
+        detectedAddress: '${address['area']}',
+        existingAddress: address, // Passes the data to edit mode!
+        onSaved: (displayAddress) {
+          // When an address is updated, refresh the list
+          _loadSavedAddresses();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Address updated successfully!'), backgroundColor: Colors.green),
+          );
+        },
+      ),
+    );
+  }
+
+  // ✅ Delete saved address
+  Future<void> _deleteAddress(Map<String, dynamic> address) async {
+    // 1. Show confirmation dialog
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Address'),
+        content: const Text('Are you sure you want to delete this address?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade50,
+              elevation: 0,
+            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm) return;
+
+    try {
+      // 2. Show loading dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // 3. Call your PHP API to delete the address
+      final response = await ApiService.postRequest('users/delete_address.php', {
+        'user_id': widget.userId,
+        'address_id': address['id'].toString(),
+      });
+
+      if (mounted) Navigator.pop(context); // Close loading dialog
+
+      if (response['success'] == true) {
+        // 4. Update the UI list
+        setState(() {
+          _savedAddresses.removeWhere((item) => item['id'] == address['id']);
+          _showSavedAddresses = _savedAddresses.isNotEmpty;
+        });
+
+        // If no addresses left, it automatically falls back to showing the map
+        if (_savedAddresses.isEmpty) {
+          _getCurrentLocation();
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Address deleted successfully'), backgroundColor: Colors.green),
+        );
+      } else {
+        _showError(response['message'] ?? 'Failed to delete address');
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Close loading if error
+      _showError('Error deleting address: $e');
+    }
   }
 
   // Select saved address and set as default
@@ -236,15 +328,15 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
       PageRouteBuilder(
         pageBuilder:
             (context, animation, secondaryAnimation) => DeliveringToAnimation(
-              address: address,
-              onComplete: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => const CustomerWidgetTree(),
-                  ),
-                );
-              },
-            ),
+          address: address,
+          onComplete: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => const CustomerWidgetTree(),
+              ),
+            );
+          },
+        ),
         transitionDuration: const Duration(milliseconds: 300),
       ),
     );
@@ -344,12 +436,13 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
     );
   }
 
+  // ✅ Updated Address Card with Edit & Delete Buttons
   Widget _buildAddressCard(Map<String, dynamic> address) {
     return GestureDetector(
       onTap: () => _selectAddress(address),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -367,6 +460,7 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(10),
+              margin: const EdgeInsets.only(top: 4),
               decoration: BoxDecoration(
                 color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(8),
@@ -386,6 +480,7 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 4),
                   Text(
                     address['address_type']?.toString().toUpperCase() ??
                         'OTHER',
@@ -413,7 +508,23 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: Colors.grey),
+
+            // ✅ Edit and Delete Buttons
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.edit_outlined, color: Colors.blue.shade600),
+                  onPressed: () => _editAddress(address),
+                  tooltip: 'Edit Address',
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400),
+                  onPressed: () => _deleteAddress(address),
+                  tooltip: 'Delete Address',
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -427,19 +538,19 @@ class _CustomerLocationPageState extends State<CustomerLocationPage> {
         _isLoading
             ? const Center(child: CircularProgressIndicator())
             : GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(
-                  _currentPosition?.latitude ?? 19.0760,
-                  _currentPosition?.longitude ?? 72.8777,
-                ),
-                zoom: 16.0,
-              ),
-              markers: _markers,
-              onMapCreated: (controller) => _mapController = controller,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
+          initialCameraPosition: CameraPosition(
+            target: LatLng(
+              _currentPosition?.latitude ?? 19.0760,
+              _currentPosition?.longitude ?? 72.8777,
             ),
+            zoom: 16.0,
+          ),
+          markers: _markers,
+          onMapCreated: (controller) => _mapController = controller,
+          myLocationEnabled: true,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: false,
+        ),
 
         // Top App Bar
         Positioned(

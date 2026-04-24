@@ -38,7 +38,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   final List<String> _statusFilters = [
     'All',
-    'subscriptions',
+    ' ',
     'pending',
     'accepted',
     'confirmed',

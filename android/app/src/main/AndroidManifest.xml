@@ -13,6 +13,10 @@
         android:label="Tiffinity"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao" />
         
         <!-- Main Activity -->
         <activity

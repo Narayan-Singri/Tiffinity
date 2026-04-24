@@ -7,6 +7,7 @@ class CustomerAddressForm extends StatefulWidget {
   final double longitude;
   final String detectedAddress;
   final Function(String)? onSaved;
+  final Map<String, dynamic>? existingAddress; // ✅ Added to support Edit Mode
 
   const CustomerAddressForm({
     super.key,
@@ -15,6 +16,7 @@ class CustomerAddressForm extends StatefulWidget {
     required this.longitude,
     required this.detectedAddress,
     this.onSaved,
+    this.existingAddress, // ✅ Added to support Edit Mode
   });
 
   @override
@@ -33,6 +35,20 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // ✅ If we are editing, pre-fill the form fields with existing data
+    if (widget.existingAddress != null) {
+      _nameController.text = widget.existingAddress!['name'] ?? '';
+      _phoneController.text = widget.existingAddress!['phone'] ?? '';
+      _roomController.text = widget.existingAddress!['room_no'] ?? '';
+      _buildingController.text = widget.existingAddress!['building'] ?? '';
+      _areaController.text = widget.existingAddress!['area'] ?? '';
+      _selectedType = widget.existingAddress!['address_type'] ?? 'home';
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
@@ -48,28 +64,38 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
     setState(() => _isLoading = true);
 
     try {
-      final response =
-          await ApiService.postForm('users/save_customer_location.php', {
-            'user_id': widget.userId,
-            'latitude': widget.latitude.toString(),
-            'longitude': widget.longitude.toString(),
-            'name': _nameController.text.trim(),
-            'phone': _phoneController.text.trim(),
-            'room_no': _roomController.text.trim(),
-            'building': _buildingController.text.trim(),
-            'area': _areaController.text.trim(),
-            'address_type': _selectedType,
-          });
+      // ✅ Determine if we are creating or updating
+      final isEdit = widget.existingAddress != null;
+      final endpoint = isEdit ? 'users/update_address.php' : 'users/save_customer_location.php';
+
+      final Map<String, String> body = {
+        'user_id': widget.userId,
+        'latitude': widget.latitude.toString(),
+        'longitude': widget.longitude.toString(),
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'room_no': _roomController.text.trim(),
+        'building': _buildingController.text.trim(),
+        'area': _areaController.text.trim(),
+        'address_type': _selectedType,
+      };
+
+      // ✅ Add address_id if we are editing
+      if (isEdit) {
+        body['address_id'] = widget.existingAddress!['id'].toString();
+      }
+
+      final response = await ApiService.postForm(endpoint, body);
 
       if (response['success'] == true) {
         if (mounted) {
-          // ✅ Create display address
+          // Create display address
           final displayAddress =
               '${_roomController.text.trim()}, ${_buildingController.text.trim()}';
 
           Navigator.pop(context); // Close bottom sheet
 
-          // ✅ Call callback if provided
+          // Call callback if provided
           if (widget.onSaved != null) {
             widget.onSaved!(displayAddress);
           } else {
@@ -95,6 +121,8 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
 
   @override
   Widget build(BuildContext context) {
+    final isEdit = widget.existingAddress != null;
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -126,10 +154,10 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
               ),
               const SizedBox(height: 20),
 
-              // Title
-              const Text(
-                'Add Address Details',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              // Title ✅ Dynamically changes based on Add/Edit mode
+              Text(
+                isEdit ? 'Update Address Details' : 'Add Address Details',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
 
@@ -242,7 +270,7 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
               ),
               const SizedBox(height: 24),
 
-              // Save Button
+              // Save Button ✅ Dynamically changes text based on Add/Edit mode
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -255,23 +283,23 @@ class _CustomerAddressFormState extends State<CustomerAddressForm> {
                     ),
                   ),
                   child:
-                      _isLoading
-                          ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                          : const Text(
-                            'Save Address',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                  _isLoading
+                      ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                      : Text(
+                    isEdit ? 'Update Address' : 'Save Address',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

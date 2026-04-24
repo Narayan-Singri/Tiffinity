@@ -178,10 +178,7 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage>
     if (_orders.isEmpty) {
       return Scaffold(
         appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_rounded),
-            onPressed: () => Navigator.pop(context),
-          ),
+          automaticallyImplyLeading: false, // ✅ Ensures no default back button appears
           title: const Text('My Orders'),
           elevation: 0,
           // --- UPDATED GREEN ROUNDED TOP BAR ---
@@ -225,10 +222,7 @@ class _CustomerOrdersPageState extends State<CustomerOrdersPage>
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false, // ✅ Ensures no default back button appears
         title: const Text('My Orders'),
         elevation: 0,
         // --- UPDATED GREEN ROUNDED TOP BAR ---
