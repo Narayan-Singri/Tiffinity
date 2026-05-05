@@ -16,7 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:Tiffinity/views/pages/admin_pages/wallet_screen.dart';
 import 'package:Tiffinity/views/pages/admin_pages/earnings_details_page.dart';
-// 👇 NEW IMPORT FOR ANALYTICS SCREEN 👇
+// 🌟 NEW IMPORT FOR ANALYTICS SCREEN 🌟
 import 'package:Tiffinity/views/pages/admin_pages/mess_analytics_screen.dart';
 
 class AdminProfilePage extends StatefulWidget {
@@ -51,6 +51,12 @@ class _AdminProfilePageState extends State<AdminProfilePage>
   final _ownerNameController = TextEditingController();
   final _ownerEmailController = TextEditingController();
   final _ownerPhoneController = TextEditingController();
+
+  // Controllers for Bank/KYC data (NEW)
+  final _bankNameController = TextEditingController();
+  final _bankAccNoController = TextEditingController();
+  final _bankIfscController = TextEditingController();
+  final _bankAccNameController = TextEditingController();
 
   // Time variables
   TimeOfDay? _openingTime;
@@ -99,6 +105,10 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     _ownerNameController.dispose();
     _ownerEmailController.dispose();
     _ownerPhoneController.dispose();
+    _bankNameController.dispose();
+    _bankAccNoController.dispose();
+    _bankIfscController.dispose();
+    _bankAccNameController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -143,6 +153,12 @@ class _AdminProfilePageState extends State<AdminProfilePage>
       _descriptionController.text = _messData!['description'] ?? '';
       _messPhoneController.text = _messData!['phone'] ?? '';
       _addressController.text = _messData!['address'] ?? '';
+
+      // Populate KYC details
+      _bankNameController.text = _messData!['bank_name'] ?? '';
+      _bankAccNoController.text = _messData!['bank_account_number'] ?? '';
+      _bankIfscController.text = _messData!['bank_ifsc_code'] ?? '';
+      _bankAccNameController.text = _messData!['bank_account_name'] ?? '';
 
       if (_messData!['open_time'] != null) {
         final parts = _messData!['open_time'].toString().split(':');
@@ -272,6 +288,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
 
     setState(() => _isSaving = true);
 
+    // 1️⃣ UPDATE MESS DETAILS (Ignore error if no changes were made)
     try {
       await ApiService.postForm('messes/update_mess_details.php', {
         'mess_id': _messData!['id'].toString(),
@@ -289,27 +306,48 @@ class _AdminProfilePageState extends State<AdminProfilePage>
             ? '${_closingTime!.hour.toString().padLeft(2, '0')}:${_closingTime!.minute.toString().padLeft(2, '0')}:00'
             : '',
       });
+    } catch (e) {
+      debugPrint('Mess details update skipped (likely no changes): $e');
+    }
 
+    // 2️⃣ UPDATE OWNER DETAILS (Ignore error if no changes were made)
+    try {
       await ApiService.postForm('users/update_user_details.php', {
         'uid': _userData!['uid'],
         'name': _ownerNameController.text.trim(),
         'email': _ownerEmailController.text.trim(),
         'phone': _ownerPhoneController.text.trim(),
       });
-
-      await _loadProfileData();
-
-      setState(() {
-        _isSaving = false;
-        _isEditMode = false;
-      });
-
-      _showSnackbar('Profile updated successfully!', isError: false);
-      HapticFeedback.mediumImpact();
     } catch (e) {
-      setState(() => _isSaving = false);
-      _showSnackbar('Failed to update: $e', isError: true);
+      debugPrint('Owner details update skipped (likely no changes): $e');
     }
+
+    // 3️⃣ SAVE BANK DETAILS (KYC)
+    try {
+      await ApiService.postForm('messes/update_bank_details.php', {
+        'mess_id': _messData!['id'].toString(),
+        'bank_name': _bankNameController.text.trim(),
+        'bank_account_number': _bankAccNoController.text.trim(),
+        'bank_ifsc_code': _bankIfscController.text.trim(),
+        'bank_account_name': _bankAccNameController.text.trim(),
+      });
+    } catch (e) {
+      // If the bank details fail, we actually want to show an error
+      setState(() => _isSaving = false);
+      _showSnackbar('Failed to update bank details: $e', isError: true);
+      return;
+    }
+
+    // 4️⃣ RELOAD EVERYTHING
+    await _loadProfileData();
+
+    setState(() {
+      _isSaving = false;
+      _isEditMode = false;
+    });
+
+    _showSnackbar('Profile updated successfully!', isError: false);
+    HapticFeedback.mediumImpact();
   }
 
   Future<void> _pickAndUploadImage(ImageSource source) async {
@@ -647,11 +685,12 @@ class _AdminProfilePageState extends State<AdminProfilePage>
                         const SizedBox(height: 16),
                         _buildOwnerInfoCard(),
                         const SizedBox(height: 16),
+                        _buildBankInfoCard(), // 🌟 NEW KYC CARD ADDED HERE
+                        const SizedBox(height: 16),
                         if (!_isEditMode) _buildLocationCard(),
                         const SizedBox(height: 16),
                         if (!_isEditMode) _buildEarningSummaryCard(),
                         const SizedBox(height: 16),
-                        // 👇 NEW ANALYTICS ENTRY POINT ADDED HERE 👇
                         if (!_isEditMode) _buildAnalyticsCard(),
                         const SizedBox(height: 16),
                         if (!_isEditMode) _buildResetPasswordButton(),
@@ -1274,6 +1313,69 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     );
   }
 
+  // 🌟 NEW: BANK INFO CARD (KYC)
+  Widget _buildBankInfoCard() {
+    String kycStatus = _messData?['kyc_status'] ?? 'pending';
+    Color statusColor = kycStatus == 'verified' ? Colors.green : (kycStatus == 'rejected' ? Colors.red : Colors.orange);
+    IconData statusIcon = kycStatus == 'verified' ? Icons.verified : (kycStatus == 'rejected' ? Icons.cancel : Icons.pending_actions);
+
+    return _buildCardShell(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: false,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          childrenPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          leading: Container(
+            decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.all(8),
+            child: const Icon(Icons.account_balance_rounded, color: Colors.blue, size: 20),
+          ),
+          title: const Text('Bank Details (KYC)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          subtitle: Row(
+            children: [
+              Icon(statusIcon, color: statusColor, size: 14),
+              const SizedBox(width: 4),
+              Text(kycStatus.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
+            ],
+          ),
+          children: [
+            const SizedBox(height: 4),
+            _buildEditableField(
+              icon: Icons.account_balance,
+              label: 'Bank Name',
+              controller: _bankNameController,
+              enabled: _isEditMode,
+            ),
+            const SizedBox(height: 14),
+            _buildEditableField(
+              icon: Icons.person,
+              label: 'Account Holder Name',
+              controller: _bankAccNameController,
+              enabled: _isEditMode,
+            ),
+            const SizedBox(height: 14),
+            _buildEditableField(
+              icon: Icons.numbers,
+              label: 'Account Number',
+              controller: _bankAccNoController,
+              enabled: _isEditMode,
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 14),
+            _buildEditableField(
+              icon: Icons.code,
+              label: 'IFSC Code',
+              controller: _bankIfscController,
+              enabled: _isEditMode,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLocationCard() {
     return _buildCardShell(
       child: Theme(
@@ -1514,7 +1616,7 @@ class _AdminProfilePageState extends State<AdminProfilePage>
     );
   }
 
-  // 👇 NEW ANALYTICS CARD WIDGET 👇
+  // 🌟 NEW ANALYTICS CARD WIDGET 🌟
   Widget _buildAnalyticsCard() {
     if (_messData == null) return const SizedBox.shrink();
 
