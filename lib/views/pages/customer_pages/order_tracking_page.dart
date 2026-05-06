@@ -383,11 +383,25 @@ class _OrderTrackingPageState extends State<OrderTrackingPage>
                         ),
                         const SizedBox(height: 28),
 
-                        // Delivery Partner Card
-                        if (_orderData!['delivery_partner_details'] != null) ...[
-                          _buildDeliveryPartnerCard(isDark),
-                          const SizedBox(height: 28),
-                        ],
+                          // 🚨 THE FIX: Delivery Partner Card
+                          // Only show the partner if they exist AND the order status proves they accepted it
+                        Builder(
+                          builder: (context) {
+                            final status = (_orderData?['status'] ?? 'pending').toString().toLowerCase();
+                            // These are the statuses where the delivery boy has officially accepted the trip
+                            final bool hasDriverAccepted = ['confirmed', 'ready', 'out_for_delivery', 'delivered'].contains(status);
+
+                            if (_orderData!['delivery_partner_details'] != null && hasDriverAccepted) {
+                              return Column(
+                                children: [
+                                  _buildDeliveryPartnerCard(isDark),
+                                  const SizedBox(height: 28),
+                                ],
+                              );
+                            }
+                            return const SizedBox.shrink(); // Keeps it hidden!
+                          },
+                        ),
 
                         // Order Details Section
                         Text(
