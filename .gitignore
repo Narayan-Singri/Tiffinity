@@ -62,6 +62,8 @@ GoogleService-Info.plist
 *.pem
 *.p12
 *.jks
+key.properties
+**/key.properties
 
 # Local configuration files
 local.properties
