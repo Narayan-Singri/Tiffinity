@@ -52,7 +52,20 @@ class ApiService {
   // GENERIC HTTP METHODS
   // ============================================
 
+  // FIX(weekly-menu): Helper to get headers with auth token
+  // This ensures all API requests include the JWT Bearer token for authentication
+  // Previously, the Authorization header was missing causing backend auth failures
+  static Future<Map<String, String>> _getHeaders({String contentType = 'application/json'}) async {
+    final token = await getToken();
+    return {
+      'Content-Type': contentType,
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token', // FIX(weekly-menu): include auth token
+    };
+  }
+
   /// POST request with form data (URL-encoded)
+  /// FIX(weekly-menu): Now includes auth token via _getHeaders() for backend authentication
   static Future<Map<String, dynamic>> postForm(
     String endpoint,
     Map<String, dynamic> data,
@@ -67,12 +80,10 @@ class ApiService {
 
       debugPrint('📤 Data: $formData');
 
+      final headers = await _getHeaders(contentType: 'application/x-www-form-urlencoded');
       final response = await http.post(
         Uri.parse('$baseUrl/$endpoint'),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
+        headers: headers,
         encoding: Encoding.getByName('utf-8'),
         body: formData,
       );
@@ -107,6 +118,7 @@ class ApiService {
   }
 
   /// POST request with JSON body
+  /// FIX(weekly-menu): Now includes auth token via _getHeaders() for backend authentication
   static Future<Map<String, dynamic>> postRequest(
     String endpoint,
     Map<String, dynamic> data,
@@ -114,12 +126,11 @@ class ApiService {
     try {
       debugPrint('📤 POST JSON to: $baseUrl/$endpoint');
 
+      // FIX(weekly-menu): include auth token - ensures backend can verify user identity
+      final headers = await _getHeaders();
       final response = await http.post(
         Uri.parse('$baseUrl/$endpoint'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: headers,
         body: json.encode(data),
       );
 
@@ -142,11 +153,14 @@ class ApiService {
   }
 
   /// GET request
+  /// FIX(weekly-menu): Now includes auth token via _getHeaders() for backend authentication
   static Future<dynamic> getRequest(String endpoint) async {
     try {
       debugPrint('📤 GET: $baseUrl/$endpoint');
 
-      final response = await http.get(Uri.parse('$baseUrl/$endpoint'));
+      // FIX(weekly-menu): include auth token - ensures backend can verify user identity
+      final headers = await _getHeaders();
+      final response = await http.get(Uri.parse('$baseUrl/$endpoint'), headers: headers);
 
       debugPrint('📥 Response Status: ${response.statusCode}');
       debugPrint('📥 Response Body: ${response.body}'); // ✅ ADDED THIS LINE
