@@ -2,12 +2,13 @@ import 'dart:ui';
 import 'package:Tiffinity/views/pages/admin_pages/add_menu_item_page.dart';
 import 'package:flutter/material.dart';
 import 'package:Tiffinity/services/menu_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:Tiffinity/models/weekly_menu_model.dart';
 import 'package:intl/intl.dart';
 import 'package:Tiffinity/views/widgets/weekly_menu_widgets.dart';
 import 'package:Tiffinity/views/widgets/weekly_menu_item_card.dart';
 import 'package:Tiffinity/views/pages/admin_pages/add_weekly_items_page.dart';
+import 'package:Tiffinity/services/mess_service.dart';
+import 'package:Tiffinity/services/api_service.dart';
 
 class WeeklyMenuManagementPage extends StatefulWidget {
   const WeeklyMenuManagementPage({super.key});
@@ -87,21 +88,66 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
 
   Future<void> _loadMessId() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final messId = prefs.getInt('mess_id');
+      final userData = await ApiService.getUserData();
 
-      if (messId != null) {
-        setState(() => _messId = messId);
-        await _loadData();
-      } else {
+      if (userData == null) {
         if (mounted) {
           setState(() => _isLoading = false);
-          _showError('Mess not configured. Please complete setup first.');
+          _showError('User not logged in');
         }
+
+        return;
       }
+
+      final ownerId = userData['uid']?.toString();
+
+      if (ownerId == null || ownerId.isEmpty) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showError('Invalid user session');
+        }
+
+        return;
+      }
+
+      final messData = await MessService.getMessByOwner(ownerId);
+
+      if (messData == null || messData['id'] == null) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showError('No mess found for this account');
+        }
+
+        return;
+      }
+
+      final messId = int.tryParse(messData['id'].toString());
+
+      if (messId == null || messId <= 0) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showError('Invalid mess configuration');
+        }
+
+        return;
+      }
+
+      debugPrint('✅ AUTHENTICATED MESS ID: $messId');
+
+      if (mounted) {
+        setState(() {
+          _messId = messId;
+        });
+      }
+
+      await _loadData();
     } catch (e) {
-      debugPrint('Error in _loadMessId: $e');
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint('❌ Error in _loadMessId: $e');
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError('Failed to load mess');
+      }
     }
   }
 
@@ -161,21 +207,24 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: _isLoading
-          ? const Center(
-          child: CircularProgressIndicator(
-              color: Color.fromARGB(255, 27, 84, 78)))
-          : CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          _buildAppBar(),
-          _buildModeToggle(),
-          if (_isWeeklyMode) _buildWeekSelector(),
-          if (!_isWeeklyMode) _buildTodayHeader(),
-          if (_isWeeklyMode) _buildDayTabs(),
-          _buildMenuList(),
-        ],
-      ),
+      body:
+          _isLoading
+              ? const Center(
+                child: CircularProgressIndicator(
+                  color: Color.fromARGB(255, 27, 84, 78),
+                ),
+              )
+              : CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  _buildAppBar(),
+                  _buildModeToggle(),
+                  if (_isWeeklyMode) _buildWeekSelector(),
+                  if (!_isWeeklyMode) _buildTodayHeader(),
+                  if (_isWeeklyMode) _buildDayTabs(),
+                  _buildMenuList(),
+                ],
+              ),
       floatingActionButton: _buildAddMenuFAB(),
     );
   }
@@ -236,7 +285,7 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
                   gradient: LinearGradient(
                     colors: [
                       Color.fromARGB(255, 18, 65, 60),
-                      Color.fromARGB(255, 27, 84, 78)
+                      Color.fromARGB(255, 27, 84, 78),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -458,8 +507,18 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   String _formatWeekRange() {
     final end = _selectedWeekStart.add(const Duration(days: 6));
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     if (_selectedWeekStart.month == end.month) {
@@ -483,11 +542,12 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
           indicatorColor: Colors.transparent,
           labelPadding: const EdgeInsets.symmetric(horizontal: 8),
           onTap: (index) => setState(() => _selectedDay = _days[index]),
-          tabs: _days
-              .map(
-                (day) => DayTab(day: day, isSelected: _selectedDay == day),
-          )
-              .toList(),
+          tabs:
+              _days
+                  .map(
+                    (day) => DayTab(day: day, isSelected: _selectedDay == day),
+                  )
+                  .toList(),
         ),
       ),
     );
@@ -497,10 +557,11 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   // MENU LIST & EMPTY STATE
   // ============================================
   Widget _buildMenuList() {
-    final filteredItems = _weeklyMenu.where((item) {
-      final dayValue = item.days[_selectedDay];
-      return dayValue != null;
-    }).toList();
+    final filteredItems =
+        _weeklyMenu.where((item) {
+          final dayValue = item.days[_selectedDay];
+          return dayValue != null;
+        }).toList();
 
     if (filteredItems.isEmpty) {
       return SliverFillRemaining(
@@ -515,15 +576,27 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, spreadRadius: 5)
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
                   ],
                 ),
-                child: Icon(Icons.restaurant_menu, size: 64, color: Colors.grey.shade300),
+                child: Icon(
+                  Icons.restaurant_menu,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
               ),
               const SizedBox(height: 24),
               Text(
                 'No items scheduled',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -579,34 +652,42 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
   Future<void> _deleteWeeklyMenuItem(int id) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Remove Item'),
-          ],
-        ),
-        content: Text(
-          'Remove this item from ${_selectedDay[0].toUpperCase()}${_selectedDay.substring(1)}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Remove Item'),
+              ],
+            ),
+            content: Text(
+              'Remove this item from ${_selectedDay[0].toUpperCase()}${_selectedDay.substring(1)}?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Remove'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
@@ -636,7 +717,9 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddMenuItemPage(messId: _messId!, existingItem: itemData),
+        builder:
+            (context) =>
+                AddMenuItemPage(messId: _messId!, existingItem: itemData),
       ),
     );
 
@@ -679,12 +762,13 @@ class _WeeklyMenuManagementPageState extends State<WeeklyMenuManagementPage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AddWeeklyItemsPage(
-        messId: _messId!,
-        weekStartDate: _formatWeekStart(_selectedWeekStart),
-        selectedDay: _selectedDay,
-        allItems: _allMenuItems,
-      ),
+      builder:
+          (context) => AddWeeklyItemsPage(
+            messId: _messId!,
+            weekStartDate: _formatWeekStart(_selectedWeekStart),
+            selectedDay: _selectedDay,
+            allItems: _allMenuItems,
+          ),
     ).then((result) {
       if (result == true) {
         _loadData();

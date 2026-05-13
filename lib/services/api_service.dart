@@ -55,12 +55,16 @@ class ApiService {
   // FIX(weekly-menu): Helper to get headers with auth token
   // This ensures all API requests include the JWT Bearer token for authentication
   // Previously, the Authorization header was missing causing backend auth failures
-  static Future<Map<String, String>> _getHeaders({String contentType = 'application/json'}) async {
+  static Future<Map<String, String>> _getHeaders({
+    String contentType = 'application/json',
+  }) async {
     final token = await getToken();
     return {
       'Content-Type': contentType,
       'Accept': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token', // FIX(weekly-menu): include auth token
+      if (token != null)
+        'Authorization':
+            'Bearer $token', // FIX(weekly-menu): include auth token
     };
   }
 
@@ -80,7 +84,9 @@ class ApiService {
 
       debugPrint('📤 Data: $formData');
 
-      final headers = await _getHeaders(contentType: 'application/x-www-form-urlencoded');
+      final headers = await _getHeaders(
+        contentType: 'application/x-www-form-urlencoded',
+      );
       final response = await http.post(
         Uri.parse('$baseUrl/$endpoint'),
         headers: headers,
@@ -160,7 +166,10 @@ class ApiService {
 
       // FIX(weekly-menu): include auth token - ensures backend can verify user identity
       final headers = await _getHeaders();
-      final response = await http.get(Uri.parse('$baseUrl/$endpoint'), headers: headers);
+      final response = await http.get(
+        Uri.parse('$baseUrl/$endpoint'),
+        headers: headers,
+      );
 
       debugPrint('📥 Response Status: ${response.statusCode}');
       debugPrint('📥 Response Body: ${response.body}'); // ✅ ADDED THIS LINE
@@ -206,12 +215,10 @@ class ApiService {
       debugPrint('📤 PUT to: $baseUrl/$endpoint');
       debugPrint('📤 Data: ${json.encode(data)}');
 
+      final headers = await _getHeaders();
       final response = await http.put(
         Uri.parse('$baseUrl/$endpoint'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: headers,
         body: json.encode(data),
       );
 
@@ -239,18 +246,17 @@ class ApiService {
     }
   }
 
-  /// PUT request with form data (URL-encoded)
   static Future<void> put(String endpoint, Map<String, String> data) async {
     try {
       debugPrint('📤 PUT Form to: $baseUrl/$endpoint');
       debugPrint('📤 Data: $data');
 
+      final headers = await _getHeaders(
+        contentType: 'application/x-www-form-urlencoded',
+      );
       final response = await http.put(
         Uri.parse('$baseUrl/$endpoint'),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
+        headers: headers,
         encoding: Encoding.getByName('utf-8'),
         body: data,
       );
@@ -267,17 +273,18 @@ class ApiService {
     }
   }
 
-  /// DELETE request
   static Future<void> deleteRequest(String endpoint) async {
     try {
       debugPrint('📤 DELETE: $baseUrl/$endpoint');
 
-      final response = await http.delete(Uri.parse('$baseUrl/$endpoint'));
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('$baseUrl/$endpoint'),
+        headers: headers,
+      );
 
       debugPrint('📥 Response Status: ${response.statusCode}');
-      debugPrint(
-        '📥 Response Body: ${response.body}',
-      ); // ✅ Added for consistency
+      debugPrint('📥 Response Body: ${response.body}');
 
       if (response.statusCode != 200 && response.statusCode != 204) {
         throw Exception('Delete request failed');
